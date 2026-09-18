@@ -54,7 +54,7 @@ Commands run one at a time, serial flags included.
 |---|---|---|---|---|---|
 | app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run` | `npx playwright test --workers=1` |
 | infra | `infra/environments/dev/` | `terraform fmt -check -recursive ../..` | `terraform validate` | n/a | n/a |
-| deploy | `.github/workflows/` | `actionlint` | n/a | n/a | n/a |
+| deploy | `app/` | `npm run lint:workflows` | n/a | n/a | n/a |
 
 `terraform validate` needs `terraform init -backend=false` first in a fresh worktree.
 
