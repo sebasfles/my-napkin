@@ -161,3 +161,10 @@ The third carries the only debt this task creates, and it is now a row in the in
 - `docs/ARD.md:42` and `docs/modules/app/ard.md:27` keep saying "middleware", as `Context & decisions` instructs: they are dated log entries, not a description of the tree.
 - `docs/TRD.md` fixed on the om-reviewer's decision, since this PR already edits the file and he will not ship a doc he knows is wrong: the route count now reads seven, two built and five planned, and `src/lib/` lists the session and gate helpers as landed with only dynamo and s3 still later.
 - `docs/modules/deploy/trd.md:22` still claims `ci.yml` runs Playwright "without the `@aws` tag", which is doubly stale after 8241682. It stays untouched on the om-reviewer's decision: it is the `deploy` module's doc, 0002 has a round in flight on that exact step, and he hands it to the om-manager instead.
+
+### Round 2, scope addition on the om-reviewer's decision
+
+`playwright.config.ts` sets `reuseExistingServer: false`.
+Found by this task's own verification: the first e2e run at 9559307 failed all 17 tests because another workspace's dev server held port 3000 and Playwright adopted it, so the suite ran against a tree with no auth routes.
+Today that fails loudly; once 0004 lands, every branch has auth routes and an adopted server would answer correctly, turning the same collision into a passing run against the wrong code.
+Documented in `docs/modules/app/trd.md` and as an ARD entry, since reverting to the `!process.env.CI` idiom looks like a cleanup and is not.

@@ -132,6 +132,15 @@ source: 0005_password_auth
 - Revisit when: the e2e run against dev ever needs to mint a cookie, which would mean handing CI the signing secret.
 - Source: 0005_password_auth
 
+## 2026-09-18: Playwright never adopts a dev server it did not start
+
+- Decision: `playwright.config.ts` sets `reuseExistingServer: false`, so a busy port 3000 is a loud error instead of a server the suite silently adopts.
+- Alternatives rejected: the `!process.env.CI` idiom the Next and Playwright templates ship; a per-workspace port.
+- Reason: several worktrees of this repo run side by side and all of them default to port 3000, so the adopted server belongs to another branch. While only this branch has auth routes that shows up as a flood of 404s, but once every branch has them an adopted server answers correctly and the suite passes against the wrong tree, which is a green that lies on the one artifact the review rests on. In CI the flag was already false, and `e2e-dev.yml` sets `BASE_URL` and starts no server, so nothing there changes.
+- Debt created: none; each local run pays a few seconds for a fresh server.
+- Revisit when: the suite gets a per-workspace port, which would make adoption safe again.
+- Source: 0005_password_auth
+
 ## Known debt
 
 - Scenes never go through the API, because of the 6 MB Lambda request limit.

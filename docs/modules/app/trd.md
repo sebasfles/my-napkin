@@ -82,4 +82,5 @@ Locale and theme are never configured; both are read from the browser and persis
 - Unit: `npx vitest run`, over `tests/unit/`, Node environment, pure functions only.
 - E2E: `npx playwright test --workers=1`, run on a developer machine and in `e2e-dev.yml` against `napkin.dev.sdfles.com`; `ci.yml` runs none.
 - Playwright starts `npm run dev` itself unless `BASE_URL` is set, and reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local` to start it and to log in.
+  It never adopts a server already on the port; a busy port is an error, because that server is usually another workspace's tree.
 - Install: `npm ci`. Build for AWS: `npx open-next build`.
