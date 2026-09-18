@@ -6,7 +6,16 @@
   "sidebar": {
     "title": "my-napkin",
     "diagrams": "Diagramas",
-    "empty": "Aún no hay diagramas"
+    "empty": "Aún no hay diagramas",
+    "logout": "Cerrar sesión"
+  },
+  "login": {
+    "title": "my-napkin",
+    "subtitle": "Escribe la contraseña para abrir tus diagramas.",
+    "passwordLabel": "Contraseña",
+    "submit": "Entrar",
+    "invalidPassword": "Esa contraseña no es correcta.",
+    "unexpected": "Algo salió mal. Vuelve a intentarlo."
   },
   "themeToggle": {
     "toLight": "Cambiar al tema claro",

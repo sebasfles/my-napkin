@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-17
+updated: 2026-09-18
 source: setup
 ---
 
@@ -100,3 +100,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
 | deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
+| app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |

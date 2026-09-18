@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-17
-source: 0001_repo_base
+updated: 2026-09-18
+source: 0005_password_auth
 ---
 
 # app: architecture decisions
@@ -105,6 +105,42 @@ source: 0001_repo_base
 - Revisit when: the editor publishes a release that bumps the mermaid chain.
 - Source: 0001_repo_base
 
+## 2026-09-18: One unit-tested function decides what is public, not a matcher
+
+- Decision: `src/proxy.ts` exports no `config.matcher`; `isPublicPath` in `src/lib/gate.ts` is the only place that says what a request may reach without a cookie, and it allows exact `/login`, `/api/login` and `/favicon.ico`, the `/_next/` prefix, and root-level paths carrying an extension (`/robots.txt`), which is what `public/` serves.
+- Alternatives rejected: a `config.matcher` regex excluding `/_next` and the login routes, with the rest checked in code.
+- Reason: a matcher beside the function is two allowlists that drift, and drift there is an authentication hole that no unit test can see, the `/loginx` and `/api/loginx` class of accident. The matcher also buys nothing real, since CloudFront serves static assets from the bucket and they never reach the Lambda.
+- Debt created: none.
+- Revisit when: the gate becomes hot enough in production that skipping it per path measurably matters, which it cannot while static assets bypass the Lambda.
+- Source: 0005_password_auth
+
+## 2026-09-18: Web Crypto for both the session signature and the password comparison
+
+- Decision: `src/lib/session.ts` signs and verifies with `crypto.subtle` HMAC-SHA256 over the payload string exactly as received, and compares the password as two SHA-256 digests, byte by byte, instead of using `node:crypto.timingSafeEqual`.
+- Alternatives rejected: `jose` or a JWT library; `node:crypto` with `timingSafeEqual`.
+- Reason: there are no claims to carry, so a JWT library is a dependency for nothing. One Web Crypto path runs unchanged in the gate and in the route handlers whatever runtime Next puts them on, and comparing fixed 32-byte digests is constant time whatever the length of what the visitor typed, which comparing the raw strings would not be.
+- Debt created: none.
+- Revisit when: the session needs to carry claims, or a rotation scheme needs more than one secret.
+- Source: 0005_password_auth
+
+## 2026-09-18: The Playwright config demands the signing secret only when it starts the server
+
+- Decision: `playwright.config.ts` requires `APP_PASSWORD` always and `SESSION_SECRET` only when no `BASE_URL` is set, that is only when it starts `npm run dev` itself.
+- Alternatives rejected: requiring both always; requiring neither and letting the suite fail at the first request.
+- Reason: with `BASE_URL` set the test process starts no server and the deployed app holds its own secret, and `e2e-dev.yml` passes only `BASE_URL` and `APP_PASSWORD` from the `dev` environment, so demanding both would fail the promotion PR for a variable nobody there needs.
+- Debt created: a spec cannot forge a session cookie when it runs against a deployed environment, so the expired-cookie path is proved by unit tests only; the e2e suite proves the tampered-payload path instead.
+- Revisit when: the e2e run against dev ever needs to mint a cookie, which would mean handing CI the signing secret.
+- Source: 0005_password_auth
+
+## 2026-09-18: Playwright never adopts a dev server it did not start
+
+- Decision: `playwright.config.ts` sets `reuseExistingServer: false`, so a busy port 3000 is a loud error instead of a server the suite silently adopts.
+- Alternatives rejected: the `!process.env.CI` idiom the Next and Playwright templates ship; a per-workspace port.
+- Reason: several worktrees of this repo run side by side and all of them default to port 3000, so the adopted server belongs to another branch. While only this branch has auth routes that shows up as a flood of 404s, but once every branch has them an adopted server answers correctly and the suite passes against the wrong tree, which is a green that lies on the one artifact the review rests on. In CI the flag was already false, and `e2e-dev.yml` sets `BASE_URL` and starts no server, so nothing there changes.
+- Debt created: none; each local run pays a few seconds for a fresh server.
+- Revisit when: the suite gets a per-workspace port, which would make adoption safe again.
+- Source: 0005_password_auth
+
 ## Known debt
 
 - Scenes never go through the API, because of the 6 MB Lambda request limit.
@@ -113,3 +149,4 @@ source: 0001_repo_base
 - The Lambda is not in a VPC and reaches S3 and DynamoDB over the public internet, with no NAT Gateway.
 - `allowScripts` in `app/package.json` is pinned per version, so a dependency bump re-blocks its install script.
 - 9 transitive npm advisories under the editor package that no change in this repo can resolve.
+- The expired-cookie path is proved by unit tests only, because a spec against a deployed environment has no signing secret to forge one with.

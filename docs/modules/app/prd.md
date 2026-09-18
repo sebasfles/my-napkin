@@ -1,12 +1,12 @@
 ---
-updated: 2026-09-17
-source: 0001_repo_base
+updated: 2026-09-18
+source: 0005_password_auth
 ---
 
 # app: product
 
-The shell behaves as described below under Interface.
-The two flows, login and browsing diagrams, are still planned.
+The shell and the login behave as described below under Interface.
+Browsing diagrams is still planned.
 
 ## Purpose
 
@@ -15,23 +15,26 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 
 ## Interface
 
-The user opens `/` and gets the editor filling the viewport beside a sidebar.
-The sidebar carries the app name, the diagram list and the two controls that change how everything looks: language and theme.
+The user opens `/`, is asked for the password once, and gets the editor filling the viewport beside a sidebar.
+The sidebar carries the app name, the diagram list, the two controls that change how everything looks, language and theme, and a way to close the session.
 The interface starts in the browser's language, Spanish or English, and in the browser's light or dark preference, and the editor itself follows both.
 Either choice can be overridden from the sidebar and survives a reload.
 
 ## User flows
 
-Both flows below are planned; today the sidebar shows an empty list and nothing is saved.
+Login works; browsing diagrams is planned, and today the sidebar shows an empty list and nothing is saved.
 
 ### Login
 
-1. User opens the app and is redirected to `/login` if there is no valid session.
+1. User opens any page or calls any API route and is sent to `/login` if there is no valid session, an API call being answered 401 instead.
 2. User enters the password.
-3. On success, a signed session cookie is set and the user lands on `/`.
-4. On failure, the form shows an error and the user stays on `/login`.
+3. On success, a signed session cookie is set and the user lands where he was going, or on `/` if he came straight to the login page.
+4. On failure, the form shows an error, the user stays on `/login`, and the answer takes half a second whatever the password was.
+5. User closes the session from the sidebar and is back at `/login`.
 
 ### Browse and edit diagrams
+
+Planned.
 
 1. User sees a list of diagrams on the side and the editor in the center.
 2. User opens a diagram; its scene loads into the editor via `initialData`.

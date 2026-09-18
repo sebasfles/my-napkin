@@ -19,10 +19,10 @@ The app's shell is built; everything else is the design the code must converge t
 ### app
 
 - Stack: TypeScript, Node 24, Next.js App Router with route handlers, Tailwind with shadcn/ui components, `next-themes` for dark mode, `next-intl` for `es` and `en`, `@excalidraw/excalidraw` from npm, npm as package manager, built with `@opennextjs/aws`.
-- Layout: `src/app/` (pages and `api/` route handlers), `src/middleware.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, later dynamo, s3, session), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
+- Layout: `src/app/` (pages and `api/` route handlers), `src/proxy.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, session and gate helpers, later dynamo and s3), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
 - Install: `npm ci`
 - Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal`.
-- API spec: none; five route handlers documented in `modules/app/trd.md`.
+- API spec: none; seven route handlers documented in `modules/app/trd.md`, the two auth ones built and the five diagram ones planned.
 - Data: DynamoDB table for the diagram index, S3 bucket for scene JSON; no ORM, no migrations. Both provisioned by `infra`.
 - Delivery: `dev` at `napkin.dev.sdfles.com` from `develop`, `prd` at `napkin.sdfles.com` from `main`. Built by OpenNext into one Lambda plus static assets, deployed by `deploy`.
 

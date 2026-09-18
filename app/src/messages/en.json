@@ -6,7 +6,16 @@
   "sidebar": {
     "title": "my-napkin",
     "diagrams": "Diagrams",
-    "empty": "No diagrams yet"
+    "empty": "No diagrams yet",
+    "logout": "Log out"
+  },
+  "login": {
+    "title": "my-napkin",
+    "subtitle": "Enter the password to open your diagrams.",
+    "passwordLabel": "Password",
+    "submit": "Enter",
+    "invalidPassword": "That password is not correct.",
+    "unexpected": "Something went wrong. Try again."
   },
   "themeToggle": {
     "toLight": "Switch to light theme",

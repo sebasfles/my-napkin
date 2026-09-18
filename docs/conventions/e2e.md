@@ -10,7 +10,7 @@ Playwright specs are the proof that a user flow works; a change to a user flow s
 ## What a user flow is
 
 - A page or layout under `app/src/app/`.
-- `app/src/middleware.ts`.
+- `app/src/proxy.ts`.
 - A route handler under `app/src/app/api/` that the UI calls.
 - The scene save and load path (debounce, presigned URLs, `updatedAt` touch).
 - The login and logout path.
