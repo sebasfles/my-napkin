@@ -163,3 +163,19 @@ Pending: nothing.
 
 Deferred: `focus-visible:border-ring` from `toggleVariants` and `buttonVariants` does not win over the static border colour, so a focused option keeps `border-input` and a focused `Button` keeps `border-transparent`; the ring itself paints in both.
 It is identical in the component that is already in `develop`, so it is a baseline issue of the generated `ui/` files, not of this task, and fixing it means editing files the ARD keeps as the CLI generates them.
+
+### Rebase on origin/develop 7d140c2, after 0005 landed
+
+The three commits are unchanged in content and order; only their shas moved.
+
+- `app/src/components/sidebar.tsx`: only the import block conflicted, the footer auto-merged on its own to `ThemeControl`, `LocaleToggle`, `LogoutButton`.
+  Imports left in path order, and no reference to the deleted `ThemeToggle` survives anywhere in `app/`.
+- `docs/modules/app/trd.md` Testing: our correction of the e2e line is dropped, because 0005 had already corrected it.
+  Theirs says what `docs/conventions/e2e.md` says and adds what ours did not: that Playwright reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local`, and that it never adopts a server it did not start.
+  Keeping ours would have been a second line saying the same thing in other words.
+- `docs/modules/app/trd.md` Structure: the two edits of the components row are merged into one, "theme control and locale toggle, login form, logout button".
+- `docs/modules/app/ard.md` and `docs/ARD.md`: both sides kept whole, ours last in date order, and the debt index carries both rows.
+  Frontmatter is `source: 0006_theme_three_state` in the three module files, since this task lands second.
+- `docs/modules/app/prd.md`: their login copy kept, our theme sentence after it.
+- `app/tests/e2e/theme.spec.ts` needed no edit: their `openEditor` logs in before `goto("/")`, so the spec inherits the session.
+  It duplicates nothing in `login.spec.ts`: both reload the page, but theirs asserts the session cookie survives and ours asserts the stored theme choice does.

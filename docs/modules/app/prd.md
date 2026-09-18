@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-18
-source: 0005_password_auth
+source: 0006_theme_three_state
 ---
 
 # app: product
@@ -19,6 +19,7 @@ The user opens `/`, is asked for the password once, and gets the editor filling 
 The sidebar carries the app name, the diagram list, the two controls that change how everything looks, language and theme, and a way to close the session.
 The interface starts in the browser's language, Spanish or English, and in the browser's light or dark preference, and the editor itself follows both.
 Either choice can be overridden from the sidebar and survives a reload.
+The theme offers system, light and dark, so it can be handed back to the browser's preference at any time and follows it again as it changes.
 
 ## User flows
 

@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-18
-source: 0005_password_auth
+source: 0006_theme_three_state
 ---
 
 # app: architecture decisions
@@ -141,6 +141,20 @@ source: 0005_password_auth
 - Revisit when: the suite gets a per-workspace port, which would make adoption safe again.
 - Source: 0005_password_auth
 
+## 2026-09-18: The theme is a three-option control, with system as a choice of its own
+
+- Decision: the sidebar carries a `ToggleGroup` with `type="single"` and system, light and dark always visible, added with the shadcn CLI and kept as generated.
+  `src/lib/theme.ts` normalizes any stored value to one of the three with `themeChoice`, which both the control and the Excalidraw prop read.
+  The border sits on the options (`variant="outline"`) rather than on a container, and the selected option's colour is set where the control is used.
+- Alternatives rejected: keeping the two-state toggle; a cycling button; a dropdown; a bordered container around the options.
+- Reason: the two-state toggle wrote light or dark on the first click and never wrote system again, so the interface stopped following the OS until localStorage was cleared.
+  Showing the three options makes the current state readable and system reachable, and the single-select group is a `radiogroup` with `aria-checked` and roving focus, so keyboard and screen reader behaviour come for free.
+  The selected colour is overridden at the call site because the generated variants paint hover and selected both `bg-muted`, which leaves the selection unreadable, and the generated files stay as the CLI wrote them.
+  A container with `overflow-hidden` would clip the options' focus ring, which is an outset shadow, so the border lives on the options instead.
+- Debt created: the selected option's colour is fixed at the call site, so a second toggle group repeats it or diverges from it.
+- Revisit when: a second `ToggleGroup` is added, or the CLI ships a variant whose selected state already differs from its hover state.
+- Source: 0006_theme_three_state
+
 ## Known debt
 
 - Scenes never go through the API, because of the 6 MB Lambda request limit.
@@ -150,3 +164,4 @@ source: 0005_password_auth
 - `allowScripts` in `app/package.json` is pinned per version, so a dependency bump re-blocks its install script.
 - 9 transitive npm advisories under the editor package that no change in this repo can resolve.
 - The expired-cookie path is proved by unit tests only, because a spec against a deployed environment has no signing secret to forge one with.
+- The theme control's selected colour is set at the call site, not in the generated variant.
