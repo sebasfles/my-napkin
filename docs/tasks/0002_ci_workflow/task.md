@@ -111,3 +111,33 @@ Consolidated 2026-09-17.
 - No check in `docs/checks/` has `paths` matching this diff, so review rounds run no background checkers.
 
 ## om-developer notes
+
+### Round 1
+
+Implemented the whole Scope: `.github/workflows/ci.yml` and `.github/dependabot.yml`, plus the single allowed touch in `app/` (the `github-actionlint@1.7.12` devDependency, the `lint:workflows` script and the resulting `package-lock.json` entries).
+Nothing else in `app/` and nothing in `infra/` changed.
+
+Rebased on `origin/develop` after 0001 merged, so the workflow is written against the real tree: Node comes from the root `.nvmrc`, the npm cache is keyed on `app/package-lock.json`, and `app/playwright.config.ts` was not touched because it already sets `retries` and `workers` under `CI`.
+
+What I verified locally, since `ci` itself can only be proven on a pull request:
+
+- `npm run lint:workflows` from `app/` exits 0 on the workflow, and exits 1 with the offending line when I break it (I flipped `runs-on` to an unknown label, saw the `runner-label` finding, and restored the file). A clean exit alone would not have proven the linter reads `.github/workflows/`.
+- `.github/dependabot.yml` validates against the SchemaStore `dependabot-2.0` schema with `ajv --spec=draft7`, run from `/tmp` so no dependency entered the repo. This is the evidence acceptance 5 asks for, since GitHub only reads that file from the default branch.
+
+Decisions this round that `Approach` and `Context & decisions` did not already record:
+
+- The Terraform steps are one shell step guarding on `infra/` being absent and looping over `infra/environments/*/`, entered only when the directory holds a `main.tf`. Chosen over `if:` expressions with `hashFiles` because one script covers both guards the task asks for (no directory, and a directory with no root yet) and a glob that matches nothing cannot fail it. `hashicorp/setup-terraform@v3` still runs unconditionally: it costs seconds and keeps the step list stable once `infra/` lands.
+- The actionlint binary is downloaded on every run rather than cached, with `GITHUB_TOKEN: ${{ github.token }}` in the step's environment so the GitHub Releases fetch is authenticated and not rate limited by the shared runner IP. `Context & decisions` left this open ("caches that path or accepts a small download"); a 2 MB download beats a cache save and restore in both runtime and workflow size. `github.token` comes from the `github` context, not from `secrets`, and is granted to fork pull requests, so `permissions: contents: read` with no secret still holds.
+- Step order follows Scope literally, so the workflow lint runs last. Fail-fast would argue for running it first, but the order is written down and a malformed workflow file fails at GitHub's own parse before any step runs.
+- The Playwright browser cache is restored and saved by `actions/cache@v4` keyed on the version resolved from `@playwright/test/package.json`, and `npx playwright install --with-deps chromium` runs unconditionally: on a cache hit it still has to install the OS packages, which the cache cannot carry.
+
+Pending, by design and not by omission:
+
+- Acceptance 1, 2 and 3 are proven on the draft pull request the om-reviewer opens, not here. Acceptance 2 needs four red `ci` runs (lint error, failing unit test, failing e2e, unformatted Terraform) and the tree at publish carries none of them.
+- The `docs/TRD.md` deploy row (path `app/`, lint `npm run lint:workflows`) is a `document-task` edit, not a round edit.
+
+Deferred, noted and not done:
+
+- `npm audit` on `app/` reports 11 advisories inherited from 0001, all through `@excalidraw/excalidraw` and its `nanoid`, whose only fix is a downgrade to 0.17.6. Out of scope here and not something `ci` should gate on today.
+- Dependabot opens one pull request per outdated dependency. If the weekly noise becomes real, `groups` on the npm ecosystem is the answer; not configured now because there is no evidence yet of how much it opens.
+- Caching `node_modules` beyond the `setup-node` npm cache stays deferred, as Out of scope says.
