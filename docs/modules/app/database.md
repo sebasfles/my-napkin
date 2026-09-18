@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-17
-source: setup
+source: 0001_repo_base
 ---
 
 # app: database
 
-No code exists yet.
+No data access exists yet: the shell reads and writes nothing.
 Schema is planned, defined in `infra` (Terraform), not in this module.
 
 ## Tables owned

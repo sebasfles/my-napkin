@@ -1,18 +1,28 @@
 ---
 updated: 2026-09-17
-source: setup
+source: 0001_repo_base
 ---
 
 # app: product
 
-No code exists yet. This describes the planned behavior, stated as planned.
+The shell behaves as described below under Interface.
+The two flows, login and browsing diagrams, are still planned.
 
 ## Purpose
 
 Sebastian gets his own Excalidraw on his own domain, with a list of diagrams that persist across sessions.
 One user, no sign-up, priced to run at $0 fixed cost per month.
 
+## Interface
+
+The user opens `/` and gets the editor filling the viewport beside a sidebar.
+The sidebar carries the app name, the diagram list and the two controls that change how everything looks: language and theme.
+The interface starts in the browser's language, Spanish or English, and in the browser's light or dark preference, and the editor itself follows both.
+Either choice can be overridden from the sidebar and survives a reload.
+
 ## User flows
+
+Both flows below are planned; today the sidebar shows an empty list and nothing is saved.
 
 ### Login
 
@@ -40,11 +50,7 @@ A failed save shows a passive indicator next to the diagram name and retries on 
 
 ## Out of scope
 
-- Live collaboration between multiple people.
-- Shared or public links to a diagram.
-- Multiple user accounts.
-- Folders to organize diagrams.
-- Search across diagrams.
+The same list as the product's, in `docs/PRD.md` under Not in the product.
 
 ## Open questions
 

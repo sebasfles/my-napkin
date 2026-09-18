@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "title": "my-napkin",
+    "description": "A personal whiteboard with diagrams that persist across sessions."
+  },
+  "sidebar": {
+    "title": "my-napkin",
+    "diagrams": "Diagrams",
+    "empty": "No diagrams yet"
+  },
+  "themeToggle": {
+    "toLight": "Switch to light theme",
+    "toDark": "Switch to dark theme"
+  },
+  "localeToggle": {
+    "label": "Switch to Spanish",
+    "short": "ES"
+  }
+}

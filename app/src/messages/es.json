@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "title": "my-napkin",
+    "description": "Una pizarra personal con diagramas que persisten entre sesiones."
+  },
+  "sidebar": {
+    "title": "my-napkin",
+    "diagrams": "Diagramas",
+    "empty": "Aún no hay diagramas"
+  },
+  "themeToggle": {
+    "toLight": "Cambiar al tema claro",
+    "toDark": "Cambiar al tema oscuro"
+  },
+  "localeToggle": {
+    "label": "Cambiar a inglés",
+    "short": "EN"
+  }
+}
