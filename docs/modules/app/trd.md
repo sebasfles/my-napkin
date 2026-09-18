@@ -73,6 +73,6 @@ Locale and theme are never configured; both are read from the browser and persis
 - Lint: `npm run lint` (ESLint, then Prettier in check mode).
 - Typecheck: `npm run typecheck`.
 - Unit: `npx vitest run`, over `tests/unit/`, Node environment, pure functions only.
-- E2E: `npx playwright test --workers=1 --grep-invert @aws` locally and in `ci.yml`; specs tagged `@aws` run only in `e2e-dev.yml` against `napkin.dev.sdfles.com`.
-- Playwright starts `npm run dev` itself unless `BASE_URL` is set.
+- E2E: `npx playwright test --workers=1`, run on a developer machine and in `e2e-dev.yml` against `napkin.dev.sdfles.com`; `ci.yml` runs none.
+- Playwright starts `npm run dev` itself unless `BASE_URL` is set, and reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local` to start it and to log in.
 - Install: `npm ci`. Build for AWS: `npx open-next build`.

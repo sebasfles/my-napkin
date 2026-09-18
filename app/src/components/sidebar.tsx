@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function Sidebar() {
@@ -26,6 +27,7 @@ export async function Sidebar() {
       <div className="flex items-center gap-1 border-t border-border px-2 py-2">
         <ThemeToggle />
         <LocaleToggle />
+        <LogoutButton />
       </div>
     </aside>
   );

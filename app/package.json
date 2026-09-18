@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test --workers=1 --grep-invert @aws"
+    "test:e2e": "playwright test --workers=1"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",

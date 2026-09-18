@@ -1,6 +1,19 @@
 import { expect, type Page } from "@playwright/test";
 
+export function e2ePassword(): string {
+  const password = process.env.APP_PASSWORD;
+  if (!password) throw new Error("APP_PASSWORD is not set: the e2e suite cannot open the app");
+
+  return password;
+}
+
+export async function login(page: Page) {
+  const response = await page.request.post("/api/login", { data: { password: e2ePassword() } });
+  expect(response.status(), "the password does not open this environment").toBe(200);
+}
+
 export async function openEditor(page: Page) {
+  await login(page);
   await page.goto("/");
   await expect(page.locator(".excalidraw")).toBeVisible();
 }

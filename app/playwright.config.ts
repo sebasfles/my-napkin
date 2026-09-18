@@ -1,6 +1,26 @@
+import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
+loadEnvConfig(process.cwd());
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} is not set: the e2e suite needs it in app/.env.local or in the environment`,
+    );
+  }
+
+  return value;
+}
+
 const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
+const ownServer = !process.env.BASE_URL;
+
+const appPassword = requiredEnv("APP_PASSWORD");
+const serverEnv = ownServer
+  ? { APP_PASSWORD: appPassword, SESSION_SECRET: requiredEnv("SESSION_SECRET") }
+  : undefined;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -14,12 +34,13 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: process.env.BASE_URL
-    ? undefined
-    : {
+  webServer: ownServer
+    ? {
         command: "npm run dev",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-      },
+        env: serverEnv,
+      }
+    : undefined,
 });
