@@ -82,3 +82,16 @@ source: 0002_ci_workflow
 - Debt created: none.
 - Revisit when: the pipeline legitimately approaches 20 minutes, which means splitting the job before raising the number.
 - Source: 0002_ci_workflow
+
+## 2026-09-17: pin actions to a floating current major, not to a snapshot of one
+
+- Decision: every action in `ci.yml` is pinned to its major tag at the version that is current when the workflow is written, and Dependabot carries those majors forward.
+  The task plan named `actions/checkout@v4`, `actions/setup-node@v4` and `hashicorp/setup-terraform@v3`; what ships is `@v7`, `@v7`, `actions/cache@v6` and `setup-terraform@v4`, the current majors.
+- Alternatives rejected: pinning to commit SHAs (Dependabot can bump those too, but every PR then carries an opaque 40 character diff for a single-user repo); keeping the majors the plan wrote.
+- Reason: a major tag is only as safe as it is current.
+  The tags the plan named were already three, three and one majors behind and target the deprecated Node 20 runtime, so GitHub annotated every run, and `ci` is the permanent merge gate for both branches.
+  The plan's own reason for choosing major tags was that Dependabot keeps them current, which argues for starting current rather than handing Dependabot four bump PRs in its first week.
+- Debt created: none.
+  A floating major can still break the gate on an upstream release, which is what the four red proofs and a green baseline on each Dependabot PR are for.
+- Revisit when: an action ships a breaking change inside a major, or a supply chain incident makes SHA pinning worth the diff noise.
+- Source: 0002_ci_workflow
