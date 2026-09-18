@@ -98,3 +98,84 @@ Sebastian delegated every decision of this task to the om-reviewer on 2026-09-18
 - Beyond the Pipeline I will check that picking an option persists the choice so Acceptance 3 holds without clearing storage, that the pre-hydration frame selects nothing, and that the e2e can actually fail if the control stops following the OS.
 
 ## om-developer notes
+
+### Round 1
+
+Done: the sidebar footer now holds `ThemeControl`, a three-option segmented control (monitor, sun, moon) built on the generated `ToggleGroup` with `type="single"`, replacing `ThemeToggle`, which is deleted.
+`app/src/lib/theme.ts` gained `themeChoices` and the pure `themeChoice()`, and `resolveTheme` routes both its arguments through it.
+`themeToggle.*` is gone from both catalogs and `themeControl.{label,system,light,dark}` took its place.
+`app/tests/unit/theme.test.ts` covers `themeChoice` and the new `resolveTheme` normalization; `app/tests/e2e/theme.spec.ts` is one spec that flips the emulated OS scheme live.
+`verify.log` block: lint, typecheck, 17 unit and 8 e2e all green.
+
+Decisions this round, beyond the ones `Context & decisions` already records:
+
+- `npx shadcn@latest add toggle-group` emitted radix-nova files on `radix-ui` without complaint, so the hand-written fallback and its ARD deviation were not needed.
+  It wrote two files: `ui/toggle-group.tsx` and its dependency `ui/toggle.tsx`, both kept as generated and only run through Prettier, which is the shape `ui/button.tsx` already has in the tree.
+- Shape: `spacing={0}` joins the three options, the group carries `overflow-hidden rounded-lg border border-border bg-background`, and the options keep the generated default size (h-8) so the control lines up with the locale button beside it.
+- The active option is `bg-primary text-primary-foreground`, pinned for `hover` as well.
+  Reason: the generated `toggleVariants` paints both `hover` and `data-[state=on]` with `bg-muted`, so out of the box the selected option is indistinguishable from a hovered one, and hovering the selected one would drop its fill.
+  Every class is a semantic token, so `styles` stays clean.
+- The pre-hydration "nothing selected" frame is `value=""`, not `value={undefined}`: `undefined` makes the Radix group uncontrolled, which would silently break the whole control.
+- Radix's single-select group lets a click on the already active radio deselect it and report `""`, so `onValueChange` ignores an empty value.
+  The theme can be changed but never cleared.
+- The icon map is typed `Record<ThemeChoice, typeof Monitor>`, so a fourth option cannot be added without its icon.
+- In the e2e, the OS scheme is flipped to dark *before* light is picked, so the post-reload assertion (the app light while the OS is dark) can only pass if the explicit choice persisted.
+  Picking light under a light OS would have passed vacuously.
+- `themeControl.label` is the group's `aria-label`, each option's label is its own `aria-label`, and the icons are `aria-hidden`, so the three options are readable by name and the icons add no noise.
+
+Checked beyond the Pipeline, as `Context & decisions` asks:
+
+- The new `resolveTheme("sepia", "dark")` assertion fails against the old helper (`expected 'light' to be 'dark'`) and passes with the new one.
+- The e2e fails when the app stops following the OS: with `enableSystem={false}` on the provider it reports `Expected pattern: /dark/, Received string: "system"`.
+- The server-rendered frame selects nothing: all three radios come back `aria-checked="false"`, with the group named `Theme`.
+- Persistence holds without clearing storage, which is the post-reload step of the spec.
+
+Pending: nothing.
+
+Deferred:
+
+- A stored theme that is none of the three (reachable only by editing `localStorage` by hand, never from the UI) is normalized to `system` by `themeChoice`, so the control and the canvas follow the OS, but `next-themes` still writes that raw value as the `html` class and the shell alone stays light.
+  Closing that gap means writing back into `next-themes` on mount, which the hydration gate and the `set-state-in-effect` rule make expensive for a state the app cannot produce.
+- `app/package.json`'s `test:e2e` script still carries `--grep-invert @aws`, which `docs/conventions/e2e.md` no longer needs.
+  `Context & decisions` keeps the script out of scope and gives `document-task` only the `trd.md` line.
+
+### Round 2
+
+Both findings applied.
+
+1. Focus ring (`theme-control.tsx`).
+   The group no longer carries `overflow-hidden rounded-lg border border-border bg-background`; it carries no class at all.
+   The border moved onto the options with `variant="outline"`, which is what the generated `data-[spacing=0]:data-[variant=outline]` rules of `ui/toggle-group.tsx` exist for: the first option keeps its left border, the inner ones drop theirs, and the ends round themselves.
+   So there is no container box left to clip the ring and no container radius to seam against, which is the reviewer's "solve both" in one move instead of two.
+   The active option also gained `data-[state=on]:border-primary`, so its 1px `border-input` does not outline the filled pill in a different grey.
+   Measured on the running page, keyboard-focused: the group computes `overflow: visible`, the only clipping ancestor left is the page shell far above, the 3px ring fits inside the sidebar footer's padding on every side, and `focus-visible:z-10` puts it above the neighbouring segments.
+   Pixel check: a screenshot clipped 6px around the option differs between blurred and keyboard-focused, and so does the same screenshot of the `locale-toggle` Button, the baseline the reviewer named.
+   Geometry after the fix: radii `10px 0 0 10px`, `0`, `0 10px 10px 0`; left borders `1px`, `0`, `0`; height 32px, three segments of 34/33/33 in a 100px group.
+   Note for whoever reads the computed styles later: `getComputedStyle(...).boxShadow` reports five transparent layers on a focused element even when the ring paints, identically for this control and for the baseline `Button`, so it is not evidence of a missing ring; `--tw-ring-shadow` and the pixels are.
+
+2. `verify.log`.
+   The round 2 block is written after the commit and names the commit under review.
+   The notes were written before `verify-task` ran, so the tree that was verified and the tree that was committed are the same tree.
+
+Nothing else changed: no test, message, helper or doc was touched this round.
+
+Pending: nothing.
+
+Deferred: `focus-visible:border-ring` from `toggleVariants` and `buttonVariants` does not win over the static border colour, so a focused option keeps `border-input` and a focused `Button` keeps `border-transparent`; the ring itself paints in both.
+It is identical in the component that is already in `develop`, so it is a baseline issue of the generated `ui/` files, not of this task, and fixing it means editing files the ARD keeps as the CLI generates them.
+
+### Rebase on origin/develop 7d140c2, after 0005 landed
+
+The three commits are unchanged in content and order; only their shas moved.
+
+- `app/src/components/sidebar.tsx`: only the import block conflicted, the footer auto-merged on its own to `ThemeControl`, `LocaleToggle`, `LogoutButton`.
+  Imports left in path order, and no reference to the deleted `ThemeToggle` survives anywhere in `app/`.
+- `docs/modules/app/trd.md` Testing: our correction of the e2e line is dropped, because 0005 had already corrected it.
+  Theirs says what `docs/conventions/e2e.md` says and adds what ours did not: that Playwright reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local`, and that it never adopts a server it did not start.
+  Keeping ours would have been a second line saying the same thing in other words.
+- `docs/modules/app/trd.md` Structure: the two edits of the components row are merged into one, "theme control and locale toggle, login form, logout button".
+- `docs/modules/app/ard.md` and `docs/ARD.md`: both sides kept whole, ours last in date order, and the debt index carries both rows.
+  Frontmatter is `source: 0006_theme_three_state` in the three module files, since this task lands second.
+- `docs/modules/app/prd.md`: their login copy kept, our theme sentence after it.
+- `app/tests/e2e/theme.spec.ts` needed no edit: their `openEditor` logs in before `goto("/")`, so the spec inherits the session.
+  It duplicates nothing in `login.spec.ts`: both reload the page, but theirs asserts the session cookie survives and ours asserts the stored theme choice does.

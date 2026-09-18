@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { LogoutButton } from "@/components/logout-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeControl } from "@/components/theme-control";
 
 export async function Sidebar() {
   const t = await getTranslations("sidebar");
@@ -25,7 +25,7 @@ export async function Sidebar() {
       </nav>
 
       <div className="flex items-center gap-1 border-t border-border px-2 py-2">
-        <ThemeToggle />
+        <ThemeControl />
         <LocaleToggle />
         <LogoutButton />
       </div>
