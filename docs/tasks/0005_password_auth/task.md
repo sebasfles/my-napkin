@@ -149,3 +149,15 @@ Deferred:
 - `docs/modules/deploy/trd.md:22` still claims `ci.yml` runs "Playwright e2e without the `@aws` tag".
   It is the `deploy` module's doc and 0002's ground, so it is not touched here.
 - Everything else under `docs/modules/app/` waits for `document-task` on the clean signal.
+
+### Documentation
+
+Updated `docs/modules/app/`: `README.md`, `prd.md`, `trd.md`, `flows.md` and `ard.md`, plus the `Debt index` of `docs/ARD.md`.
+Three ARD entries: the allowlist as one unit-tested function with no matcher, Web Crypto for both the signature and the password comparison, and the Playwright config demanding the signing secret only when it starts the server.
+The third carries the only debt this task creates, and it is now a row in the index.
+
+- `docs/modules/app/database.md` is untouched: no table, object or invariant changed, and the session lives in a cookie, not in a store.
+- No earlier debt is resolved here, so no entry gained a `Resolved by`: the Cognito entry's debt (no accounts, no rotation, no recovery) is exactly what this task still does not do.
+- `docs/ARD.md:42` and `docs/modules/app/ard.md:27` keep saying "middleware", as `Context & decisions` instructs: they are dated log entries, not a description of the tree.
+- For you, not mine to edit: `docs/TRD.md:24` still says "five route handlers documented in `modules/app/trd.md`" and there are seven now, two of them built. The file belongs to the om-manager.
+- `docs/modules/deploy/trd.md:22` still claims `ci.yml` runs Playwright "without the `@aws` tag", which is doubly stale after 8241682. It is the `deploy` module's doc and 0002's ground.

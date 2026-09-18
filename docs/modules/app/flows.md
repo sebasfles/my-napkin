@@ -1,35 +1,38 @@
 ---
-updated: 2026-09-17
-source: 0001_repo_base
+updated: 2026-09-18
+source: 0005_password_auth
 ---
 
 # app: flows
 
-Neither flow is built yet; the shell has no persistence and no auth.
+Login is built; saving is not, since the shell has no persistence yet.
 
 ## Login
 
-Runs when a request has no valid session cookie and the route is not `/login` or `/api/login`.
+The gate is `src/proxy.ts` and runs on every request whose path is not on the allowlist: `/login`, `/api/login`, `/_next/*` and root-level files.
 
 ```mermaid
 stateDiagram-v2
   [*] --> Anonymous
-  Anonymous --> LoginForm: no valid cookie, middleware redirects
-  LoginForm --> Authenticated: correct password, cookie set
-  LoginForm --> LoginForm: wrong password, error shown
-  Authenticated --> Anonymous: cookie expires after 30 days
+  Anonymous --> LoginForm: no valid cookie, the gate redirects with next
+  LoginForm --> Authenticated: correct password, cookie set, back to next
+  LoginForm --> LoginForm: wrong password, error shown after a fixed delay
+  Authenticated --> Anonymous: cookie expires after 30 days, or logout
 ```
 
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant M as Middleware
+  participant P as Proxy
   participant A as POST /api/login
-  U->>M: request any route
-  M-->>U: redirect to /login (no valid cookie)
+  U->>P: request any protected route
+  P->>P: verify the cookie signature and expiry
+  P-->>U: redirect to /login?next=... (page) or 401 (api)
   U->>A: submit password
-  A->>A: compare to APP_PASSWORD
-  A-->>U: set signed session cookie, redirect to /
+  A->>A: compare to APP_PASSWORD in constant time
+  A-->>U: set signed session cookie
+  U->>P: follow next
+  P-->>U: the page
 ```
 
 ## Save a diagram
