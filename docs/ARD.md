@@ -105,3 +105,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
 | infra | 2026-09-18 | A mutating request through CloudFront has to carry `x-amz-content-sha256`, which a plain browser request does not send | A route handler behind CloudFront must accept a POST from an unmodified browser request |
 | infra | 2026-09-18 | The bundle ships inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped | The OpenNext bundle approaches 50 MB |
+| app | 2026-09-18 | A PUT already on the wire when a delete lands can orphan a scene object | Orphans show up, or a lifecycle rule is wanted |
+| app | 2026-09-18 | The first paint of the diagram list waits for a round trip | The skeleton lasts long enough to be worth server rendering |
+| app | 2026-09-18 | A stored scene keeps the shape it was written in, normalized only on read | An editor upgrade needs saved scenes migrated |
+| app | 2026-09-18 | `sceneVersion` copies four lines the editor package owns | The package exports it from a server safe module |

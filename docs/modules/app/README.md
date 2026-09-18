@@ -1,13 +1,12 @@
 ---
 updated: 2026-09-18
-source: 0005_password_auth
+source: 0004_diagram_persistence
 ---
 
 # app
 
 Next.js application that serves the editor: a diagram list, an embedded Excalidraw canvas, password login, and the API routes that back both.
-The shell and the password gate exist today, in Spanish and English and in light and dark mode.
-The diagram list is still an empty placeholder, and persistence and the diagram routes are not built.
+The shell, the password gate, the diagram list and persistence all exist today, in Spanish and English and in light and dark mode.
 Runs as a single Lambda behind CloudFront, built with OpenNext.
 
 ## Boundaries

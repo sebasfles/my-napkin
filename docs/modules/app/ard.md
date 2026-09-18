@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-18
-source: 0006_theme_three_state
+source: 0004_diagram_persistence
 ---
 
 # app: architecture decisions
@@ -140,6 +140,71 @@ source: 0006_theme_three_state
 - Debt created: none; each local run pays a few seconds for a fresh server.
 - Revisit when: the suite gets a per-workspace port, which would make adoption safe again.
 - Source: 0005_password_auth
+## 2026-09-18: The browser talks to `/api`, no page reads DynamoDB or S3
+
+- Decision: every read and write goes through a route handler called from a client component; no server component or page touches either store, and the sidebar shows a skeleton while the list loads.
+- Alternatives rejected: rendering the list in the `/` server component; a server action per mutation.
+- Reason: one way in and out of the data, which the Playwright suite drives exactly as the user does, and pages that stay cheap to render.
+- Debt created: the first paint of the list waits for a round trip, so a cold Lambda shows the skeleton for the length of its cold start.
+- Revisit when: the skeleton lasts long enough to be worth server rendering the first list.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: The saver ends in two ways, `stop()` and `abandon()`
+
+- Decision: `stop()` starts no further upload and lets one already running finish, `abandon()` writes nothing ever, and the editor abandons when the diagram was deleted and stops otherwise.
+  The saver also reads a `deleted` marker the provider sets before the DELETE leaves, checked before the debounce advances and before the upload writes.
+- Alternatives rejected: a single `stop()` that refuses every pending write; relying on the editor unmounting to know the diagram is gone; aborting the request in flight with an `AbortController`.
+- Reason: the flush on unmount is what saves a change made in the last second and a half before switching diagrams, so a single stop that refuses everything trades an orphan object for the user's work.
+  Unmount order cannot carry it either: the editor only unmounts after the DELETE responds, which on a cold Lambda outlives the debounce.
+- Debt created: a PUT whose bytes are already on the wire when the DELETE lands can still leave a scene object no code will delete.
+- Revisit when: orphan objects show up in the bucket, or a lifecycle rule is wanted to sweep them.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: Opening a diagram adopts the editor's first report as the baseline
+
+- Decision: the first change the editor reports after a mount becomes the saved baseline when it changes no element, instead of being uploaded; from the second report on, a change that touches no element (a pan, a zoom, a background color) saves normally.
+- Alternatives rejected: uploading it, which is what the plain comparison did; comparing only element versions and never the appState.
+- Reason: the editor normalizes what it imports, so the scene it reports back is not byte identical to the JSON it was given, and without this every open would rewrite the scene, bump `updatedAt` and reorder the sidebar.
+  Opening a diagram must not modify it, and that now holds whatever the editor's `restore()` decides to normalize.
+- Debt created: the stored scene keeps the shape it was written in until a real edit rewrites it, so a scene saved by an older editor version is normalized on load, never on disk.
+- Revisit when: an editor upgrade needs saved scenes migrated rather than normalized on read.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: The save machinery is a plain factory with its ports injected
+
+- Decision: the debounce, the single upload at a time, the retry and the baseline live in `createSceneSaver`, which takes presign, put, touch, status and saved as arguments; the hook around it only wires the lifecycle.
+- Alternatives rejected: putting the logic in the hook and testing it with a rendered editor.
+- Reason: Vitest runs in the node environment and the project adds no jsdom, so this is what makes the timing rules testable with fake timers, which is where the save bugs live.
+- Debt created: none.
+- Revisit when: the app needs a second saver and the factory has to grow options instead of arguments.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: `sceneVersion` is reimplemented instead of imported from the editor
+
+- Decision: `src/lib/scene.ts` sums the elements' versions itself rather than importing `getSceneVersion` from `@excalidraw/excalidraw`.
+- Alternatives rejected: importing it; importing it lazily inside the callback.
+- Reason: the editor package may only be evaluated behind the `next/dynamic` boundary, and a top level import in a module the client component loads would run it during server rendering, which is the failure the package is dynamically imported to avoid.
+- Debt created: a four line copy of a function the package owns, which diverges silently if the package changes what a scene version means.
+- Revisit when: the package exports it from a module that is safe to import on the server.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: One presigned pair per editor session, renewed near expiry
+
+- Decision: `/urls` returns the GET and the PUT together with an expiry, the editor loads the scene with the GET and keeps the PUT for later saves, re-requesting the pair when it is within a minute of expiring or after a failed upload.
+- Alternatives rejected: one `/urls` call per save; a long lived signature.
+- Reason: a save costs one PUT and one PATCH instead of three requests, while the signature stays short lived; a failure is the signal that the URL may be the problem, so dropping it there covers clock skew and early expiry.
+- Debt created: none.
+- Revisit when: saves start failing for expiry despite the renewal window.
+- Source: 0004_diagram_persistence
+
+## 2026-09-18: The editor routes live in an `(editor)` route group
+
+- Decision: `/` and `/d/[id]` sit in `src/app/(editor)/`, whose layout holds the diagram provider and the sidebar.
+- Alternatives rejected: repeating the sidebar in each page; putting the provider in the root layout.
+- Reason: the list is fetched once and survives navigation between diagrams, and `/login` stays outside the group with no sidebar and no list request.
+- Debt created: none.
+- Revisit when: a route needs the list without the sidebar.
+- Source: 0004_diagram_persistence
 
 ## 2026-09-18: The theme is a three-option control, with system as a choice of its own
 
@@ -165,3 +230,7 @@ source: 0006_theme_three_state
 - 9 transitive npm advisories under the editor package that no change in this repo can resolve.
 - The expired-cookie path is proved by unit tests only, because a spec against a deployed environment has no signing secret to forge one with.
 - The theme control's selected colour is set at the call site, not in the generated variant.
+- A PUT already on the wire when a delete lands can leave an orphan scene object in the bucket.
+- The first paint of the diagram list waits for a round trip, since no page renders it on the server.
+- A stored scene keeps the shape it was written in; the editor normalizes it on read, never on disk.
+- `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.

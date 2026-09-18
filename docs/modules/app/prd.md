@@ -1,12 +1,11 @@
 ---
 updated: 2026-09-18
-source: 0006_theme_three_state
+source: 0004_diagram_persistence
 ---
 
 # app: product
 
-The shell and the login behave as described below under Interface.
-Browsing diagrams is still planned.
+Everything below is built.
 
 ## Purpose
 
@@ -15,15 +14,13 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 
 ## Interface
 
-The user opens `/`, is asked for the password once, and gets the editor filling the viewport beside a sidebar.
+The user opens `/`, is asked for the password once, and lands on a diagram, with the editor filling the viewport beside a sidebar.
 The sidebar carries the app name, the diagram list, the two controls that change how everything looks, language and theme, and a way to close the session.
 The interface starts in the browser's language, Spanish or English, and in the browser's light or dark preference, and the editor itself follows both.
 Either choice can be overridden from the sidebar and survives a reload.
 The theme offers system, light and dark, so it can be handed back to the browser's preference at any time and follows it again as it changes.
 
 ## User flows
-
-Login works; browsing diagrams is planned, and today the sidebar shows an empty list and nothing is saved.
 
 ### Login
 
@@ -32,18 +29,21 @@ Login works; browsing diagrams is planned, and today the sidebar shows an empty 
 3. On success, a signed session cookie is set and the user lands where he was going, or on `/` if he came straight to the login page.
 4. On failure, the form shows an error, the user stays on `/login`, and the answer takes half a second whatever the password was.
 5. User closes the session from the sidebar and is back at `/login`.
+6. A session that expires while the app is open sends the user back to `/login` rather than failing quietly.
 
 ### Browse and edit diagrams
 
-Planned.
+1. User sees the diagrams in the sidebar, most recently updated first, each with the time since its last change.
+2. User opens one; its drawing, pasted images included, comes back as it was left.
+3. User draws; changes are saved on their own a second or two after the user stops.
+4. User creates a diagram from the sidebar, which opens right away, or renames one in place.
+5. User deletes one, which asks for confirmation naming the diagram and cannot be undone.
 
-1. User sees a list of diagrams on the side and the editor in the center.
-2. User opens a diagram; its scene loads into the editor via `initialData`.
-3. User draws; changes are saved automatically a second or two after the user stops typing or drawing.
-4. User can create a new diagram, rename one, or delete one from the list.
-
-Errors and empty states: an empty list shows no diagrams yet, with a way to create the first one.
-A failed save shows a passive indicator next to the diagram name and retries on the next change.
+There is no empty state: the user always has a diagram open, and the app creates the first one when none exists.
+A new diagram is named after the day, `Napkin DDMMYYYY`, and repeats that day get `(2)`, `(3)`.
+The open diagram shows a passive save indicator where its date would be: saved, saving, or not saved.
+A failed save says so and goes through on the next change; the user is warned before leaving with work still unsaved.
+A list that cannot be loaded offers to try again rather than pretending to be empty.
 
 ## Rules
 
