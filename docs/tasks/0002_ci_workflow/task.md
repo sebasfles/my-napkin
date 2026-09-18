@@ -275,3 +275,10 @@ How each breakage was chosen, since a proof that fails at the wrong step proves 
 - The unit proof deliberately targets a test independent of recent work. I read the last commit to touch each of the six unit files: `theme.test.ts` is 0006's, `gate.test.ts` and `session.test.ts` are 0005's, and `editor.test.ts`, `locales.test.ts` and `messages.test.ts` are still 0001's. Flipping an assertion on a pure locale function unchanged since 0001 means the proof depends on nothing that landed this week.
 - The e2e proof, while it still existed, asserted against `html`, an element that always resolves, so it failed on a comparison with the real value reported rather than on a selector timeout.
 - The Terraform `fmt` proof was checked to be formatting-only: the same file, formatted, passes `init -backend=false` and `validate`. Without that, the run would only show that something in the file was wrong, and the step would have gone red whether `fmt` or `validate` caught it.
+
+### Documentation, fourth pass
+
+`updated` set to 2026-09-18 in the frontmatter of deploy's `ard.md`, `prd.md` and `trd.md`, which round 5 rewrote on that date.
+`README.md` stays 2026-09-17, its real last edit, and so do `database.md` and `flows.md`, which this task never touched.
+The dated headings inside `ard.md` stay on 2026-09-17: those are the dates the decisions were taken, not the dates the file was edited.
+I checked each file's last commit date with git rather than taking the finding on trust, and it matches: the three are from round 5 (425fda7, 2026-09-18) and the README from the first docs commit (cfc2bfc, 2026-09-17).
