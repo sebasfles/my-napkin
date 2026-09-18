@@ -1,0 +1,30 @@
+# Overmind
+docs/tasks/_drafts/
+.workspaces/
+
+# Node
+node_modules/
+.next/
+.open-next/
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+tfplan
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+.placeholder.zip
