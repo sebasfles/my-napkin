@@ -1,17 +1,18 @@
 ---
 updated: 2026-09-17
-source: setup
+source: 0002_ci_workflow
 ---
 
 # deploy: technical
 
-Planned layout, no code exists yet.
+`ci.yml` and `dependabot.yml` exist; the rest of the layout is planned.
 
 ## Structure
 
 | Path | What |
 |---|---|
-| `.github/workflows/ci.yml` | Planned. Pull requests into `develop` and `main`. |
+| `.github/workflows/ci.yml` | Pull requests into `develop` and `main`. One job, `ci`. |
+| `.github/dependabot.yml` | Weekly `github-actions` and `npm` updates, opened against `develop`. |
 | `.github/workflows/deploy-dev.yml` | Planned. Push to `develop`: deploy dev, then open or reuse the promotion PR. |
 | `.github/workflows/e2e-dev.yml` | Planned. Pull requests into `main` from this repository: Playwright against dev. |
 | `.github/workflows/deploy-prd.yml` | Planned. Push to `main`: deploy prd. |
@@ -19,7 +20,11 @@ Planned layout, no code exists yet.
 
 ## Jobs owned
 
-`ci.yml` (pull_request): `npm ci` in `app/`, lint, typecheck, unit tests, Playwright e2e without the `@aws` tag, `terraform fmt -check -recursive` and `terraform validate` per root with no backend, `actionlint`.
+`ci.yml` (pull_request into `develop` and `main`, runner `ubuntu-latest`, `timeout-minutes: 20`): `npm ci` in `app/`, then the commands of every verification target in `docs/TRD.md`, in one job so the rulesets have a single check name to require.
+Node comes from the root `.nvmrc`; the npm cache is keyed on `app/package-lock.json` and the Playwright browser cache on the installed `@playwright/test` version.
+The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds a `main.tf`, so the Terraform task inherits a working check instead of writing one.
+`permissions: contents: read`, no secret, and `pull_request` rather than `pull_request_target`, so pull requests from forks of this public repo still run.
+Concurrency is one group per pull request with `cancel-in-progress`, so a push supersedes the run in flight.
 Required check on both rulesets.
 
 `reusable-deploy.yml` (workflow_call, input `environment`, runner `ubuntu-latest`): checkout, `setup-node` 24, `npm ci` in `app/`, `npx open-next build` (`@opennextjs/aws`), `aws-actions/configure-aws-credentials` with the environment's `role-to-assume` over OIDC, zip `.open-next/server-functions/default` and `aws lambda update-function-code`, `aws s3 sync .open-next/assets` to the assets bucket (`/_next/static/*` with `cache-control: public,max-age=31536000,immutable`, the rest short cache), `aws cloudfront create-invalidation`.
@@ -54,7 +59,12 @@ Two GitHub Actions environments, `dev` and `prd`, each with these variables (not
 
 One secret, in the `dev` environment: `APP_PASSWORD`, used by `e2e-dev.yml` to log in. Fork pull requests never receive it.
 
+`ci.yml` reads none of them: it needs no variable and no secret, which is what keeps it running on fork pull requests.
+
 ## Testing
 
-- `actionlint` on the workflow files.
+- The workflow files are linted by `npm run lint:workflows` from `app/`, which runs the official `actionlint` binary through the `github-actionlint` devDependency.
+  The linter walks up to the git root and lints `.github/workflows/`, so it is invoked with no arguments and from anywhere in the repo.
+  It lives in `app/package.json` because npm is the only package manager here and `actionlint` is a Go binary with no npm-native equivalent; see [ard.md](ard.md).
 - `ci.yml` itself is the test path for `app` and `infra`; `deploy` has no unit tests of its own.
+- A change to `ci.yml` is only proven by a real `pull_request` run, so its own pull request is its test.

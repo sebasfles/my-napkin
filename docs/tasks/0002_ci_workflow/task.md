@@ -149,3 +149,26 @@ No other change.
 
 I agree with the reasoning and would not have caught it from the workflow alone: `npm ci`, `playwright install` and the actionlint release download have no timeout of their own, and the Playwright `webServer` timeout bounds only the dev server's start, so a stalled step would hold a required check pending on GitHub's 6 hour default and block the merge with no signal.
 20 minutes is about twice the acceptance 3 budget, so a cold-cache run never trips it.
+
+### Documentation
+
+Files updated: `docs/modules/deploy/{README.md,prd.md,trd.md,ard.md}`, the `Debt index` of `docs/ARD.md`, and the deploy row of `docs/TRD.md`.
+`docs/modules/deploy/{database.md,flows.md}` unchanged: this task owns no table and added no flow that deserves a diagram, since `ci` is a linear list of steps.
+
+`docs/TRD.md` is normally the om-manager's file and `document-task` says so, but `Context & decisions` assigns the Verification targets deploy row to me for this pass.
+I changed only that row, to path `app/` and lint `npm run lint:workflows`.
+
+`docs/modules/app/*` is untouched even though the diff edits `app/package.json` and `app/package-lock.json`.
+The two lines are the deploy target's linter, not application code or tooling, and they are documented where they belong, under deploy's Testing and its ARD entry, with a `Borrows` line in deploy's README so the reader of `app/package.json` finds the owner.
+
+Three ARD entries in `docs/modules/deploy/ard.md`, one per decision the plan did not record: the linter as an npm devDependency downloaded per run, the self-guarding Terraform steps, and the 20 minute job timeout.
+The four decisions already in `Approach` (one job, pinned major tags, Dependabot here, Terraform steps from day one) are not duplicated.
+
+One piece of debt found during this pass and not created by carelessness: `github-actionlint` depends on `adm-zip@0.5.18`, which carries GHSA-xcpc-8h2w-3j85 (high) and GHSA-vwc7-r8mq-g2x9 (moderate).
+Both are fixed in `adm-zip@0.6.1`, `npm audit` reports `fixAvailable: false` because the linter's own range excludes 0.6, and both need a crafted archive to trigger.
+The only archive it opens is the actionlint release it fetched itself over HTTPS from the official repository, and it never ships in the Lambda, so I documented it as accepted debt with a row in the `Debt index` rather than force an `overrides` entry that `Context & decisions` does not allow me to add to `app/package.json`.
+The existing `app` row about 9 advisories under the editor package is still exact: the audit total of 11 is those 9 plus these 2.
+Flagged to the om-reviewer, whose call it is whether to spend a round on an override before publish.
+
+Corrected while in the files, not appended: deploy's `prd.md` and `trd.md` said `ci.yml` validated only `infra/environments/prd`, and `prd.md` referred to a `deploy.yml` that the layout renamed to `deploy-dev.yml` and `deploy-prd.yml`.
+Both files also still opened with "Planned; no code exists yet", which stopped being true with this task.
