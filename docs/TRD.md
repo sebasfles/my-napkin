@@ -19,7 +19,7 @@ The app's shell is built; everything else is the design the code must converge t
 ### app
 
 - Stack: TypeScript, Node 24, Next.js App Router with route handlers, Tailwind with shadcn/ui components, `next-themes` for dark mode, `next-intl` for `es` and `en`, `@excalidraw/excalidraw` from npm, npm as package manager, built with `@opennextjs/aws`.
-- Layout: `src/app/` (pages and `api/` route handlers), `src/middleware.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, later dynamo, s3, session), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e tagged `@aws` need a deployed environment).
+- Layout: `src/app/` (pages and `api/` route handlers), `src/middleware.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, later dynamo, s3, session), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
 - Install: `npm ci`
 - Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal`.
 - API spec: none; five route handlers documented in `modules/app/trd.md`.
@@ -39,7 +39,7 @@ The app's shell is built; everything else is the design the code must converge t
 ### deploy
 
 - Stack: GitHub Actions, `aws-actions/configure-aws-credentials` over OIDC, AWS CLI.
-- Layout: `ci.yml` (pull requests), `deploy-dev.yml` (push to `develop`, then opens the promotion PR), `e2e-dev.yml` (PRs into `main`, Playwright against dev), `deploy-prd.yml` (push to `main`).
+- Layout: `ci.yml` (pull requests: lint, typecheck, unit, Terraform, actionlint; no e2e, no secrets), `deploy-dev.yml` (push to `develop`, then opens the promotion PR), `e2e-dev.yml` (PRs into `main`, the only place e2e runs in CI, against the deployed dev), `deploy-prd.yml` (push to `main`).
 - Install: none.
 - Workspace files: none.
 - Delivery: see `modules/deploy/trd.md`.
@@ -52,7 +52,7 @@ Commands run one at a time, serial flags included.
 
 | Target | Path | lint | typecheck | unit | e2e |
 |---|---|---|---|---|---|
-| app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run` | `npx playwright test --workers=1 --grep-invert @aws` |
+| app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run` | `npx playwright test --workers=1` |
 | infra | `infra/environments/dev/` | `terraform fmt -check -recursive ../..` | `terraform validate` | n/a | n/a |
 | deploy | `.github/workflows/` | `actionlint` | n/a | n/a | n/a |
 
@@ -84,5 +84,5 @@ Modules belong to the application and may span components.
 - Resource names use the prefix `napkin-{env}-`; buckets append the account id.
 - UI colors come only from the theme tokens (CSS variables of the shadcn theme); no raw colors or Tailwind palette classes, so dark mode is always covered. Enforced by `docs/checks/styles.md`.
 - Every user-facing string goes through `next-intl` and exists in `es` and `en`. Enforced by `docs/checks/i18n.md`.
-- A PR that changes a user flow adds or updates a Playwright test, or says why not. Enforced by `docs/checks/e2e-worth.md`.
+- A PR that changes a user flow adds or updates a Playwright test, or says why not. E2E is always real against dev and runs in CI only on the promotion PR. Enforced by `docs/checks/e2e-worth.md`.
 - Markdown docs put each sentence on its own line and never use the em dash.
