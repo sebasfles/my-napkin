@@ -172,3 +172,21 @@ Flagged to the om-reviewer, whose call it is whether to spend a round on an over
 
 Corrected while in the files, not appended: deploy's `prd.md` and `trd.md` said `ci.yml` validated only `infra/environments/prd`, and `prd.md` referred to a `deploy.yml` that the layout renamed to `deploy-dev.yml` and `deploy-prd.yml`.
 Both files also still opened with "Planned; no code exists yet", which stopped being true with this task.
+
+### Round 3
+
+Applied the single finding: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/cache@v6`, `hashicorp/setup-terraform@v4`.
+No other change to the workflow.
+
+I confirmed the finding before bumping rather than taking the versions on trust, because a wrong major here breaks the merge gate for every later task:
+
+- Current majors from each action's own tags: checkout v7 (release v7.0.1), setup-node v7 (v7.0.0), cache v6 (v6.1.0), setup-terraform v4 (v4.0.1). The plan's v4 and v3 are three, three, two and one majors behind.
+- Every input I pass still exists at the new tag, read from `action.yml` at that ref: `node-version-file`, `cache` and `cache-dependency-path` in setup-node, `path` and `key` in cache, `terraform_wrapper` in setup-terraform. Checkout takes none.
+- All four declare `using: node24`, which is what removes the deprecation annotation the om-reviewer saw on the baseline run.
+
+This deviates from `Approach`, which names v4 and v3 literally, so it is a recorded decision rather than a silent fix.
+The plan's own reason for pinning majors is that Dependabot keeps them current, and shipping the permanent merge gate three majors behind on a deprecated runtime contradicts that reason.
+It becomes an ARD entry, because the next reader of the workflow needs to know the pin is a floating major by intent and not an oversight.
+
+Documentation of the versions: `docs/modules/deploy/*` names no action tag and should not, since the workflow file is the source of that fact and a copy in prose goes stale at the first Dependabot bump.
+What the docs record instead is the pinning policy, in the new ARD entry.
