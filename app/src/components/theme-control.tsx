@@ -10,7 +10,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 const icons: Record<ThemeChoice, typeof Monitor> = { system: Monitor, light: Sun, dark: Moon };
 
 const optionClassName =
-  "text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground";
+  "text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground";
 
 export function ThemeControl() {
   const t = useTranslations("themeControl");
@@ -20,6 +20,7 @@ export function ThemeControl() {
   return (
     <ToggleGroup
       type="single"
+      variant="outline"
       spacing={0}
       value={hydrated ? themeChoice(theme) : ""}
       onValueChange={(choice) => {
@@ -27,7 +28,6 @@ export function ThemeControl() {
       }}
       aria-label={t("label")}
       data-testid="theme-control"
-      className="overflow-hidden rounded-lg border border-border bg-background"
     >
       {themeChoices.map((choice) => {
         const Icon = icons[choice];

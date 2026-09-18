@@ -138,3 +138,28 @@ Deferred:
   Closing that gap means writing back into `next-themes` on mount, which the hydration gate and the `set-state-in-effect` rule make expensive for a state the app cannot produce.
 - `app/package.json`'s `test:e2e` script still carries `--grep-invert @aws`, which `docs/conventions/e2e.md` no longer needs.
   `Context & decisions` keeps the script out of scope and gives `document-task` only the `trd.md` line.
+
+### Round 2
+
+Both findings applied.
+
+1. Focus ring (`theme-control.tsx`).
+   The group no longer carries `overflow-hidden rounded-lg border border-border bg-background`; it carries no class at all.
+   The border moved onto the options with `variant="outline"`, which is what the generated `data-[spacing=0]:data-[variant=outline]` rules of `ui/toggle-group.tsx` exist for: the first option keeps its left border, the inner ones drop theirs, and the ends round themselves.
+   So there is no container box left to clip the ring and no container radius to seam against, which is the reviewer's "solve both" in one move instead of two.
+   The active option also gained `data-[state=on]:border-primary`, so its 1px `border-input` does not outline the filled pill in a different grey.
+   Measured on the running page, keyboard-focused: the group computes `overflow: visible`, the only clipping ancestor left is the page shell far above, the 3px ring fits inside the sidebar footer's padding on every side, and `focus-visible:z-10` puts it above the neighbouring segments.
+   Pixel check: a screenshot clipped 6px around the option differs between blurred and keyboard-focused, and so does the same screenshot of the `locale-toggle` Button, the baseline the reviewer named.
+   Geometry after the fix: radii `10px 0 0 10px`, `0`, `0 10px 10px 0`; left borders `1px`, `0`, `0`; height 32px, three segments of 34/33/33 in a 100px group.
+   Note for whoever reads the computed styles later: `getComputedStyle(...).boxShadow` reports five transparent layers on a focused element even when the ring paints, identically for this control and for the baseline `Button`, so it is not evidence of a missing ring; `--tw-ring-shadow` and the pixels are.
+
+2. `verify.log`.
+   The round 2 block is written after the commit and names the commit under review.
+   The notes were written before `verify-task` ran, so the tree that was verified and the tree that was committed are the same tree.
+
+Nothing else changed: no test, message, helper or doc was touched this round.
+
+Pending: nothing.
+
+Deferred: `focus-visible:border-ring` from `toggleVariants` and `buttonVariants` does not win over the static border colour, so a focused option keeps `border-input` and a focused `Button` keeps `border-transparent`; the ring itself paints in both.
+It is identical in the component that is already in `develop`, so it is a baseline issue of the generated `ui/` files, not of this task, and fixing it means editing files the ARD keeps as the CLI generates them.
