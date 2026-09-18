@@ -196,3 +196,11 @@ What the docs record instead is the pinning policy, in the new ARD entry.
 One ARD entry added in `docs/modules/deploy/ard.md` for the action pinning policy, since round 3 deviated from the tags `Approach` names.
 No other doc changed: `docs/modules/deploy/*` deliberately names no action tag, so the bump left nothing stale to correct.
 No new debt and no `Debt index` change.
+
+### Documentation, third pass
+
+Rewrote the `adm-zip` debt paragraph on the om-reviewer's finding, and narrowed `Revisit when` to Windows or a widened range.
+I read the installed package before signing the stronger claim: both `adm-zip` calls live in `extractZip`, which `download` reaches only in the `else` of `ext === "tar.gz"`, and `platform.js` sets `ext` to `zip` only for `win32`.
+So the dependency is installed and never invoked on Linux or WSL, which closes the debt instead of leaving it for Sebastian to re-litigate.
+`overrides` rejected on the record: it would risk the merge gate on an untested transitive bump to fix a path we never enter.
+The `Debt index` row in `docs/ARD.md` stays terse, as the om-reviewer asked.

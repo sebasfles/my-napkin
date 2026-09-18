@@ -56,10 +56,11 @@ source: 0002_ci_workflow
 - Alternatives rejected: installing `actionlint` globally on the runner with a shell one-liner (undeclared, unpinned, invisible to Dependabot); the npm package named `actionlint` (a wasm library from 2022 with no `bin`, wrapping an old core); caching the downloaded binary with `actions/cache`.
 - Reason: the version is pinned in a lockfile and bumped by Dependabot like every other dependency, and the same command runs locally and in CI.
   A 2 MB authenticated download costs less in runtime and in workflow size than a cache save and restore, and the token avoids the rate limit that the shared runner IP would otherwise hit.
-- Debt created: `github-actionlint` depends on `adm-zip@0.5.18`, which carries a high and a moderate advisory (GHSA-xcpc-8h2w-3j85, GHSA-vwc7-r8mq-g2x9), both fixed in `adm-zip@0.6.1` and both reachable only through a crafted archive.
-  `npm audit` reports no fix, because the dependency's own range excludes 0.6.
-  Accepted: it is a devDependency that never ships in the Lambda, and the only archive it opens is the actionlint release it just fetched over HTTPS from the official repository.
-- Revisit when: `github-actionlint` widens its `adm-zip` range, or the linter is needed somewhere that opens an archive it did not fetch itself.
+- Debt created: `github-actionlint` depends on `adm-zip@0.5.18`, which carries GHSA-xcpc-8h2w-3j85 (high) and GHSA-vwc7-r8mq-g2x9 (moderate), both fixed in `adm-zip@0.6.1`, and `npm audit` reports no fix because the dependency's own range excludes 0.6.
+  Accepted, because the vulnerable code path never executes here: `dist/lib/platform.js` picks the archive extension as `zip` only when the platform is `win32` and `tar.gz` otherwise, and `dist/lib/download.js` routes `tar.gz` to `tar` and reaches `adm-zip` only in the `zip` branch.
+  On `ubuntu-latest`, and on the WSL machine the repo is developed on, the archive is always a `tar.gz`, so `adm-zip` is installed and never invoked.
+  An `overrides` pin to 0.6.1 was rejected for the opposite reason: it would risk the merge gate on an untested transitive bump to fix a path we do not enter.
+- Revisit when: this linter runs on Windows, or `github-actionlint` widens its `adm-zip` range.
 - Source: 0002_ci_workflow
 
 ## 2026-09-17: the Terraform steps guard themselves in shell rather than with workflow conditions
