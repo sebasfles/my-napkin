@@ -141,3 +141,11 @@ Deferred, noted and not done:
 - `npm audit` on `app/` reports 11 advisories inherited from 0001, all through `@excalidraw/excalidraw` and its `nanoid`, whose only fix is a downgrade to 0.17.6. Out of scope here and not something `ci` should gate on today.
 - Dependabot opens one pull request per outdated dependency. If the weekly noise becomes real, `groups` on the npm ecosystem is the answer; not configured now because there is no evidence yet of how much it opens.
 - Caching `node_modules` beyond the `setup-node` npm cache stays deferred, as Out of scope says.
+
+### Round 2
+
+Applied the single finding: `timeout-minutes: 20` on the `ci` job, next to `runs-on`.
+No other change.
+
+I agree with the reasoning and would not have caught it from the workflow alone: `npm ci`, `playwright install` and the actionlint release download have no timeout of their own, and the Playwright `webServer` timeout bounds only the dev server's start, so a stalled step would hold a required check pending on GitHub's 6 hour default and block the merge with no signal.
+20 minutes is about twice the acceptance 3 budget, so a cold-cache run never trips it.
