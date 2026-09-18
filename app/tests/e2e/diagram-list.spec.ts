@@ -4,6 +4,7 @@ import {
   deleteDiagram,
   diagramItem,
   diagramUrl,
+  login,
   newDiagram,
   openApp,
   removeDiagramsCreatedHere,
@@ -15,6 +16,7 @@ test.describe("diagram list", () => {
   });
 
   test("opens a diagram on first load, and never leaves the user without one", async ({ page }) => {
+    await login(page);
     await page.goto("/");
 
     await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
@@ -35,6 +37,7 @@ test.describe("diagram list", () => {
   test("sends the user back to a real diagram when the id is unknown", async ({ page }) => {
     const unknown = "00000000-0000-4000-8000-000000000000";
 
+    await login(page);
     await page.goto(`/d/${unknown}`);
 
     await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });

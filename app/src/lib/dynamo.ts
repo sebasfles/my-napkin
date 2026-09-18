@@ -34,7 +34,9 @@ export const diagramRepository: DiagramRepository = {
   },
 
   async get(id) {
-    const { Item } = await client().send(new GetCommand({ TableName: diagramsTable(), Key: { id } }));
+    const { Item } = await client().send(
+      new GetCommand({ TableName: diagramsTable(), Key: { id } }),
+    );
     return (Item as Diagram | undefined) ?? null;
   },
 

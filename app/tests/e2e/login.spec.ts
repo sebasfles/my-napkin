@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { sessionCookieName } from "@/lib/session";
-import { e2ePassword, login } from "./helpers";
+import { diagramUrl, e2ePassword, login } from "./helpers";
 
 const passwordField = (page: Page) => page.getByLabel("Password");
 const submitButton = (page: Page) => page.getByRole("button", { name: "Enter" });
@@ -44,12 +44,24 @@ test.describe("login", () => {
     page,
     context,
   }) => {
-    await page.goto("/?panel=open");
-    await expect(page).toHaveURL(/\/login\?next=%2F%3Fpanel%3Dopen$/);
+    await login(page);
+    await page.goto("/");
+    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
+    const diagram = new URL(page.url()).pathname;
+    await context.clearCookies();
+
+    await page.goto(`${diagram}?panel=open`);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    expect(new URL(page.url()).searchParams.get("next")).toBe(`${diagram}?panel=open`);
 
     await signIn(page, e2ePassword());
 
-    await expect(page).toHaveURL(/\/\?panel=open$/);
+    await expect
+      .poll(() => {
+        const landed = new URL(page.url());
+        return `${landed.pathname}${landed.search}`;
+      })
+      .toBe(`${diagram}?panel=open`);
     await expect(page.locator(".excalidraw")).toBeVisible();
 
     const cookie = (await context.cookies()).find(({ name }) => name === sessionCookieName);
@@ -72,7 +84,8 @@ test.describe("login", () => {
 
     await signIn(page, e2ePassword());
 
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
+    await expect(page).not.toHaveURL(/evil\.example\.com/);
     await expect(page.locator(".excalidraw")).toBeVisible();
   });
 
@@ -90,6 +103,23 @@ test.describe("login", () => {
 
     await page.goto("/");
     await expect(page).toHaveURL(/\/login\?next=%2F$/);
+  });
+
+  test("asks for the password again when the session expires while the app is open", async ({
+    page,
+    context,
+  }) => {
+    await login(page);
+    await page.goto("/");
+    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
+    const diagram = new URL(page.url()).pathname;
+
+    await context.clearCookies();
+    await page.getByTestId("diagram-new").click();
+
+    await expect(page).toHaveURL(/\/login\?next=/, { timeout: 30_000 });
+    expect(new URL(page.url()).searchParams.get("next")).toBe(diagram);
+    await expect(passwordField(page)).toBeVisible();
   });
 
   test("rejects a session cookie whose payload was edited", async ({ page, context }) => {

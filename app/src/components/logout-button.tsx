@@ -1,9 +1,11 @@
+"use client";
+
 import { LogOut } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
-export async function LogoutButton() {
-  const t = await getTranslations("sidebar");
+export function LogoutButton() {
+  const t = useTranslations("sidebar");
 
   return (
     <form action="/api/logout" method="post" className="contents">

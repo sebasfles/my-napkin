@@ -30,7 +30,11 @@ export const sceneStore: SceneStore = {
       }),
       getSignedUrl(
         client(),
-        new PutObjectCommand({ Bucket: scenesBucket(), Key: key(id), ContentType: sceneContentType }),
+        new PutObjectCommand({
+          Bucket: scenesBucket(),
+          Key: key(id),
+          ContentType: sceneContentType,
+        }),
         { expiresIn, signableHeaders: new Set(["content-type"]) },
       ),
     ]);

@@ -1,7 +1,10 @@
 import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import { loginPath } from "@/lib/gate";
 import { emptyScene, parseScene, sceneContentType, type Scene } from "@/lib/scene";
 
 export class NotFoundError extends Error {}
+
+export class UnauthorizedError extends Error {}
 
 export async function fetchDiagrams(): Promise<Diagram[]> {
   const { diagrams } = await request<{ diagrams: Diagram[] }>("/api/diagrams");
@@ -36,8 +39,7 @@ export async function touchDiagram(id: string): Promise<Diagram> {
 }
 
 export async function deleteDiagram(id: string): Promise<void> {
-  const response = await fetch(`/api/diagrams/${id}`, { method: "DELETE" });
-  if (!response.ok) throw new Error(`DELETE /api/diagrams/${id} failed with ${response.status}`);
+  await call(`/api/diagrams/${id}`, { method: "DELETE" });
 }
 
 export async function fetchSceneUrls(id: string): Promise<SceneUrls> {
@@ -64,11 +66,26 @@ export async function putScene(url: string, body: string): Promise<void> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await call(path, init)).json() as Promise<T>;
+}
+
+async function call(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(path, init);
 
+  if (response.status === 401) {
+    askForThePasswordAgain();
+    throw new UnauthorizedError(`${path} needs a session`);
+  }
   if (response.status === 404) throw new NotFoundError(`${path} not found`);
   if (!response.ok)
     throw new Error(`${init?.method ?? "GET"} ${path} failed with ${response.status}`);
 
-  return (await response.json()) as T;
+  return response;
+}
+
+function askForThePasswordAgain(): void {
+  const { pathname, search } = window.location;
+  if (pathname === loginPath) return;
+
+  window.location.assign(`${loginPath}?next=${encodeURIComponent(`${pathname}${search}`)}`);
 }

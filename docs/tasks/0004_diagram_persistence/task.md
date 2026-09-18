@@ -233,3 +233,29 @@ One finding, applied.
 
 No abort of an in-flight PUT, as agreed.
 Unchanged: e2e still cannot run, acceptance 1 to 5 still unproven.
+
+### Round 4: rebase onto 0005
+
+Rebased on `7d140c2`. The three round commits replayed with conflicts in five files, and the docs commit with conflicts in six; all resolved as merges, none as a clobber.
+
+- Sidebar: my client version stands, with 0005's `<LogoutButton />` in its footer beside the theme and locale toggles.
+  I turned `logout-button.tsx` into a client component: it was an async server component, and an async component cannot render inside a `"use client"` tree, which `tsc` does not catch but the browser does.
+  It only needs a translated label and a form POST, so `useTranslations` replaces `getTranslations` and nothing else changes.
+- `env.ts`: 0005's version wins whole. `DIAGRAMS_TABLE` and `SCENES_BUCKET` are now accessors beside `appPassword` and `sessionSecret`, and `requiredEnv` is gone.
+  `MissingEnvError`'s message is the same string my repository tests assert, so they pass unchanged.
+- `.env.example`: one file with the five keys, each with its line of explanation.
+- Messages: both catalogs carry 0005's `login` and `sidebar.logout` plus mine, and `sidebar.empty` is gone with the empty state. No reference to `diagram-list-empty` survives anywhere in the tree.
+- `helpers.ts`: 0005's `e2ePassword` and `login` kept, `openEditor` replaced by my `openApp`, which now logs in before it navigates.
+  The three specs that reach a route directly (`diagram-list.spec.ts`) log in first.
+- `login.spec.ts`: two assertions broke because `/` no longer stays at `/`, and I kept their intent rather than their URL.
+  "Opens the editor with the right password" now signs in against a deep link to a real diagram, which is a `next` that does not redirect away, and asserts the path and query the user lands on.
+  "Ignores a next that points off this origin" asserts the user lands on a diagram of this origin and never on `evil.example.com`.
+- The gate answers 401 to `/api/*`, and the browser now turns that into a trip to `/login?next=...` instead of a generic failure.
+  Every call goes through one `call()` helper so `deleteDiagram` behaves like the rest, and the redirect cannot loop: `/login` is public and the helper refuses to redirect when it is already there.
+  That is a new user flow, so `login.spec.ts` gains a spec: log in, open the app, clear the cookies, click new diagram, land on `/login` with `next` pointing back at the diagram.
+- Docs: both narratives merged rather than either winning.
+  `README.md` no longer says login is unbuilt, `prd.md` carries both flows as built plus the expired session, `trd.md` lists all seven endpoints with the gate and the two AWS variables, `flows.md` keeps 0005's login diagrams and my save diagrams, and `ard.md` holds all eleven entries with both debt lists.
+  The `Debt index` in `docs/ARD.md` carries 0005's row and my four.
+
+Unit is 103 tests now, 86 mine and 17 from 0005.
+E2E still cannot run: `playwright.config.ts` throws without `APP_PASSWORD`, which the om-reviewer places when Sebastian provides it, and dev is still not applied.
