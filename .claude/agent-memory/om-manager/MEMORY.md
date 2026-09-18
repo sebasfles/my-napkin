@@ -1,2 +1,1 @@
 - [Reference infra repos](reference_infra_repos.md) — auvral-infra and diy-infra are the Terraform convention to copy for infra/
-- [AWS context](project_aws_context.md) — profile personal, account 975050033628, zone sdfles.com, domain napkin.sdfles.com; delete once TRD exists
