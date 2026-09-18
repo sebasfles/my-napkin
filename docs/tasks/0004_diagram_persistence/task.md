@@ -259,3 +259,21 @@ Rebased on `7d140c2`. The three round commits replayed with conflicts in five fi
 
 Unit is 103 tests now, 86 mine and 17 from 0005.
 E2E still cannot run: `playwright.config.ts` throws without `APP_PASSWORD`, which the om-reviewer places when Sebastian provides it, and dev is still not applied.
+
+### Round 5: rebase onto 0006
+
+Rebased on `2e2be66`. Two conflicts in round 1, four in the docs commit.
+
+- Sidebar: the footer now holds `<ThemeControl />`, `<LocaleToggle />` and `<LogoutButton />`.
+  The stale import would have failed the build, as predicted; nothing else in my sidebar changed.
+- `theme.spec.ts`: 0006's version taken whole, with `openApp` in place of `openEditor`.
+  It creates no diagram of its own, so it needs no cleanup hook.
+- Messages: the catalogs auto merged; both locales carry 35 keys with `themeControl` in and `themeToggle` gone, and parity holds.
+- Docs: three narratives now, so I unioned the conflicts and then read the result rather than trusting the union.
+  That caught a duplicated `app/src/components/` row in the structure table, where 0006 and I had each rewritten the same line; the surviving row names the diagram provider and the theme control.
+  `ard.md` carries all twelve entries, four from 0005, one from 0006, seven mine, and the debt list and the `Debt index` carry every row from the three tasks.
+- `resolveTheme` keeps its signature, so `editor.tsx` is untouched, and `ThemeControl` is already a client component, so it needed none of the treatment the logout button did.
+
+Unit is 106 tests now, 86 mine and 20 from 0005 and 0006.
+E2E is held on one thing only: dev is not applied, so the table and bucket the suite needs do not exist.
+`.env.local` has been in place since before round 4, and the e2e line in this round's block says so.
