@@ -255,3 +255,23 @@ Two things I corrected that were not on the list, both made false by this round:
 
 On the verification command: `docs/TRD.md` on `develop` dropped `--grep-invert @aws` from the app row, and no spec carries an `@aws` tag today, so the change alters nothing about which specs run.
 Nobody should read it as a change in coverage: the 9 specs that ran before are the 9 that run now.
+
+### Acceptance 2, how it was proven
+
+Proven twice, and the run history reads wrong without knowing why.
+
+The first set exercised a workflow that no longer exists: it still had `Resolve Playwright version`, `Cache Playwright browsers`, `Install Playwright browsers` and `End-to-end tests` in it.
+The second set exercised the file that ships, after round 5 removed those four steps: runs 35406212898 (lint), 35406329314 (unit) and 35406459124 (Terraform `fmt`).
+The e2e limb was dropped, not failed: `ci` runs no e2e, so there is nothing left for that limb to prove.
+That accounts for seven red runs on a pull request that ends green, and none of them is a defect.
+
+The `validate` branch was proven once, by run 35309306882 against the pre-round-5 file, and not re-run: round 5 does not touch the Terraform step.
+
+How each breakage was chosen, since a proof that fails at the wrong step proves nothing:
+
+- Each one had to fail at the step under test and pass every step before it. `Lint` and `Typecheck` run before `Unit tests`, so the unit proof flips an expectation instead of touching the source, which would have tripped `tsc` first.
+- Each was confirmed locally before being pushed, every command run alone so its exit code is its own, rather than spending a CI run to find out.
+- The lint proof was written against the tree as it is, not replayed from the first cycle: 0006 replaced `theme-toggle.tsx` with `theme-control.tsx`, so the old edit would have failed to apply and cost a run to discover.
+- The unit proof deliberately targets a test independent of recent work. I read the last commit to touch each of the six unit files: `theme.test.ts` is 0006's, `gate.test.ts` and `session.test.ts` are 0005's, and `editor.test.ts`, `locales.test.ts` and `messages.test.ts` are still 0001's. Flipping an assertion on a pure locale function unchanged since 0001 means the proof depends on nothing that landed this week.
+- The e2e proof, while it still existed, asserted against `html`, an element that always resolves, so it failed on a comparison with the real value reported rather than on a selector timeout.
+- The Terraform `fmt` proof was checked to be formatting-only: the same file, formatted, passes `init -backend=false` and `validate`. Without that, the run would only show that something in the file was wrong, and the step would have gone red whether `fmt` or `validate` caught it.
