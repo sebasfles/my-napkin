@@ -6,8 +6,27 @@
   "sidebar": {
     "title": "my-napkin",
     "diagrams": "Diagramas",
-    "empty": "Aún no hay diagramas",
+    "newDiagram": "Nuevo diagrama",
+    "rename": "Renombrar diagrama",
+    "renameLabel": "Nombre del diagrama",
+    "delete": "Eliminar diagrama",
+    "deleteTitle": "¿Eliminar este diagrama?",
+    "deleteBody": "{name} y su dibujo se eliminan definitivamente. Esto no se puede deshacer.",
+    "deleteCancel": "Cancelar",
+    "deleteConfirm": "Eliminar",
+    "loadFailed": "No se pudieron cargar los diagramas",
+    "actionFailed": "No funcionó. Inténtalo de nuevo.",
+    "retry": "Reintentar",
     "logout": "Cerrar sesión"
+  },
+  "editor": {
+    "loading": "Cargando",
+    "loadFailed": "No se pudo cargar este diagrama",
+    "createFailed": "No se pudo crear el diagrama",
+    "retry": "Reintentar",
+    "saved": "Guardado",
+    "saving": "Guardando",
+    "saveFailed": "Sin guardar, se reintenta en el próximo cambio"
   },
   "login": {
     "title": "my-napkin",

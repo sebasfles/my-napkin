@@ -84,7 +84,7 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
 ### Decisions
 
 - Every read and write reaches the browser through `/api/*` fetched from client components; no server component or page touches DynamoDB or S3 (Sebastian).
-  `ci.yml` runs the non-`@aws` suite with no AWS credentials (`docs/modules/deploy/trd.md#Jobs owned`) and browser-level mocking only intercepts browser requests.
+  Sebastian wants the list fetched client-side; the testing reason this decision first carried is gone with the 2026-09-18 update below.
   The sidebar shows a skeleton while the list loads.
 - The first-load auto-create is a POST issued by the client, never a side effect of rendering `/` (om-reviewer), so a prefetch cannot create diagrams.
 - POST writes the empty scene object at `scenes/{id}.json` server-side (Sebastian), keeping the first invariant of `docs/modules/app/database.md`.
@@ -104,8 +104,7 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
 ### Adjustments
 
 - `Infra`: a CORS-only change in `infra/stacks/app` is allowed, recorded as a deviation, if dev's applied CORS blocks the presigned PUT or GET (Sebastian).
-- Acceptance 1 to 5 are proven on the final round by the om-developer running the `@aws` suite against `http://localhost:3000` with `.env.local` pointing at dev, with the summary in `om-developer notes` (Sebastian).
-  `verify-task` keeps excluding `@aws`, so that run is the only evidence for them.
+- Acceptance 1 to 5 are proven on the final round by the om-developer running the Playwright suite against `http://localhost:3000` with `.env.local` pointing at dev, with the summary in `om-developer notes` (Sebastian).
 - Phases stay 0, one PR (Sebastian).
 
 ### Constraints and extra review checks
@@ -113,11 +112,83 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
 - The om-developer starts only after 0003 merges and Sebastian applies dev, and rebases on the post-0003 `develop` first.
 - AWS clients are constructed lazily and never throw at import time, or the build and the mocked suite break with no credentials.
 - The presigned PUT is signed with `Content-Type: application/json` and the browser sends exactly that header, not the charset a Blob adds by default.
-- `files` is saved and restored as `BinaryFiles` through `initialData` (`docs/modules/app/ard.md`); the `@aws` paste-an-image spec is what proves it.
-- Relative dates use `useFormatter`, never `toLocaleString` (`docs/checks/i18n.md`), and `@aws` specs delete the diagrams they create (`docs/conventions/e2e.md#Rules`).
-- Acceptance 3 is asserted by request URL in an `@aws` spec, which the e2e convention allows because there the flow is the network call itself.
+- `files` is saved and restored as `BinaryFiles` through `initialData` (`docs/modules/app/ard.md`); the paste-an-image spec is what proves it.
+- Relative dates use `useFormatter`, never `toLocaleString` (`docs/checks/i18n.md`), and every spec deletes the diagrams it creates (`docs/conventions/e2e.md#Rules`).
+- Acceptance 3 is asserted by request URL in a spec, which the e2e convention allows because there the flow is the network call itself.
 - Every e2e spec behaves like a real person using the app: it navigates, clicks, types, pastes and reads what the screen shows (Sebastian).
-  No test-only window handle, no inspection of internal state and no shortcut into the app; network mocking in the non-`@aws` suite is the only allowed artifice, and `review-task` checks it every round against `docs/conventions/e2e.md`.
+  No test-only window handle, no inspection of internal state and no shortcut into the app, and `review-task` checks it every round against `docs/conventions/e2e.md`.
 - No `Co-Authored-By`, `Claude-Session` or any other agent attribution goes into a commit or the PR, and every `gh` call on this repo runs with `GH_TOKEN=$(gh auth token -u sebasfles)`; Sebastian merges with merge commits only.
 
+### Update 2026-09-18: every e2e spec is real, the `@aws` tag is gone
+
+- There is no mocked suite and no tag: one Playwright suite drives the app backed by dev's real table and bucket (Sebastian, `docs/conventions/e2e.md` at 8241682).
+  It runs on the developer machine against `npm run dev` with `.env.local` on dev, and in `e2e-dev.yml` on pull requests into `main` against the deployed dev; `ci.yml` runs no e2e.
+- Scope, tests: the `@aws` and non-`@aws` split and the network-mocked specs are replaced by one real suite covering the same flows (create, draw, reload, paste an image and reload, rename, delete, first load auto-create, the list, the delete confirmation).
+- Acceptance 6 now reads: every behavior has its unit or Playwright test, the suite passes on a developer machine against dev, and `ci.yml` runs lint, typecheck and unit only.
+- The single permitted artifice is blocking the browser's own PUT to S3 to reach the failed-save indicator, then letting the next change save (Sebastian, acceptance 5). Nothing else in the network is mocked, ever.
+- `docs/TRD.md#Verification targets` now runs `npx playwright test --workers=1` with no exclusion, so from this task on every verify round needs dev applied and `.env.local` in place.
+  Until then the om-developer verifies lint, typecheck and unit only, and no round is clean without a green e2e block at that round's commit.
+- The three shell specs (`editor`, `locale`, `theme`) go through `/`, which now auto-creates and redirects, so this task updates them and they create and clean up real diagrams. `editor.spec.ts` loses its empty-state assertion, which the task already removes from `docs/modules/app/prd.md`.
+
 ## om-developer notes
+
+### Round 1
+
+What landed.
+The five route handlers, the two repositories behind interfaces in `src/lib/diagrams.ts`, the client data layer, the sidebar with create, inline rename, delete and the save indicator, `/d/[id]` with the scene loaded into `initialData`, the debounced serialized autosave, and the whole test suite.
+77 unit tests, one Playwright spec per flow.
+
+Decisions the plan did not already record.
+
+- The pages live in a route group, `src/app/(editor)/`, whose layout holds `DiagramsProvider` and the sidebar.
+  The list is then fetched once and survives navigation between diagrams, and `/login` in 0005 stays outside the group with no sidebar.
+  `src/app/page.tsx` is gone, replaced by `(editor)/page.tsx`.
+- `DiagramsProvider` owns the list, its mutations and the save status of the diagram being edited.
+  The save indicator renders as the second line of the active sidebar item, in place of the relative date, which is where the name is and needs no new chrome in the editor.
+  The status is keyed by diagram id, so a status left behind by one diagram never shows on another.
+- The save machinery is a plain factory, `createSceneSaver` in `src/lib/scene-save.ts`, with its three ports injected (presign, put, touch).
+  The debounce, the serialization of saves and the retry are therefore unit tested in the node environment with fake timers, which a hook could not be without jsdom.
+  `src/lib/use-scene-save.ts` is only lifecycle: the `beforeunload` guard, and flush plus stop on unmount.
+  It sits in `src/lib/` next to `use-hydrated.ts`, the existing home for hooks; `docs/modules/app/trd.md` gets the line in document-task.
+- Change detection has two layers: `sceneVersion`, the sum of element versions, on every `onChange`, and a full comparison of the serialized scene against the last saved one when the debounce fires.
+  The second layer is what keeps the `onChange` Excalidraw fires while importing `initialData` from producing a save on open.
+- `sceneVersion` is a four line reimplementation of the package's `getSceneVersion` rather than an import.
+  Importing `@excalidraw/excalidraw` outside the `next/dynamic` boundary would evaluate the package during server rendering, which is exactly what `docs/modules/app/ard.md` forbids.
+- The scene loader returns the presigned pair with the scene, and the saver reuses that pair for its first PUT.
+  A save costs one PUT and one PATCH; a failure drops the cached pair, since an expired URL is the likely cause.
+- `getSignedUrl` needed `signableHeaders: new Set(["content-type"])` on the PUT.
+  Without it the signature does not cover the header, and the constraint that the browser sends exactly `application/json` would have been unenforced.
+  The unit test found this, not the review.
+- `GET /api/diagrams/[id]/urls` reads the diagram before signing and answers 404 when it is gone, so no PUT URL is ever handed out for an id with no item.
+  This adds `get` to the repository interface, one method beyond the four Scope lists.
+- `DELETE` removes the item before the object, and the unmount flush is skipped for a diagram the user just deleted, through `isDeleted` on the provider.
+  Without that skip, deleting within the debounce window recreates `scenes/{id}.json` as an orphan and breaks the first invariant of `docs/modules/app/database.md`.
+- An unknown `/d/[id]` is detected by the 404 from `/urls`, not by looking in the loaded list: the server is the authority and the editor needs no list dependency.
+- The editor no longer uses `useHydrated`.
+  Its canvas mounts only after a client side fetch resolves, so it never renders during server rendering and the gate the ARD describes has nothing to gate.
+- Each row carries a pencil and a trash button, revealed on hover or keyboard focus; delete opens a shadcn `alert-dialog` added with the CLI.
+  The sidebar went from `w-56` to `w-64` now that a row holds a name, a date and two actions.
+- The list is re sorted after every write, so a renamed or just saved diagram moves to the top.
+  That is what `updatedAt` desc means once PATCH always touches `updatedAt`.
+- Failures are visible without toasts: the sidebar shows a retry when the list fails, `/` shows a retry when the first create fails, and any single action that fails leaves one muted line.
+  API error bodies stay developer facing English, never translated.
+- `package.json`'s `test:e2e` lost `--grep-invert @aws` to match the new row in `docs/TRD.md`.
+  `.env.example` documents `DIAGRAMS_TABLE`, `SCENES_BUCKET` and `AWS_PROFILE`; the region stays ambient.
+
+Not verified in this round.
+
+- e2e did not run at all: 0003 is not applied, so dev's table and bucket do not exist.
+  Lint, typecheck and unit are green; `verify.log` says `not run` for e2e with that reason, and acceptance 1 to 5 stay unproven until the e2e round against dev.
+- `npm run build` could not run on this machine: the OS killed it with about 900 MB free while the other sessions were working.
+  Nothing here is build specific, and the build is not a verification target, but it is unproven.
+- Two things in the specs I could not exercise and will watch on the e2e round.
+  The pasted image is proved by counting red pixels on the static canvas, which is the only way to see what a canvas shows.
+  And every spec that draws waits for `Saved` before reloading, so the `beforeunload` guard should never raise a dialog Playwright would have to dismiss.
+
+Deferred.
+
+- Optimistic list updates, as Scope already defers.
+- A save still in flight when the tab closes is lost after the prompt; a presigned PUT cannot go through `sendBeacon`, so there is no background flush.
+- A presigned PUT issued by a second tab can still orphan a scene object after a delete.
+  The single tab path is closed; multi tab conflict handling is out of scope.
+- The Scan paginates but sets no page size, since the table stays small by design.
