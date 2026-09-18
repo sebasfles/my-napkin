@@ -60,6 +60,9 @@ jobs:
       - name: End-to-end tests
         working-directory: app
         run: npx playwright test --workers=1 --grep-invert @aws
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - uses: hashicorp/setup-terraform@v4
         with:

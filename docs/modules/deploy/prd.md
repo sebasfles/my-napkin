@@ -33,6 +33,8 @@ Each one is gated by `ci`, so Sebastian merges the green ones and reads only the
 ## Rules
 
 - Only a push to `main` on `sebasfles/my-napkin` itself can deploy; pull requests, including from forks, get no AWS credentials.
+- A pull request from a fork cannot pass `ci`: the e2e step needs the app's password and session secret, and forks receive no secrets.
+  Accepted, because this repository takes no outside contributions, and a check that passes without running the tests would be worse than an honest red.
 - `ci` runs on every pull request with no path filter: a check that is skipped never reports, and a required check that never reports blocks the merge forever.
 - A deploy never requires a Terraform change: Terraform owns configuration, this module owns code.
 - No AWS access keys are stored anywhere; authentication is OIDC only.

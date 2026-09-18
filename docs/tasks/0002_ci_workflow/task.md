@@ -110,6 +110,15 @@ Consolidated 2026-09-17.
 - Acceptance 1 is read from the PR's check list, not from the workflow file.
 - No check in `docs/checks/` has `paths` matching this diff, so review rounds run no background checkers.
 
+### Scope addition, 2026-09-17: the e2e step carries the app's two secrets
+
+- Sebastian, through the om-manager, while task 0005 consolidates: the app will require `APP_PASSWORD` and `SESSION_SECRET` to serve and to log in, so `ci.yml` exposes them as repository secrets on the Playwright step only, with no literal and no fallback. The `webServer` Playwright spawns inherits that step's environment, so one place covers both the test and the server.
+- This reverses the constraint above that `ci.yml` holds no secret. A pull request from a fork can no longer pass `ci`, because the e2e step fails without them. Accepted, and `docs/modules/deploy/prd.md` and `trd.md` are corrected to say so rather than leave the old promise standing.
+- Skipping e2e on forks with an `if` on the head repository was rejected (om-reviewer): it turns the required check green on a pull request nobody verified, which is worse than an honest red for a repository that takes no outside contributions.
+- The same two values have to exist in two separate stores, repository secrets for `ci` and Dependabot secrets for Dependabot's own pull requests, which never read the repository set. `docs/modules/deploy/trd.md` says so, because the cost of learning it later is a red required check with no obvious cause.
+- Permanent constraint: this workflow never uploads `playwright-report/` or Playwright traces as artifacts. GitHub masks registered secrets in log output but not inside a trace, where a password typed into a login form is captured as input, and `trace: "on-first-retry"` records precisely the retried login test.
+- Round 4 proves nothing, by construction: the secrets do not exist in the repository yet, an unset secret expands to an empty string, and nothing reads either variable until 0005 lands. `actionlint` and a green run are the whole of the available evidence, and the real verification belongs to 0005.
+
 ## om-developer notes
 
 ### Round 1
@@ -204,3 +213,23 @@ I read the installed package before signing the stronger claim: both `adm-zip` c
 So the dependency is installed and never invoked on Linux or WSL, which closes the debt instead of leaving it for Sebastian to re-litigate.
 `overrides` rejected on the record: it would risk the merge gate on an untested transitive bump to fix a path we never enter.
 The `Debt index` row in `docs/ARD.md` stays terse, as the om-reviewer asked.
+
+### Round 4
+
+Applied the Scope addition: `APP_PASSWORD` and `SESSION_SECRET` from repository secrets on the `End-to-end tests` step of `ci.yml`, that step only, no literal and no fallback.
+`app/playwright.config.ts` untouched, since the `webServer` it already declares inherits the step's environment.
+
+What this round proves: nothing, and that is structural rather than a gap in my testing.
+Neither secret exists in the repository yet, an unset secret expands to an empty string, and no code reads either variable until 0005 lands, so the e2e step behaves exactly as it did before this round.
+The available evidence is `actionlint` clean on the new `env:` block and a green run, both of which say only that the workflow is well formed.
+The real verification is 0005's, when the app refuses to serve without the two values.
+I did not write a test for this round, because any test I could write here would assert a literal I had just typed into a YAML file.
+
+Docs corrected in the same round, including two lines I wrote earlier in this task that this round makes false:
+
+- `docs/modules/deploy/trd.md`, Jobs owned: "no secret ... so pull requests from forks of this public repo still run" replaced by what is now true, including that a fork cannot pass `ci` and why that is accepted.
+- `docs/modules/deploy/trd.md`, Configuration: the old line said `APP_PASSWORD` was one `dev` environment secret for `e2e-dev.yml`. That is still true and is no longer the whole picture, so it became a three-item list of the three stores rather than a replacement, which keeps the deploy task's own secret documented.
+- `docs/modules/deploy/prd.md`, Rules: a fork pull request cannot pass `ci`, stated plainly instead of leaving the old promise standing.
+- One ARD entry with the decision, the rejected fork skip, the artifact and trace constraint, and the debt, plus its `Debt index` row in `docs/ARD.md`.
+
+The three stores are named individually in `trd.md` (`dev` environment secret, repository secrets, Dependabot secrets) rather than described as "both places", because they are three different screens in GitHub's settings and a reader who misses one gets a red required check with nothing in the log pointing at the cause.

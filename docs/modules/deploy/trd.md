@@ -23,7 +23,10 @@ source: 0002_ci_workflow
 `ci.yml` (pull_request into `develop` and `main`, runner `ubuntu-latest`, `timeout-minutes: 20`): `npm ci` in `app/`, then the commands of every verification target in `docs/TRD.md`, in one job so the rulesets have a single check name to require.
 Node comes from the root `.nvmrc`; the npm cache is keyed on `app/package-lock.json` and the Playwright browser cache on the installed `@playwright/test` version.
 The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds a `main.tf`, so the Terraform task inherits a working check instead of writing one.
-`permissions: contents: read`, no secret, and `pull_request` rather than `pull_request_target`, so pull requests from forks of this public repo still run.
+`permissions: contents: read` and `pull_request` rather than `pull_request_target`.
+The e2e step, and only that step, receives `APP_PASSWORD` and `SESSION_SECRET` from repository secrets, with no literal and no fallback; the `webServer` Playwright spawns inherits them from it.
+A pull request from a fork therefore cannot pass `ci`: forks receive no secrets and the e2e step fails without them.
+That is accepted for a repository that takes no outside contributions, and `ci.yml` never uploads `playwright-report/` or a trace as an artifact, which is the only way those two values could leave the runner.
 Concurrency is one group per pull request with `cancel-in-progress`, so a push supersedes the run in flight.
 Required check on both rulesets.
 
@@ -57,9 +60,14 @@ Two GitHub Actions environments, `dev` and `prd`, each with these variables (not
 - `ASSETS_BUCKET`: S3 bucket synced with `.open-next/assets`.
 - `CLOUDFRONT_DISTRIBUTION_ID`: distribution invalidated after each deploy.
 
-One secret, in the `dev` environment: `APP_PASSWORD`, used by `e2e-dev.yml` to log in. Fork pull requests never receive it.
+Secrets, in three separate stores, all holding values GitHub's settings keep in different screens:
 
-`ci.yml` reads none of them: it needs no variable and no secret, which is what keeps it running on fork pull requests.
+- `dev` environment secret `APP_PASSWORD`: used by `e2e-dev.yml` to log in against dev.
+- Repository secrets `APP_PASSWORD` and `SESSION_SECRET`: read by the e2e step of `ci.yml`, which is the only step of that workflow with an `env:` block.
+- Dependabot secrets `APP_PASSWORD` and `SESSION_SECRET`: the same two values again.
+  A pull request opened by Dependabot reads the Dependabot store and never the repository one, so without this duplicate every Dependabot pull request fails `ci` at the e2e step with nothing in the log pointing at the cause.
+
+`ci.yml` reads none of the variables above, only those two secrets.
 
 ## Testing
 

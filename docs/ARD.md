@@ -101,5 +101,6 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
+| deploy | 2026-09-17 | Fork pull requests cannot pass `ci`, the e2e step needs secrets | The project accepts outside contributions |
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
