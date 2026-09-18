@@ -19,6 +19,7 @@ export interface SceneSaverOptions {
   touch: (id: string) => Promise<Diagram>;
   onStatus: (status: SaveStatus) => void;
   onSaved: (diagram: Diagram) => void;
+  deleted?: () => boolean;
 }
 
 export interface SceneSaver {
@@ -33,6 +34,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   const debounceMs = options.debounceMs ?? 1500;
   const renewUrlMs = options.renewUrlMs ?? 60_000;
   const now = options.now ?? Date.now;
+  const deleted = options.deleted ?? (() => false);
 
   let baseline = options.baseline;
   let urls = options.initialUrls ?? null;
@@ -71,7 +73,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
     try {
       const url = await putUrl();
-      if (abandoned) return;
+      if (abandoned || deleted()) return;
 
       await options.put(url, serialized);
       if (abandoned) return;
@@ -104,6 +106,11 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
     if (opening && sceneVersion(scene.elements) === baseline.version) {
       baseline = { serialized, version: baseline.version };
+      forget();
+      return;
+    }
+
+    if (deleted()) {
       forget();
       return;
     }

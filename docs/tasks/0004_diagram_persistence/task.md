@@ -189,8 +189,10 @@ Deferred.
 
 - Optimistic list updates, as Scope already defers.
 - A save still in flight when the tab closes is lost after the prompt; a presigned PUT cannot go through `sendBeacon`, so there is no background flush.
-- A presigned PUT issued by a second tab can still orphan a scene object after a delete.
-  The single tab path is closed; multi tab conflict handling is out of scope.
+- A presigned PUT can still orphan a scene object after a delete in two cases.
+  A second tab holding its own presigned URL, since multi tab conflict handling is out of scope.
+  And, in this tab, a PUT whose bytes are already on the wire when the DELETE reaches the server: once the request has left, the ordering between it and the DELETE is not ours to decide, and an `AbortController` would only shrink that sliver at the cost of threading a signal through the api layer.
+  Everything before that point is closed, as round 3 describes.
 - The Scan paginates but sets no page size, since the table stays small by design.
 
 ### Round 2
@@ -216,3 +218,18 @@ Tests added: seven unit tests over the adoption, `stop()` and `abandon()`, and o
 I checked the new guard tests by reverting each guard: the adoption test and both `stop()` tests fail without the code, then pass with it.
 
 Unchanged from round 1: e2e still cannot run, so `verify.log` keeps the same honest hold, and acceptance 1 to 5 stay unproven.
+
+### Round 3
+
+One finding, applied.
+
+- The saver no longer depends on unmount order to know the diagram is gone.
+  `createSceneSaver` takes a `deleted` port, wired to the provider's marker, which `remove` sets synchronously before the DELETE leaves.
+  `fire()` checks it before `advance("change")`, so a debounce that lands inside the DELETE round trip starts nothing, and `upload()` checks it after the presigned url resolves and before `options.put`, so an upload already under way stops before it writes.
+  The reviewer is right that the window is not small: `docs/ARD.md` accepts a 1 to 2 second cold start, which comfortably outlives the 1.5 s debounce, and "draw, then delete this diagram" is exactly when it fires.
+- Two unit tests: the marker flips between the change and the debounce, and it flips while the presigned url is in flight.
+  Both fail with the guards reverted.
+- The Deferred note from round 1 that called the single tab path closed is corrected above: it is closed except for a PUT whose bytes are already on the wire, which the om-reviewer records as accepted in the PR.
+
+No abort of an in-flight PUT, as agreed.
+Unchanged: e2e still cannot run, acceptance 1 to 5 still unproven.

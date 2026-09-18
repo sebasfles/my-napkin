@@ -305,6 +305,44 @@ describe("createSceneSaver", () => {
     expect(put).toHaveBeenCalledTimes(1);
   });
 
+  it("uploads nothing for a diagram deleted while the debounce was still running", async () => {
+    let gone = false;
+    const { saver, put, touch } = setup({ deleted: () => gone });
+
+    saver.change(scene(2));
+    gone = true;
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+    expect(touch).not.toHaveBeenCalled();
+  });
+
+  it("uploads nothing for a diagram deleted while its presigned url was being fetched", async () => {
+    let gone = false;
+    let release = (_urls: SceneUrls) => {};
+    const requestUrls = vi.fn<(id: string) => Promise<SceneUrls>>().mockImplementation(
+      () =>
+        new Promise<SceneUrls>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const { saver, put } = setup({
+      deleted: () => gone,
+      urls: requestUrls,
+      initialUrls: urls(0),
+    });
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(requestUrls).toHaveBeenCalledTimes(1);
+
+    gone = true;
+    release(urls(300_000));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it("uploads nothing at all once abandoned, so a deleted diagram cannot come back", async () => {
     const { saver, put, touch } = setup();
 

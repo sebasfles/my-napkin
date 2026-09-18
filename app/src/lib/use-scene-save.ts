@@ -38,8 +38,9 @@ export function useSceneSave({
         touch: touchDiagram,
         onStatus,
         onSaved,
+        deleted: () => isDeleted(diagramId),
       }),
-    [baseline, diagramId, onSaved, onStatus, urls],
+    [baseline, diagramId, isDeleted, onSaved, onStatus, urls],
   );
 
   useEffect(() => {
