@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-17
-source: setup
+source: 0001_repo_base
 ---
 
 # app: flows
 
-No code exists yet. These are the planned flows.
+Neither flow is built yet; the shell has no persistence and no auth.
 
 ## Login
 

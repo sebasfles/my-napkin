@@ -183,3 +183,16 @@ Applied both findings, no disagreement with either.
 
 Also in this commit: the rebase onto `origin/develop` at 95bc999, and your `Context & decisions` line on the `gh` account, which was uncommitted in the worktree.
 
+### Documentation
+
+Updated all six `docs/modules/app/` files, plus the `Debt index` of `docs/ARD.md` with the two debts, each backed by a dated entry in `docs/modules/app/ard.md`.
+Six ARD entries: the `es-ES` langCode mapping, the hydration gate, the shadcn radix base kept as generated, the two Next development defaults, and the two debts.
+The OpenNext deviation is deliberately not there; it is a property of the build tool and belongs in the PR's Decisions.
+
+Two things crossed the skill's default boundary, both on your instruction, so flagging them:
+
+- `docs/TRD.md` is normally the om-manager's. I corrected exactly two drifts and nothing else: the line claiming nothing is built, and the app layout line, which omitted `src/i18n/` entirely and described `src/lib/` only by its future contents. The verification table already matched what I ran, so I left it untouched, and I left its frontmatter `source: setup`.
+- `docs/ARD.md`: I changed only the `Debt index` and left `source: setup`, since the decisions above it are still `setup`'s. Its `updated` was already today.
+
+I also cut the `Out of scope` list from `docs/modules/app/prd.md`, which duplicated `docs/PRD.md` verbatim, and replaced it with a pointer, to pay for the `Interface` section I added.
+

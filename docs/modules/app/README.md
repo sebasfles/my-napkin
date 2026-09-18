@@ -1,12 +1,13 @@
 ---
 updated: 2026-09-17
-source: setup
+source: 0001_repo_base
 ---
 
 # app
 
 Next.js application that serves the editor: a diagram list, an embedded Excalidraw canvas, password login, and the API routes that back both.
-No code exists yet; this documents the planned design.
+The shell exists today, in Spanish and English and in light and dark mode.
+The diagram list is still an empty placeholder, and persistence, login and the API routes are not built.
 Runs as a single Lambda behind CloudFront, built with OpenNext.
 
 ## Boundaries

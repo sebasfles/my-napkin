@@ -6,7 +6,7 @@ source: setup
 # Technical Requirements Document
 
 Describes the whole application.
-Nothing is built yet: this document is the design the code must converge to, and every task updates it as code lands.
+The app's shell is built; everything else is the design the code must converge to, and every task updates it as code lands.
 
 ## Components
 
@@ -19,7 +19,7 @@ Nothing is built yet: this document is the design the code must converge to, and
 ### app
 
 - Stack: TypeScript, Node 24, Next.js App Router with route handlers, Tailwind with shadcn/ui components, `next-themes` for dark mode, `next-intl` for `es` and `en`, `@excalidraw/excalidraw` from npm, npm as package manager, built with `@opennextjs/aws`.
-- Layout: `src/app/` (pages and `api/` route handlers), `src/middleware.ts` (auth gate), `src/lib/` (dynamo, s3, session), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e tagged `@aws` need a deployed environment).
+- Layout: `src/app/` (pages and `api/` route handlers), `src/middleware.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, later dynamo, s3, session), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e tagged `@aws` need a deployed environment).
 - Install: `npm ci`
 - Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal`.
 - API spec: none; five route handlers documented in `modules/app/trd.md`.
