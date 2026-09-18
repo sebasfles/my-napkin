@@ -26,6 +26,7 @@ export interface SceneSaver {
   flush(): void;
   dirty(): boolean;
   stop(): void;
+  abandon(): void;
 }
 
 export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
@@ -41,6 +42,8 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let changed = false;
   let stopped = false;
+  let abandoned = false;
+  let reconciled = false;
 
   function serializePending(scene: Scene): string {
     pendingSerialized ??= JSON.stringify(scene);
@@ -51,7 +54,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     const transition = nextSaveState(status, event);
     status = transition.status;
     if (!stopped) options.onStatus(status);
-    if (transition.upload) void upload();
+    if (transition.upload && !stopped) void upload();
   }
 
   async function putUrl(): Promise<string> {
@@ -63,19 +66,20 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
   async function upload(): Promise<void> {
     const scene = pending;
-    if (!scene) return;
+    if (!scene || stopped) return;
     const serialized = serializePending(scene);
 
     try {
-      await options.put(await putUrl(), serialized);
+      const url = await putUrl();
+      if (abandoned) return;
+
+      await options.put(url, serialized);
+      if (abandoned) return;
+
       const diagram = await options.touch(options.diagramId);
 
       baseline = { serialized, version: sceneVersion(scene.elements) };
-      if (pending === scene) {
-        pending = null;
-        pendingSerialized = null;
-        changed = false;
-      }
+      if (pending === scene) forget();
       options.onSaved(diagram);
       advance("success");
     } catch {
@@ -89,14 +93,28 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     const scene = pending;
     if (!scene) return;
 
-    if (serializePending(scene) === baseline.serialized) {
-      pending = null;
-      pendingSerialized = null;
-      changed = false;
+    const serialized = serializePending(scene);
+    const opening = !reconciled;
+    reconciled = true;
+
+    if (serialized === baseline.serialized) {
+      forget();
+      return;
+    }
+
+    if (opening && sceneVersion(scene.elements) === baseline.version) {
+      baseline = { serialized, version: baseline.version };
+      forget();
       return;
     }
 
     advance("change");
+  }
+
+  function forget(): void {
+    pending = null;
+    pendingSerialized = null;
+    changed = false;
   }
 
   function cancelTimer(): void {
@@ -126,6 +144,12 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     stop() {
       cancelTimer();
       stopped = true;
+    },
+
+    abandon() {
+      cancelTimer();
+      stopped = true;
+      abandoned = true;
     },
   };
 }

@@ -50,7 +50,13 @@ export function useSceneSave({
     window.addEventListener("beforeunload", warnWhileDirty);
     return () => {
       window.removeEventListener("beforeunload", warnWhileDirty);
-      if (!isDeleted(diagramId)) saver.flush();
+
+      if (isDeleted(diagramId)) {
+        saver.abandon();
+        return;
+      }
+
+      saver.flush();
       saver.stop();
     };
   }, [diagramId, isDeleted, saver]);

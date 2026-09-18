@@ -95,7 +95,14 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback(async (id: string) => {
     deleted.current.add(id);
-    await deleteDiagram(id);
+
+    try {
+      await deleteDiagram(id);
+    } catch (error) {
+      deleted.current.delete(id);
+      throw error;
+    }
+
     setDiagrams((current) => current.filter((item) => item.id !== id));
   }, []);
 

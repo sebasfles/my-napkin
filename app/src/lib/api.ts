@@ -48,9 +48,7 @@ export async function loadScene(id: string): Promise<{ scene: Scene; urls: Scene
   const urls = await fetchSceneUrls(id);
   const response = await fetch(urls.get);
 
-  if (response.status === 403 || response.status === 404) {
-    return { scene: emptyScene(), urls };
-  }
+  if (response.status === 404) return { scene: emptyScene(), urls };
   if (!response.ok) throw new Error(`scene download failed with ${response.status}`);
 
   return { scene: parseScene(await response.json()), urls };

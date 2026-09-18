@@ -192,3 +192,27 @@ Deferred.
 - A presigned PUT issued by a second tab can still orphan a scene object after a delete.
   The single tab path is closed; multi tab conflict handling is out of scope.
 - The Scan paginates but sets no page size, since the table stays small by design.
+
+### Round 2
+
+All six findings applied.
+
+1. `loadScene` now treats only a 404 as "no scene yet".
+   Every other non ok status, 403 included, throws, the editor shows `loadFailed` and mounts no canvas, so the saver never takes an empty baseline over a real drawing.
+2. `stop()` starts no further upload: `advance` no longer dispatches one once stopped, and `upload()` returns at its entry.
+   I split the finding in two methods rather than one, and this is the one place I did not follow the wording literally.
+   Returning early "before calling `options.put`" in every case would also kill the flush the hook fires on unmount, which is what saves a change made in the last 1.5 s before switching diagrams, so a plain read of it trades an orphan object for lost work.
+   `stop()` therefore means "start nothing new, let what is running finish", and the new `abandon()` means "put nothing, ever", including an upload already past its `await`.
+   The hook calls `abandon()` when the diagram was deleted and `flush()` plus `stop()` otherwise, so the orphan path the finding names is closed and the last save still lands on a normal switch.
+3. `remove` clears the deleted marker when the DELETE fails, so a failed delete leaves the diagram fully alive, flush included.
+4. Opening a diagram cannot save it, by construction rather than by luck.
+   The first report the editor makes after a mount is adopted as the baseline when it changes no element (same version sum), instead of being uploaded; from the second report on, a change that touches no element (a pan, a zoom, a background change) is saved as before.
+   That makes the property hold whatever Excalidraw's `restore()` normalizes, which I cannot observe until the e2e round.
+   The spec opens a diagram that has a drawing, samples the indicator across four seconds and asserts the list order does not move; the order is the definitive half, since a save reorders the sidebar through `markSaved`.
+5. The save indicator belongs to the active row only; every other row shows its relative date.
+6. Rebased on `c69450f`.
+
+Tests added: seven unit tests over the adoption, `stop()` and `abandon()`, and one spec.
+I checked the new guard tests by reverting each guard: the adoption test and both `stop()` tests fail without the code, then pass with it.
+
+Unchanged from round 1: e2e still cannot run, so `verify.log` keeps the same honest hold, and acceptance 1 to 5 stay unproven.

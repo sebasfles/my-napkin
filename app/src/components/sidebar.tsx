@@ -136,7 +136,11 @@ export function Sidebar() {
                   <DiagramRow
                     diagram={diagram}
                     active={diagram.id === activeId}
-                    status={saveStatus?.id === diagram.id ? saveIndicator(saveStatus.status) : null}
+                    status={
+                      diagram.id === activeId && saveStatus?.id === diagram.id
+                        ? saveIndicator(saveStatus.status)
+                        : null
+                    }
                     renameLabel={t("rename")}
                     deleteLabel={t("delete")}
                     onRename={() => setRenaming(diagram.id)}

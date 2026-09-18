@@ -55,6 +55,28 @@ function setup(overrides: Partial<SceneSaverOptions> = {}) {
   return { saver, statuses, saved, put, touch, requestUrls };
 }
 
+function createExpiringSaver({
+  requestUrls,
+  put,
+  touch,
+}: {
+  requestUrls: SceneSaverOptions["urls"];
+  put: SceneSaverOptions["put"];
+  touch: SceneSaverOptions["touch"];
+}) {
+  return createSceneSaver({
+    diagramId: "diagram-1",
+    baseline: { serialized: JSON.stringify(scene(1)), version: 1 },
+    initialUrls: urls(0),
+    now: () => now,
+    urls: requestUrls,
+    put,
+    touch,
+    onStatus: () => {},
+    onSaved: () => {},
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -200,6 +222,119 @@ describe("createSceneSaver", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(put).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the editor's first report of an unchanged scene as the baseline, without saving", async () => {
+    const { saver, put, statuses } = setup();
+    const normalized = { ...scene(1), appState: { scrollX: 0, scrollY: 0 } };
+
+    saver.change(normalized);
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+    expect(statuses).toEqual([]);
+    expect(saver.dirty()).toBe(false);
+  });
+
+  it("saves a later change that touches no element, once the diagram is open", async () => {
+    const { saver, put } = setup();
+
+    saver.change(scene(1));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    const panned = { ...scene(1), appState: { scrollX: 120, scrollY: 40 } };
+    saver.change(panned);
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0][1]).toBe(JSON.stringify(panned));
+  });
+
+  it("saves the opening report when the user changed an element before the debounce fired", async () => {
+    const { saver, put } = setup();
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0][1]).toBe(JSON.stringify(scene(2)));
+  });
+
+  it("starts no upload once stopped, so a queued change cannot outlive the editor", async () => {
+    const { saver, put, statuses } = setup();
+    let release = () => {};
+    put.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.change(scene(3));
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(statuses).toEqual(["saving", "queued"]);
+
+    saver.stop();
+    release();
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts no upload once stopped, not even the retry a failed upload would have made", async () => {
+    const { saver, put } = setup();
+    let fail = (_reason: Error) => {};
+    put.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.change(scene(3));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    saver.stop();
+    fail(new Error("scene upload failed with 403"));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+  });
+
+  it("uploads nothing at all once abandoned, so a deleted diagram cannot come back", async () => {
+    const { saver, put, touch } = setup();
+
+    saver.change(scene(2));
+    saver.abandon();
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+    expect(touch).not.toHaveBeenCalled();
+  });
+
+  it("drops an upload that was already in flight when the diagram was abandoned", async () => {
+    const { saver, put, touch, requestUrls } = setup();
+    let release = (_urls: SceneUrls) => {};
+    requestUrls.mockImplementationOnce(
+      () =>
+        new Promise<SceneUrls>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    const expiring = createExpiringSaver({ requestUrls, put, touch });
+    expiring.change(scene(2));
+    expiring.flush();
+
+    expiring.abandon();
+    release(urls(300_000));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("stops reporting once stopped, but still finishes the save it started", async () => {

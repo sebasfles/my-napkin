@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  diagramItem,
   drawRectangle,
   expectSomethingOnTheCanvas,
   newDiagram,
@@ -45,6 +46,30 @@ test.describe("save and reload", () => {
     await expect(page.locator(".excalidraw")).toBeVisible();
 
     await expect.poll(() => redPixelsOnCanvas(page), { timeout: 30_000 }).toBeGreaterThan(500);
+  });
+
+  test("opening a diagram with a drawing in it saves nothing and leaves the list alone", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const opened = await newDiagram(page, "opened");
+
+    await drawRectangle(page);
+    await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
+
+    const newest = await newDiagram(page, "newest");
+    await expect(page.getByTestId("diagram-item").first()).toContainText(newest);
+
+    await diagramItem(page, opened).getByRole("link").click();
+    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expectSomethingOnTheCanvas(page);
+
+    for (let sample = 0; sample < 20; sample += 1) {
+      await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 300 });
+      await page.waitForTimeout(200);
+    }
+
+    await expect(page.getByTestId("diagram-item").first()).toContainText(newest);
   });
 
   test("sends the scene straight to S3, never through the app server", async ({ page }) => {
