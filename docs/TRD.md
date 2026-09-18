@@ -53,10 +53,13 @@ Commands run one at a time, serial flags included.
 | Target | Path | lint | typecheck | unit | e2e |
 |---|---|---|---|---|---|
 | app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run` | `npx playwright test --workers=1` |
-| infra | `infra/environments/dev/` | `terraform fmt -check -recursive ../..` | `terraform validate` | n/a | n/a |
+| infra-core | `infra/environments/core/` | `terraform fmt -check -recursive ../..` | `terraform validate` | n/a | n/a |
+| infra-dev | `infra/environments/dev/` | n/a | `terraform validate` | n/a | n/a |
+| infra-prd | `infra/environments/prd/` | n/a | `terraform validate` | n/a | n/a |
 | deploy | `app/` | `npm run lint:workflows` | n/a | n/a | n/a |
 
-`terraform validate` needs `terraform init -backend=false` first in a fresh worktree.
+`terraform validate` needs `terraform init -backend=false` first, in each of the three roots.
+The `fmt` check runs once, from `infra/`, and covers every root and module.
 
 ## Modules
 
