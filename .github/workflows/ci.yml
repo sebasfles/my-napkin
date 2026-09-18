@@ -42,28 +42,6 @@ jobs:
         working-directory: app
         run: npx vitest run
 
-      - name: Resolve Playwright version
-        id: playwright
-        working-directory: app
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-
-      - name: Install Playwright browsers
-        working-directory: app
-        run: npx playwright install --with-deps chromium
-
-      - name: End-to-end tests
-        working-directory: app
-        run: npx playwright test --workers=1 --grep-invert @aws
-        env:
-          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false

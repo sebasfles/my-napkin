@@ -87,27 +87,12 @@ source: 0002_ci_workflow
 ## 2026-09-17: pin actions to a floating current major, not to a snapshot of one
 
 - Decision: every action in `ci.yml` is pinned to its major tag at the version that is current when the workflow is written, and Dependabot carries those majors forward.
-  The task plan named `actions/checkout@v4`, `actions/setup-node@v4` and `hashicorp/setup-terraform@v3`; what ships is `@v7`, `@v7`, `actions/cache@v6` and `setup-terraform@v4`, the current majors.
+  The task plan named `actions/checkout@v4`, `actions/setup-node@v4` and `hashicorp/setup-terraform@v3`; what ships is `@v7`, `@v7` and `setup-terraform@v4`, the current majors.
 - Alternatives rejected: pinning to commit SHAs (Dependabot can bump those too, but every PR then carries an opaque 40 character diff for a single-user repo); keeping the majors the plan wrote.
 - Reason: a major tag is only as safe as it is current.
   The tags the plan named were already three, three and one majors behind and target the deprecated Node 20 runtime, so GitHub annotated every run, and `ci` is the permanent merge gate for both branches.
   The plan's own reason for choosing major tags was that Dependabot keeps them current, which argues for starting current rather than handing Dependabot four bump PRs in its first week.
 - Debt created: none.
-  A floating major can still break the gate on an upstream release, which is what the four red proofs and a green baseline on each Dependabot PR are for.
+  A floating major can still break the gate on an upstream release, which is what the red proofs and a green baseline on each Dependabot PR are for.
 - Revisit when: an action ships a breaking change inside a major, or a supply chain incident makes SHA pinning worth the diff noise.
-- Source: 0002_ci_workflow
-
-## 2026-09-17: the ci e2e step carries the app's two secrets, and fork pull requests stay red
-
-- Decision: the `End-to-end tests` step of `ci.yml`, and no other step, receives `APP_PASSWORD` and `SESSION_SECRET` from repository secrets, with no literal and no fallback value.
-  The `webServer` Playwright spawns inherits the step's environment, so the test and the server it runs against are covered in one place.
-  The same two values also exist as Dependabot secrets, because a Dependabot pull request never reads the repository store.
-- Alternatives rejected: skipping the e2e step on pull requests whose head repository is not `sebasfles/my-napkin`, which would turn the required check green on a pull request nobody verified; an empty-string default, which would make the app fail at runtime instead of at the missing secret.
-- Reason: from task 0005 the app requires both values to serve a page and to log in, so without them the e2e suite cannot run at all.
-- Debt created: pull requests from forks of this public repo can no longer pass `ci`, permanently, because forks receive no secrets.
-  Accepted for a repository that takes no outside contributions, where an honest red is better than a green check on unverified code.
-- Permanent constraint, and the reason this decision is safe: `ci.yml` never uploads `playwright-report/` or a Playwright trace as an artifact.
-  GitHub masks registered secrets in log output, but it does not mask them inside a trace or an HTML report, where a password typed into a login form is captured as an input value, and `trace: "on-first-retry"` records precisely the retried login test.
-  An artifact upload would publish both secrets on a public repository, so it is never added to this workflow.
-- Revisit when: the project accepts outside contributions, which would need a separate workflow for forks that runs everything except the e2e suite.
 - Source: 0002_ci_workflow

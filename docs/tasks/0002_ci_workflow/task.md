@@ -110,14 +110,26 @@ Consolidated 2026-09-17.
 - Acceptance 1 is read from the PR's check list, not from the workflow file.
 - No check in `docs/checks/` has `paths` matching this diff, so review rounds run no background checkers.
 
-### Scope addition, 2026-09-17: the e2e step carries the app's two secrets
+### Scope correction, 2026-09-18: `ci` runs no e2e
 
-- Sebastian, through the om-manager, while task 0005 consolidates: the app will require `APP_PASSWORD` and `SESSION_SECRET` to serve and to log in, so `ci.yml` exposes them as repository secrets on the Playwright step only, with no literal and no fallback. The `webServer` Playwright spawns inherits that step's environment, so one place covers both the test and the server.
-- This reverses the constraint above that `ci.yml` holds no secret. A pull request from a fork can no longer pass `ci`, because the e2e step fails without them. Accepted, and `docs/modules/deploy/prd.md` and `trd.md` are corrected to say so rather than leave the old promise standing.
-- Skipping e2e on forks with an `if` on the head repository was rejected (om-reviewer): it turns the required check green on a pull request nobody verified, which is worse than an honest red for a repository that takes no outside contributions.
-- The same two values have to exist in two separate stores, repository secrets for `ci` and Dependabot secrets for Dependabot's own pull requests, which never read the repository set. `docs/modules/deploy/trd.md` says so, because the cost of learning it later is a red required check with no obvious cause.
-- Permanent constraint: this workflow never uploads `playwright-report/` or Playwright traces as artifacts. GitHub masks registered secrets in log output but not inside a trace, where a password typed into a login form is captured as input, and `trace: "on-first-retry"` records precisely the retried login test.
-- Round 4 proves nothing, by construction: the secrets do not exist in the repository yet, an unset secret expands to an empty string, and nothing reads either variable until 0005 lands. `actionlint` and a green run are the whole of the available evidence, and the real verification belongs to 0005.
+- Supersedes the addition recorded here on 2026-09-17, which put `APP_PASSWORD` and `SESSION_SECRET` on the Playwright step. That instruction never shipped: the step it attached to is gone.
+- Sebastian, through the om-manager: `ci.yml` runs no e2e at all. Specs run only in `e2e-dev.yml`, on pull requests into `main`, against the deployed `napkin.dev.sdfles.com`. `docs/conventions/e2e.md` on `develop` (8241682) is the source, and the branch is rebased on it.
+- `ci.yml` therefore holds no secret again, and the original constraint stands unchanged: `permissions: contents: read`, `pull_request` rather than `pull_request_target`, and pull requests from forks of this public repository keep passing.
+- The rule that a Playwright trace must never be uploaded as an artifact survives, re-homed (om-reviewer): it belongs to `e2e-dev.yml`, which logs into deployed dev with a real `APP_PASSWORD`, not to `ci.yml`, which now holds nothing to leak.
+- Acceptance 2 adjusted (om-reviewer): its "failing e2e" limb has nothing left to prove, so three breakages remain, a lint error, a failing unit test and unformatted Terraform. All three are re-proven against the workflow that ships, because the earlier proofs exercised a file with four more steps in it. The e2e proof already run (run 35308780493) stays in the record as history, not as evidence.
+- Acceptance 3 keeps its 8 minute budget, which stops being interesting once Playwright leaves the job. Measured cold on the shipping workflow anyway rather than assumed.
+- Accepted consequence, raised by the om-developer and recorded here rather than left to be discovered: `ci` no longer executes `app/src/` at runtime. The gate into `develop` proves the app lints, typechecks and passes its unit tests, and the first thing that proves a page still renders is `e2e-dev.yml` on the promotion pull request into `main`. This widens what can reach `develop` green, and `docs/modules/deploy/trd.md` says so.
+- Goal unchanged.
+### Reiteration 1, 2026-09-18 (retake 1, PR #2)
+
+Sebastian's retake restates the correction already recorded above and adds the state of the branch itself.
+Nothing in it changes Goal, Scope or the decisions taken so far.
+
+- Items 1 and 2 of `retakes.md` (no e2e and no secrets in `ci.yml`; `docs/modules/deploy/trd.md` still claiming Playwright e2e) were already done in the working tree when the sessions closed, but were never committed, so the pushed branch still shows the old state. They land as round 5 rather than as new work.
+- Item 3 is the real finding: the pull request head is `aa79ddc`, the deliberate `tmp: invalid terraform` commit from acceptance 2's proof 4b. The proof cycle was interrupted mid-flight by the session closing, so the branch was left on a breakage. It goes away when the clean tip is force-pushed, and the branch must never be published from a `tmp:` commit.
+- Item 4, rebase on `origin/develop`, now `2e2be66` with 0005 and 0006 merged.
+- The three acceptance 2 proofs are re-run against the shipping workflow after the rebase, as already decided above: a lint error, a failing unit test and unformatted Terraform. The `validate` branch is not re-run, since round 5 does not touch the Terraform step and proof 4b (run 35309306882) already drove every line of it.
+- Round 4's entry in `om-developer notes` describes secrets that never shipped. It is reconciled in round 5 rather than left standing, because the notes travel to Sebastian in the pull request.
 
 ## om-developer notes
 
@@ -216,20 +228,30 @@ The `Debt index` row in `docs/ARD.md` stays terse, as the om-reviewer asked.
 
 ### Round 4
 
-Applied the Scope addition: `APP_PASSWORD` and `SESSION_SECRET` from repository secrets on the `End-to-end tests` step of `ci.yml`, that step only, no literal and no fallback.
-`app/playwright.config.ts` untouched, since the `webServer` it already declares inherits the step's environment.
+Superseded before it shipped, so there is nothing here to describe.
+It put `APP_PASSWORD` and `SESSION_SECRET` on the `End-to-end tests` step of `ci.yml`; round 5 deleted that step, and with it the `env:` block, the ARD entry, the debt row and the doc changes this round had made.
+See `Scope correction, 2026-09-18` in `Context & decisions`.
 
-What this round proves: nothing, and that is structural rather than a gap in my testing.
-Neither secret exists in the repository yet, an unset secret expands to an empty string, and no code reads either variable until 0005 lands, so the e2e step behaves exactly as it did before this round.
-The available evidence is `actionlint` clean on the new `env:` block and a green run, both of which say only that the workflow is well formed.
-The real verification is 0005's, when the app refuses to serve without the two values.
-I did not write a test for this round, because any test I could write here would assert a literal I had just typed into a YAML file.
+### Round 5
 
-Docs corrected in the same round, including two lines I wrote earlier in this task that this round makes false:
+`ci` runs no e2e.
+Deleted `Resolve Playwright version`, `Cache Playwright browsers`, `Install Playwright browsers` and `End-to-end tests` from `ci.yml`, which removed round 4's `env:` block with the step it was attached to.
+Everything else is untouched: the 20 minute timeout, the current action majors, the npm cache, the Terraform step, `Lint workflows`, dependabot.
+`app/playwright.config.ts` not touched, and `github-actionlint` stays in `app/package.json`.
 
-- `docs/modules/deploy/trd.md`, Jobs owned: "no secret ... so pull requests from forks of this public repo still run" replaced by what is now true, including that a fork cannot pass `ci` and why that is accepted.
-- `docs/modules/deploy/trd.md`, Configuration: the old line said `APP_PASSWORD` was one `dev` environment secret for `e2e-dev.yml`. That is still true and is no longer the whole picture, so it became a three-item list of the three stores rather than a replacement, which keeps the deploy task's own secret documented.
-- `docs/modules/deploy/prd.md`, Rules: a fork pull request cannot pass `ci`, stated plainly instead of leaving the old promise standing.
-- One ARD entry with the decision, the rejected fork skip, the artifact and trace constraint, and the debt, plus its `Debt index` row in `docs/ARD.md`.
+Docs, reconciled rather than reverted:
 
-The three stores are named individually in `trd.md` (`dev` environment secret, repository secrets, Dependabot secrets) rather than described as "both places", because they are three different screens in GitHub's settings and a reader who misses one gets a red required check with nothing in the log pointing at the cause.
+- `docs/modules/deploy/trd.md`: the fork promise, `no secret` and `pull_request` over `pull_request_target` restored; the three-store secret list collapsed back to the single `dev` environment `APP_PASSWORD` for `e2e-dev.yml`; `ci` described as lint, typecheck, unit, Terraform and workflow checks, with e2e pointed at `e2e-dev.yml` and `docs/conventions/e2e.md` for the policy instead of restating it.
+- The coverage consequence stated plainly there, because it is the part of this correction that is easiest to miss: nothing in `ci` executes `app/src/` at runtime, so the gate into `develop` proves the app lints, typechecks and passes its unit tests and no more, and a change that compiles and breaks the editor reaches `develop` green. The promotion pull request into `main` is where a broken page is caught.
+- The no-artifact-upload rule re-homed to `e2e-dev.yml`'s description in `trd.md`, since that workflow logs into deployed dev with a real `APP_PASSWORD` and `ci.yml` now holds nothing to leak.
+- `docs/modules/deploy/prd.md`: fork rule removed, and the flow step corrected to say `ci` runs no e2e and where the browser tests actually run.
+- `docs/modules/deploy/ard.md`: round 4's entry removed, since it recorded a decision that never shipped, and its `Debt index` row removed from `docs/ARD.md`.
+- Round 4's block in these notes cut to a line saying it was superseded, rather than left standing with a correction appended under it.
+
+Two things I corrected that were not on the list, both made false by this round:
+
+- The pinning ARD entry claimed `actions/cache@v6` ships. The cache step is gone with Playwright, so `actions/cache` is no longer used at all and the entry now names only the three actions that remain. The decision itself is unchanged; only the enumeration was wrong.
+- The same entry said "the four red proofs". Acceptance 2 lost its e2e limb, so it says "the red proofs".
+
+On the verification command: `docs/TRD.md` on `develop` dropped `--grep-invert @aws` from the app row, and no spec carries an `@aws` tag today, so the change alters nothing about which specs run.
+Nobody should read it as a change in coverage: the 9 specs that ran before are the 9 that run now.

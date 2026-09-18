@@ -16,8 +16,9 @@ This module ships his pushes to `main` to `napkin.sdfles.com` without him runnin
 
 ### Ship a change
 
-1. Sebastian opens a pull request; `ci` runs lint, typecheck, unit tests, Playwright e2e, the workflow linter, and `terraform fmt -check` plus `terraform validate` on every root under `infra/environments/`.
+1. Sebastian opens a pull request into `develop`; `ci` runs lint, typecheck, unit tests, the workflow linter, and `terraform fmt -check` plus `terraform validate` on every root under `infra/environments/`.
    He reads one check, not a list.
+   `ci` runs no e2e: the browser tests run on the promotion pull request into `main`, against deployed dev, which is where a page that compiles but no longer renders is caught.
 2. He merges to `main`.
 3. The deploy workflow builds `app/` with OpenNext, updates the Lambda server function, syncs static assets to S3, and invalidates CloudFront.
 4. Within 3 to 5 minutes the change is live at `napkin.sdfles.com`.
@@ -33,8 +34,6 @@ Each one is gated by `ci`, so Sebastian merges the green ones and reads only the
 ## Rules
 
 - Only a push to `main` on `sebasfles/my-napkin` itself can deploy; pull requests, including from forks, get no AWS credentials.
-- A pull request from a fork cannot pass `ci`: the e2e step needs the app's password and session secret, and forks receive no secrets.
-  Accepted, because this repository takes no outside contributions, and a check that passes without running the tests would be worse than an honest red.
 - `ci` runs on every pull request with no path filter: a check that is skipped never reports, and a required check that never reports blocks the merge forever.
 - A deploy never requires a Terraform change: Terraform owns configuration, this module owns code.
 - No AWS access keys are stored anywhere; authentication is OIDC only.
