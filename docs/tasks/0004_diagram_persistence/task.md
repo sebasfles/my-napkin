@@ -277,3 +277,18 @@ Rebased on `2e2be66`. Two conflicts in round 1, four in the docs commit.
 Unit is 106 tests now, 86 mine and 20 from 0005 and 0006.
 E2E is held on one thing only: dev is not applied, so the table and bucket the suite needs do not exist.
 `.env.local` has been in place since before round 4, and the e2e line in this round's block says so.
+
+### Round 6
+
+One finding, applied: the trd structure table carries one `app/src/components/` row, the one that names the diagram provider, and 0006's is gone.
+
+Why round 5 missed it, since the cause matters more than the row.
+The fix was there, in the same shell command as the scan that was meant to confirm it, and that command failed to parse in zsh, so neither half ran.
+I read the parse error as the scan failing and moved on without re-running the edit.
+A command that does not parse runs none of its parts, so from here a fix and its check go in separate commands, and I confirm the fix by reading the file rather than by the absence of an error.
+
+The line scan could not have caught it either: the two rows describe the same path with different contents, so they are not identical lines.
+The om-reviewer's method is the right one and I used it here: the key of a Markdown table row is its first cell, not the line.
+Listing the first cell of every row in every doc table leaves three repeats, all legitimate, the module names in the debt index, the component names in `docs/TRD.md`, and `GET` and `POST` in the endpoint table, which I checked again as method plus route: seven endpoints, no duplicates.
+
+Not acted on, recorded as the om-reviewer's: the `styles` flag on the generated `ui/alert-dialog.tsx` overlay, which the check itself exempts, and the `i18n` checker answering with prose before a clean rerun.
