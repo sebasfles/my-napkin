@@ -55,6 +55,33 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 - Revisit when: the GitHub provider is worth adding to Terraform just to push those four variables.
 - Source: setup
 
+## 2026-09-17: Two environments, branch per environment, automatic promotion PR with e2e against dev
+
+- Decision: `develop` deploys `dev` (`napkin.dev.sdfles.com`) and `main` deploys `prd`. Merging to `develop` opens or updates the PR `develop -> main`; that PR runs Playwright against dev and is merged by Sebastian with a merge commit. Both branches carry a ruleset (no deletion, no force push, PR required, required checks, zero approvals, admin bypass) managed by Terraform through a GitHub App.
+- Alternatives rejected: trunk only with one environment (a broken change is seen by Sebastian in production); required approvals (one human cannot approve his own PR); rulesets by hand (undeclared, drifts).
+- Reason: Sebastian wants to see a change break before it reaches production without validating it himself; the public repo makes Actions minutes free and Playwright runs on `ubuntu-latest`; the second AWS environment stays inside the free tier.
+- Debt created: two of everything in AWS and two deploy roles; the dev password lives as a repository secret for the e2e job.
+- Revisit when: the free tier is exceeded, or a staging step is needed between dev and prd.
+- Source: setup
+
+## 2026-09-17: shadcn/ui on Tailwind with token-only colors, dark mode from day one
+
+- Decision: components come from shadcn/ui; every color is a CSS variable of the theme; light and dark follow the system through `next-themes`; the Excalidraw `theme` prop follows the app.
+- Alternatives rejected: plain CSS modules (no shared tokens, dark mode retrofitted later); a full component library (heavier than a sidebar and a canvas need).
+- Reason: the palette check can verify token-only styling mechanically, which keeps dark mode correct in every PR.
+- Debt created: none.
+- Revisit when: a design system with its own tokens replaces the shadcn defaults.
+- Source: setup
+
+## 2026-09-17: i18n with next-intl, es and en, from the first screen
+
+- Decision: every user-facing string is a `next-intl` key present in `es` and `en`; the locale follows the browser and can be switched in the sidebar; `en` is the fallback.
+- Alternatives rejected: Spanish only (cheap now, a full retrofit later); `react-i18next` (not integrated with the App Router).
+- Reason: adding i18n to a small app costs nothing; adding it to a grown one costs every string.
+- Debt created: none.
+- Revisit when: never expected.
+- Source: setup
+
 ## Debt index
 
 Open debt only: an entry with `Resolved by` leaves the table.
@@ -70,3 +97,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | infra | 2026-09-17 | State bucket created by hand before the first init | Never, standard pattern |
 | infra | 2026-09-17 | First apply runs a placeholder zip until the first deploy | Never, standard pattern |
 | deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
+| general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |

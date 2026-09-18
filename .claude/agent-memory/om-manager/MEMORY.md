@@ -1,1 +1,2 @@
 - [Reference infra repos](reference_infra_repos.md) — auvral-infra and diy-infra are the Terraform convention to copy for infra/
+- [No agent attribution](feedback_no_agent_attribution.md) — never add Co-Authored-By or Claude-Session trailers; Sebastian had to rewrite history once

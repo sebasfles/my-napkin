@@ -31,7 +31,7 @@ Errors and empty states: a failing CI check blocks merge; a failing deploy step 
 
 ## Out of scope
 
-- No staging or preview environment; the single environment is `prd`, applied by hand from `infra`, never from Actions.
+- No staging or preview environments beyond `dev`; Terraform is applied by hand from `infra`, never from Actions.
 - No rollback automation; reverting means pushing a revert commit to `main`.
 - No manual approval gate before `deploy.yml` runs.
 - No image optimization Lambda, revalidation queue or ISR cache in the OpenNext output.

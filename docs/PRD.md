@@ -43,6 +43,9 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - The editor is the upstream Excalidraw package, unmodified; the product does not diverge from its behavior.
 - The project, its domain and its AWS resources are named `napkin`; the Excalidraw name appears only as a credit in the README.
 - Fixed monthly cost stays at $0 inside the AWS free tier.
+- The interface is available in Spanish and English, following the browser and switchable from the sidebar.
+- Light and dark mode follow the system and can be switched from the sidebar; the editor follows the same theme.
+- A change reaches the user only after it ran on `napkin.dev.sdfles.com` and its end-to-end tests passed there.
 
 ## Not in the product
 

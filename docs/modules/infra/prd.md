@@ -38,7 +38,7 @@ Errors and empty states: a failed `apply` leaves prior resources untouched; Terr
 ## Out of scope
 
 - An image optimization Lambda, a revalidation queue, an ISR cache: the app does not use them.
-- More than one environment: only `prd` exists.
+- A third environment: only `dev` and `prd` exist.
 - Deploying application code: that is `deploy`'s job.
 
 ## Open questions

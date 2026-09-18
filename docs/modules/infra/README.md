@@ -5,7 +5,7 @@ source: setup
 
 # infra
 
-Terraform that provisions the AWS infrastructure my-napkin runs on: one AWS account, one region, one environment (`prd`).
+Terraform that provisions the AWS infrastructure my-napkin runs on: one AWS account, one region, two environments (`dev`, `prd`), plus the GitHub rulesets of the repository.
 It creates infrastructure only.
 It never deploys application code; that is `deploy`'s job.
 
