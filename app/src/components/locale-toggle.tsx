@@ -22,7 +22,7 @@ export function LocaleToggle() {
   return (
     <Button
       variant="ghost"
-      size="sm"
+      size="default"
       aria-label={t("label")}
       data-testid="locale-toggle"
       onClick={switchLocale}

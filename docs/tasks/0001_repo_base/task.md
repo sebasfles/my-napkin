@@ -114,6 +114,7 @@ Consolidated 2026-09-17.
 - `docs/checks/styles.md` and `docs/checks/i18n.md`: the Excalidraw render passes `theme` and `langCode` derived from the app theme and locale; colors come only from tokens.
 - `docs/TRD.md`, Verification targets, is the only source of the commands; e2e runs `--grep-invert @aws`.
 - Base branch is `develop`, not the GitHub default `main`.
+- Every `gh` call on this repo runs with `GH_TOKEN=$(gh auth token -u sebasfles)` in its environment and never `gh auth switch`, because the active account `sflores-designli` has no push here (om-manager). Push itself goes over ssh as `sebasfles`, verified with a dry run at consolidation; only `gh pr create` needs the token.
 
 ### What I check beyond the Pipeline
 
@@ -168,3 +169,17 @@ Pending and deferred:
 - Noted, no action: the editor overwrites `<html lang>` with its own `langCode`, so the document ends up `es-ES` rather than `es`.
   It is still correct Spanish, so the locale specs assert visible text as `docs/conventions/e2e.md` wants, not the attribute.
 - Not created, as instructed: `src/middleware.ts`, and no `.env.local` or `.env.example`.
+
+### Round 2
+
+Applied both findings, no disagreement with either.
+
+1. `locale-toggle.tsx` now uses `size="default"` (h-8), matching the theme toggle's `size="icon"` (size-8).
+   Measured in the running app at 1280x800: both buttons are 32px tall and share the same top edge at y=760.
+   Their widths still differ (32 and 38.34) because one is a square icon button and the other holds the "ES" label, which is the intended shape for a text button, not the mismatch you flagged.
+2. `next.config.ts` now sets `devIndicators: { position: "bottom-right" }` instead of `false`, so the build-activity and stale-route signal stays during development.
+   Measured in the running app: the indicator sits at x=1224, y=744, clear of the 224px sidebar, and the theme toggle clicks without interception.
+   No spec failed for it: the indicator overlays the canvas without changing its layout, so the bounding-box assertions are unaffected, and the rectangle drag starts at 30% of the canvas box, far from the bottom-right corner.
+
+Also in this commit: the rebase onto `origin/develop` at 95bc999, and your `Context & decisions` line on the `gh` account, which was uncommitted in the worktree.
+
