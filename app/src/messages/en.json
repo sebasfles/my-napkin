@@ -17,9 +17,11 @@
     "invalidPassword": "That password is not correct.",
     "unexpected": "Something went wrong. Try again."
   },
-  "themeToggle": {
-    "toLight": "Switch to light theme",
-    "toDark": "Switch to dark theme"
+  "themeControl": {
+    "label": "Theme",
+    "system": "Follow the system theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
   },
   "localeToggle": {
     "label": "Switch to Spanish",

@@ -98,3 +98,43 @@ Sebastian delegated every decision of this task to the om-reviewer on 2026-09-18
 - Beyond the Pipeline I will check that picking an option persists the choice so Acceptance 3 holds without clearing storage, that the pre-hydration frame selects nothing, and that the e2e can actually fail if the control stops following the OS.
 
 ## om-developer notes
+
+### Round 1
+
+Done: the sidebar footer now holds `ThemeControl`, a three-option segmented control (monitor, sun, moon) built on the generated `ToggleGroup` with `type="single"`, replacing `ThemeToggle`, which is deleted.
+`app/src/lib/theme.ts` gained `themeChoices` and the pure `themeChoice()`, and `resolveTheme` routes both its arguments through it.
+`themeToggle.*` is gone from both catalogs and `themeControl.{label,system,light,dark}` took its place.
+`app/tests/unit/theme.test.ts` covers `themeChoice` and the new `resolveTheme` normalization; `app/tests/e2e/theme.spec.ts` is one spec that flips the emulated OS scheme live.
+`verify.log` block: lint, typecheck, 17 unit and 8 e2e all green.
+
+Decisions this round, beyond the ones `Context & decisions` already records:
+
+- `npx shadcn@latest add toggle-group` emitted radix-nova files on `radix-ui` without complaint, so the hand-written fallback and its ARD deviation were not needed.
+  It wrote two files: `ui/toggle-group.tsx` and its dependency `ui/toggle.tsx`, both kept as generated and only run through Prettier, which is the shape `ui/button.tsx` already has in the tree.
+- Shape: `spacing={0}` joins the three options, the group carries `overflow-hidden rounded-lg border border-border bg-background`, and the options keep the generated default size (h-8) so the control lines up with the locale button beside it.
+- The active option is `bg-primary text-primary-foreground`, pinned for `hover` as well.
+  Reason: the generated `toggleVariants` paints both `hover` and `data-[state=on]` with `bg-muted`, so out of the box the selected option is indistinguishable from a hovered one, and hovering the selected one would drop its fill.
+  Every class is a semantic token, so `styles` stays clean.
+- The pre-hydration "nothing selected" frame is `value=""`, not `value={undefined}`: `undefined` makes the Radix group uncontrolled, which would silently break the whole control.
+- Radix's single-select group lets a click on the already active radio deselect it and report `""`, so `onValueChange` ignores an empty value.
+  The theme can be changed but never cleared.
+- The icon map is typed `Record<ThemeChoice, typeof Monitor>`, so a fourth option cannot be added without its icon.
+- In the e2e, the OS scheme is flipped to dark *before* light is picked, so the post-reload assertion (the app light while the OS is dark) can only pass if the explicit choice persisted.
+  Picking light under a light OS would have passed vacuously.
+- `themeControl.label` is the group's `aria-label`, each option's label is its own `aria-label`, and the icons are `aria-hidden`, so the three options are readable by name and the icons add no noise.
+
+Checked beyond the Pipeline, as `Context & decisions` asks:
+
+- The new `resolveTheme("sepia", "dark")` assertion fails against the old helper (`expected 'light' to be 'dark'`) and passes with the new one.
+- The e2e fails when the app stops following the OS: with `enableSystem={false}` on the provider it reports `Expected pattern: /dark/, Received string: "system"`.
+- The server-rendered frame selects nothing: all three radios come back `aria-checked="false"`, with the group named `Theme`.
+- Persistence holds without clearing storage, which is the post-reload step of the spec.
+
+Pending: nothing.
+
+Deferred:
+
+- A stored theme that is none of the three (reachable only by editing `localStorage` by hand, never from the UI) is normalized to `system` by `themeChoice`, so the control and the canvas follow the OS, but `next-themes` still writes that raw value as the `html` class and the shell alone stays light.
+  Closing that gap means writing back into `next-themes` on mount, which the hydration gate and the `set-state-in-effect` rule make expensive for a state the app cannot produce.
+- `app/package.json`'s `test:e2e` script still carries `--grep-invert @aws`, which `docs/conventions/e2e.md` no longer needs.
+  `Context & decisions` keeps the script out of scope and gives `document-task` only the `trd.md` line.

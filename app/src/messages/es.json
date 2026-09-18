@@ -17,9 +17,11 @@
     "invalidPassword": "Esa contraseña no es correcta.",
     "unexpected": "Algo salió mal. Vuelve a intentarlo."
   },
-  "themeToggle": {
-    "toLight": "Cambiar al tema claro",
-    "toDark": "Cambiar al tema oscuro"
+  "themeControl": {
+    "label": "Tema",
+    "system": "Seguir el tema del sistema",
+    "light": "Tema claro",
+    "dark": "Tema oscuro"
   },
   "localeToggle": {
     "label": "Cambiar a inglés",
