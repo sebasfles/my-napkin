@@ -1,6 +1,7 @@
 import type { Diagram, SceneUrls } from "@/lib/diagrams";
 import { loginPath } from "@/lib/gate";
 import { emptyScene, parseScene, sceneContentType, type Scene } from "@/lib/scene";
+import { signedFetch } from "@/lib/signed-fetch";
 
 export class NotFoundError extends Error {}
 
@@ -42,6 +43,10 @@ export async function deleteDiagram(id: string): Promise<void> {
   await call(`/api/diagrams/${id}`, { method: "DELETE" });
 }
 
+export async function logout(): Promise<void> {
+  await call("/api/logout", { method: "POST" });
+}
+
 export async function fetchSceneUrls(id: string): Promise<SceneUrls> {
   return request<SceneUrls>(`/api/diagrams/${id}/urls`);
 }
@@ -70,7 +75,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function call(path: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(path, init);
+  const response = await signedFetch(path, init);
 
   if (response.status === 401) {
     askForThePasswordAgain();

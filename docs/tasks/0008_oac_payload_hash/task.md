@@ -101,3 +101,16 @@ Consolidated 2026-09-18 with the om-manager and Sebastian.
 - Beyond the Pipeline I check: that no header reaches the two presigned S3 calls, that logout still ends on `/login` with the cookie cleared, and that the unit test asserts a known hex digest rather than re-implementing the hash next to the code under test.
 
 ## om-developer notes
+
+### Round 1
+
+- Added `app/src/lib/signed-fetch.ts`, exporting `signedFetch(input, init, origin)`.
+  It resolves `input` against `origin` and compares the two origins; a mismatch calls plain `fetch` untouched, a match sets `x-amz-content-sha256` to the hex SHA-256 of `init.body` (or of the empty string when the body is absent), and throws when the body is present but not a string.
+  `origin` defaults to `window.location.origin`, evaluated lazily so the module still imports cleanly under Vitest's Node environment; the unit test always passes an explicit origin, since the project has no jsdom.
+- `app/src/lib/api.ts`: `call()` now calls `signedFetch` instead of `fetch`. Added `logout()`, which calls `call("/api/logout", { method: "POST" })`, so logout goes through the same funnel and error handling as every other API call, matching `docs/modules/app/trd.md`'s description of `api.ts` as "every call the browser makes, to `/api`".
+- `app/src/components/login-form.tsx`: its own `fetch("/api/login", ...)` now calls `signedFetch` directly, per Scope; it stays outside `api.ts`'s `call()` because it reads the response body on both success and failure paths, which `call()` does not support.
+- `app/src/components/logout-button.tsx`: dropped the native `<form action="/api/logout" method="post">` for a client component that calls `logout()` from `api.ts` on click, then `router.replace(loginPath)` and `router.refresh()`, mirroring the post-navigation pattern already used in `login-form.tsx`. This removes the app's last native form post, per the Out of scope adjustment.
+- `app/tests/unit/signed-fetch.test.ts`: known-body hash, empty-body hash, method-agnostic (DELETE), cross-origin passthrough (a presigned-S3-shaped URL), and the throw on a non-string body (`FormData`). Hex digests are hardcoded from `sha256sum`, not recomputed with `crypto.subtle` in the test.
+- No new Playwright spec: `login.spec.ts`'s existing "closes the session from the sidebar" test already drives the logout button through a click and asserts the redirect to `/login` and the cleared cookie, which is what changed; it passed unchanged against the new client component.
+- Environment-only fix, no code implication: this worktree's `node_modules` was missing `@aws-sdk/lib-dynamodb`, `@aws-sdk/s3-request-presigner` and `aws-sdk-client-mock` (declared in `package.json`, absent from the tree); ran `npm ci` before `typecheck` and the unit suite.
+- Nothing deferred; full Scope implemented in this round. Acceptance 3 (deployed dev) stays unverifiable from this branch, as `Context & decisions` already states.
