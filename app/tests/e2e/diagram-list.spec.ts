@@ -20,7 +20,7 @@ test.describe("diagram list", () => {
     await page.goto("/");
 
     await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expect(page.locator(".excalidraw")).toBeVisible({ timeout: 30_000 });
     await expect(activeItem(page)).toHaveCount(1);
   });
 

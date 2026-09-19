@@ -162,3 +162,17 @@ Deferred, not done, each out of this task's Scope:
 
 - `app/tests/e2e/diagram-list.spec.ts:18` failed once on the first full local run of the suite and passed alone and on a warm rerun; both runs are in `verify.log`. The diff touches no file under `app/`, so it is not from this round. The cause is the local `webServer` compiling the editor route on demand past the 15s `expect` timeout, which is a local-only condition: `e2e-dev` sets `BASE_URL`, starts no server, and CI already retries once. Worth a look in an `app` task; fixing it here would mean editing a module this task does not touch.
 - `docs/modules/app/ard.md` mentions `e2e-dev.yml` twice inside the Reason of two dated 2026-09-18 entries. Left alone: those are historical records of what was decided then, not statements of current layout.
+
+### Round 2
+
+Both findings applied, nothing else touched: 4 lines across 4 files.
+
+1. `github_app_pem` descriptions in `core`, `dev` and `prd` now point at `infra/docs/setup.md` section 2 instead of repeating the permission list, and say that a 403 on apply is almost always one of those permissions missing. The three are identical again, which is the property that let them drift in the first place: the list had one home and the descriptions had a stale copy of it.
+2. `app/tests/e2e/diagram-list.spec.ts:23` takes `{ timeout: 30_000 }`, matching line 22.
+
+Two notes on finding 2, neither changing what was asked:
+
+- The reviewer's reading of the site is right, and the file is more repetitive than the finding implies: the exact pair (`toHaveURL(diagramUrl, { timeout: 30_000 })` then `toBeVisible()`) appears twice, at 22-23 and at 96-97. Only line 23 was changed. Line 97 is the last test of the file, always warm by then, and the finding named one line.
+- The round 2 e2e ran with `app/.next` deleted first, so the first editor paint was compiled on demand, which is the condition that failed in round 1. It passed in 7.5s. That is evidence the suite is green cold, not proof the slow path is gone: the compile time varies, which is what made it flaky. What the change guarantees is that the assertion now has the same 30s ceiling as the navigation one line above it, so a slow compile can no longer fail it while the navigation survives.
+
+Unchanged from round 1 and still pending: no `terraform plan` and no `terraform apply`; the four `.env` and `terraform.tfvars` files are still absent from the worktree, and the GitHub App's Variables and Secrets permissions are still unverified.
