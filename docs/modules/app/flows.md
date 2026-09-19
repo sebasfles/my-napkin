@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-18
-source: 0005_password_auth
+source: 0004_diagram_persistence
 ---
 
 # app: flows
 
-Login is built; saving is not, since the shell has no persistence yet.
+Both flows are built.
 
 ## Login
 
@@ -37,7 +37,8 @@ sequenceDiagram
 
 ## Save a diagram
 
-Runs on every `onChange`, debounced 1 to 2 seconds, while the editor is open.
+Runs on every `onChange`, debounced 1.5 seconds, while the editor is open.
+The presigned pair comes with the scene at open and is reused until it is close to expiring, so a save is one PUT and one PATCH.
 
 ```mermaid
 sequenceDiagram
@@ -47,11 +48,29 @@ sequenceDiagram
   participant S3 as S3 scenes bucket
   participant P as PATCH /api/diagrams/[id]
   U->>E: draws or edits
-  E->>E: debounce 1-2s
-  E->>API: request presigned PUT URL
-  API-->>E: presigned URL
-  E->>S3: PUT scene JSON (elements, appState, files)
+  E->>E: debounce 1.5s, then compare with the last saved scene
+  opt no cached URL, or it expires within a minute
+    E->>API: request the presigned pair
+    API-->>E: GET and PUT URLs, 5 minutes
+  end
+  E->>S3: PUT scene JSON (elements, appState subset, files)
   S3-->>E: 200 OK
   E->>P: PATCH to touch updatedAt
-  P-->>E: 200 OK
+  P-->>E: 200 OK, the list reorders
 ```
+
+One upload runs at a time, and the editor never loses a change made during one.
+
+```mermaid
+stateDiagram-v2
+  [*] --> idle
+  idle --> saving: change, after the debounce
+  saving --> idle: uploaded and updatedAt touched
+  saving --> queued: another change arrives mid upload
+  saving --> failed: upload or touch failed
+  queued --> saving: the upload ended, send the newer scene
+  failed --> saving: the next change retries
+```
+
+Opening a diagram never saves it: the editor's first report after a mount becomes the baseline when it changes no element.
+Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back.

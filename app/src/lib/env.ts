@@ -18,3 +18,11 @@ export function appPassword(): string {
 export function sessionSecret(): string {
   return required("SESSION_SECRET");
 }
+
+export function diagramsTable(): string {
+  return required("DIAGRAMS_TABLE");
+}
+
+export function scenesBucket(): string {
+  return required("SCENES_BUCKET");
+}

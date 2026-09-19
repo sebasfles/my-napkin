@@ -98,6 +98,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | infra | 2026-09-17 | First apply runs a placeholder zip until the first deploy | Never, standard pattern |
 | app | 2026-09-17 | `allowScripts` is pinned per version, so a bump re-blocks that install script | A dependency bump fails for a missing binary |
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
+| app | 2026-09-17 | `components.json` pins the shadcn preset, so a component added with different CLI flags will not match the tree | A component is added with different CLI flags |
 | deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
@@ -105,3 +106,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
 | infra | 2026-09-18 | A mutating request through CloudFront has to carry `x-amz-content-sha256`, which a plain browser request does not send | A route handler behind CloudFront must accept a POST from an unmodified browser request |
 | infra | 2026-09-18 | The bundle ships inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped | The OpenNext bundle approaches 50 MB |
+| app | 2026-09-18 | A PUT already on the wire when a delete lands can orphan a scene object | Orphans show up, or a lifecycle rule is wanted |
+| app | 2026-09-18 | The first paint of the diagram list waits for a round trip | The skeleton lasts long enough to be worth server rendering |
+| app | 2026-09-18 | A stored scene keeps the shape it was written in, normalized only on read | An editor upgrade needs saved scenes migrated |
+| app | 2026-09-18 | `sceneVersion` copies four lines the editor package owns | The package exports it from a server safe module |

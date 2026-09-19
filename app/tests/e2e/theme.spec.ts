@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { openEditor } from "./helpers";
+import { openApp } from "./helpers";
 
 const names = {
   system: "Follow the system theme",
@@ -27,7 +27,7 @@ test.describe("theme", () => {
   test("offers the three options, follows the OS on system and holds an explicit choice", async ({
     page,
   }) => {
-    await openEditor(page);
+    await openApp(page);
 
     await expect(option(page, "system")).toBeVisible();
     await expect(option(page, "light")).toBeVisible();
