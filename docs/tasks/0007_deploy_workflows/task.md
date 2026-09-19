@@ -113,4 +113,52 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
 - `npx open-next build` run locally in `app/`: the om-developer reports the command's tail and the `.open-next/` tree read from disk in its round message, and I quote it in the PR's Risk assessment.
 - Acceptance 1 to 5 cannot run from this branch, since the deploy roles trust only `refs/heads/develop` and `refs/heads/main`. That build, `actionlint` and the workflow review are the whole proof this PR carries.
 
+### Scope change 2026-09-19: Terraform owns the Actions environments
+
+Delegation precondition of 2026-09-18 is met: branch rebased on `develop` at 698571f, with `ci.yml` and `infra/` on the base. Everything above still holds.
+
+- The module is copied from `diy-infra` without its `lifecycle { ignore_changes = all }` (om-reviewer): nothing else manages these environments here, and ignoring every change would hide a protection rule or a variable edited by hand. The `nonsensitive(toset(keys(var.env_secrets)))` of its `for_each` is kept, since `for_each` cannot take a sensitive value.
+- The App key reaches `dev` and `prd` as a `github_app_pem` variable of each root, same shape and description as `core` (om-reviewer). Reason: it mirrors `core` exactly, leaves `.env` holding only `AWS_PROFILE`, and keeps every secret inside the gitignored `terraform.tfvars` the convention allows. Cost: rotating the App key now edits three `terraform.tfvars`, recorded as debt in `docs/modules/infra/ard.md`.
+- `prd` gets an `APP_PASSWORD` environment secret that nothing reads, since no e2e ever runs against prd (Scope). Let pass (om-reviewer): the shared `stacks/app` stays symmetric instead of growing a knob, and the value is already in prd's state through the Lambda's environment, so the secret adds no exposure that the 2026-09-17 Terraform decision in `docs/ARD.md` did not already record.
+
+Constraints added:
+
+- `terraform plan` before either apply, and stop and report if it shows anything beyond the new `github_*` resources. The worktree's `terraform.tfvars` must carry the values the environments were already applied with; a different `app_password` or `session_secret` rewrites the Lambda's environment and breaks login and `e2e-dev`.
+- `stacks/app`, `dev` and `prd` all require `integrations/github ~> 6`; `dev` and `prd` declare the `github` provider with `owner` and the same `app_auth` as `core`. The refreshed `.terraform.lock.hcl` of both roots is committed, with `linux_amd64` hashes, because `ci.yml` runs `terraform init -backend=false` on `ubuntu-latest`.
+- Docs: close the rows `general | Four Actions variables set by hand after the first apply` and `deploy | Actions variables updated by hand if Terraform recreates a resource` in the debt index of `docs/ARD.md`, correct the `Debt created` and `Revisit when` lines of the 2026-09-17 Terraform decision there and of "pass resource identifiers as Actions variables" in `docs/modules/deploy/ard.md`, and record the new decision in `docs/modules/infra/ard.md` and `docs/modules/deploy/ard.md`.
+- The `dev` and `prd` output descriptions ("Value of the AWS_ROLE_ARN Actions variable of this environment") stop being true once Terraform sets those variables; they are reworded.
+- Sebastian places `infra/environments/{dev,prd}/.env` and `infra/environments/{dev,prd}/terraform.tfvars` in this worktree. No agent reads, writes, copies or prints them.
+
 ## om-developer notes
+
+### Round 1
+
+Rebased on `origin/develop` at `0fa0d09` (0008 merged in the meantime; it touched `app/` and docs only, nothing under `.github/` or `infra/*.tf`, so no conflict with this work).
+
+Written:
+
+- `.github/workflows/reusable-deploy.yml`, `deploy-dev.yml` (`deploy` -> `e2e-dev` -> `promotion-pr`), `deploy-prd.yml`, and the `ci.yml` adjustment.
+- `infra/modules/github/actions_environment/`, wired from `infra/stacks/app/github_actions.tf`, with the `github` provider added to `stacks/app`, `dev` and `prd`, and both roots' lock files refreshed.
+- The docs Scope names, plus the two the om-reviewer added (`docs/conventions/e2e.md`, `docs/TRD.md`), plus three more listed under "Decisions taken" below.
+
+Every constraint of `Context & decisions` is in the code: `function-updated-v2`, no `--delete`, workflow-level concurrency with `cancel-in-progress: false`, `environment:` on the reusable job, `id-token: write` on the caller, zip built from inside `server-functions/default`, two `s3 sync` passes, `fetch-depth: 0` plus an explicit fetch of `main`, no artifact upload, job id `e2e-dev`, `promotion-pr` under `if: ${{ !cancelled() }}`.
+
+Decisions taken that `Approach` and `Context & decisions` did not record:
+
+- The environment secret is written with the resource's `value`, not `plaintext_value`. Copying `diy-infra` verbatim looked wrong at first because `plaintext_value` is the attribute I expected; reading the provider source settled it: in `integrations/github` 6 both exist, and `plaintext_value` is marked `Deprecated: "Use value."`. The module keeps `value`.
+- `ci.yml`'s concurrency group is `${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}`. Grouping pushes by `github.ref` would still have collapsed them into one group and let a newer push cancel an older commit's `ci`; any commit on `develop` can become the promotion pull request's head, so a cancelled run there is a required check that never reports. Per-commit grouping costs a few free runner minutes and removes that hole.
+- `promotion-pr` exits early when `git rev-list --count origin/main..HEAD` is 0. Without it `gh pr create` fails with "No commits between main and develop" and paints the job red on a genuine no-op.
+- The deploy logs the zip's size (`ls -lh`) after packaging. The 50 MB `--zip-file` cap is open debt whose "revisit when" is the bundle approaching it, and nothing was measuring it. Measured on this build: 4.6 MB.
+- The assets sync's second pass uses `public,max-age=300,must-revalidate`. It is not a no-op: `.open-next/assets` holds `BUILD_ID` next to `_next/static/`.
+- Three docs outside Scope's list were corrected because this change makes them false, each a single line: `docs/PRD.md` ("deployed automatically whenever `main` changes"), `docs/modules/app/trd.md` (e2e "in `e2e-dev.yml`"), and `docs/TRD.md`'s "Secrets exist in exactly two places" convention, which is now three, since Terraform writes `app_password` into the environment's `APP_PASSWORD` secret.
+- `infra/docs/setup.md` now names the GitHub App permissions the apply needs. See "Pending" below; this is the one thing that can still block the apply.
+
+Pending, both waiting on the om-reviewer:
+
+- `terraform apply` in `dev` and `prd`. Not run: `infra/environments/{dev,prd}/.env` and `terraform.tfvars` are not in this worktree yet, and the om-reviewer gates the applies. `terraform plan` will be run first in each root and its summary sent before anything is applied.
+- The GitHub App's repository permissions. `infra/docs/setup.md` recorded only "Administration read and write, Metadata read"; creating an environment needs Administration, and writing its variables and secret needs the Variables and Secrets permissions. I could not read the installation's grants with my own token (`/repos/.../installation` needs App auth), so this is unverified: if the App was created with only the two original permissions, the `dev` apply fails with 403 on the variables. Raised with the om-reviewer.
+
+Deferred, not done, each out of this task's Scope:
+
+- `app/tests/e2e/diagram-list.spec.ts:18` failed once on the first full local run of the suite and passed alone and on a warm rerun; both runs are in `verify.log`. The diff touches no file under `app/`, so it is not from this round. The cause is the local `webServer` compiling the editor route on demand past the 15s `expect` timeout, which is a local-only condition: `e2e-dev` sets `BASE_URL`, starts no server, and CI already retries once. Worth a look in an `app` task; fixing it here would mean editing a module this task does not touch.
+- `docs/modules/app/ard.md` mentions `e2e-dev.yml` twice inside the Reason of two dated 2026-09-18 entries. Left alone: those are historical records of what was decided then, not statements of current layout.

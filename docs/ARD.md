@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: setup
+source: 0007_deploy_workflows
 ---
 
 # Architecture and Debt Record
@@ -51,8 +51,9 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 - Decision: Terraform creates every resource and is applied by hand from Sebastian's machine with the `personal` profile; the deploy workflow assumes an IAM role by OIDC on pushes to `main` and only updates the Lambda code, syncs assets and invalidates CloudFront. State lives in an S3 bucket created by hand, never in the repo.
 - Alternatives rejected: applying Terraform from Actions (the state carries the Lambda environment, including the password, in plain text); long-lived access keys as repository secrets; CDK or Serverless Framework.
 - Reason: the repo is public; nothing that can leak may be committed or granted to a workflow, and the trust policy limits the role to `main` of this repo so forks cannot assume it.
-- Debt created: after the first apply, four Actions variables (role ARN, function name, assets bucket, distribution id) are copied by hand from Terraform outputs.
-- Revisit when: the GitHub provider is worth adding to Terraform just to push those four variables.
+- Debt created: after the first apply, four Actions variables (role ARN, function name, assets bucket, distribution id) were copied by hand from Terraform outputs.
+- Resolved by: 0007_deploy_workflows, which gives `dev` and `prd` the same GitHub App as `core` and writes those four variables, and the `APP_PASSWORD` secret, from the resources they name.
+- Revisit when: never. The split between the two tools stands; what changed is that the values now cross it as Terraform's own output instead of by hand.
 - Source: setup
 
 ## 2026-09-17: Two environments, branch per environment, automatic promotion PR with e2e against dev
@@ -91,7 +92,6 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 |---|---|---|---|
 | general | 2026-09-17 | Bucket CORS duplicates the app domain | A second user or shared links appear |
 | general | 2026-09-17 | Password rotation is a Terraform apply | A second user is needed |
-| general | 2026-09-17 | Four Actions variables set by hand after the first apply | GitHub provider added to Terraform |
 | app | 2026-09-17 | No per-user accounts, no password rotation or recovery flow | A second user is needed |
 | infra | 2026-09-17 | Cold start of 1 to 2 seconds after inactivity | Latency no longer fits a single user |
 | infra | 2026-09-17 | State bucket created by hand before the first init | Never, standard pattern |
@@ -99,7 +99,6 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-17 | `allowScripts` is pinned per version, so a bump re-blocks that install script | A dependency bump fails for a missing binary |
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
 | app | 2026-09-17 | `components.json` pins the shadcn preset, so a component added with different CLI flags will not match the tree | A component is added with different CLI flags |
-| deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
@@ -110,3 +109,5 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-18 | A stored scene keeps the shape it was written in, normalized only on read | An editor upgrade needs saved scenes migrated |
 | app | 2026-09-18 | `sceneVersion` copies four lines the editor package owns | The package exports it from a server safe module |
 | app | 2026-09-19 | A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash | A third party needs to POST to the app (webhooks) |
+| infra | 2026-09-19 | Rotating the GitHub App key edits the `terraform.tfvars` of three roots | A secret manager holds the key for every root |
+| deploy | 2026-09-19 | `e2e-dev` runs on every push to `develop`, so a flaky spec blocks promotion | The suite is long or flaky enough to be worth gating differently |

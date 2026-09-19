@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-18
-source: 0003_terraform_environments
+updated: 2026-09-19
+source: 0007_deploy_workflows
 ---
 
 # deploy: architecture decisions and debt
@@ -43,11 +43,12 @@ source: 0003_terraform_environments
 
 ## 2026-09-17: pass resource identifiers as Actions variables, not secrets
 
-- Decision: the deploy role ARN, Lambda function name, assets bucket name and CloudFront distribution id are GitHub Actions variables, set by hand once from Terraform outputs after the first `apply`.
+- Decision: the deploy role ARN, Lambda function name, assets bucket name and CloudFront distribution id are GitHub Actions variables, not secrets and not literals in the workflow.
 - Alternatives rejected: storing them as GitHub Actions secrets; hardcoding them in the workflow.
 - Reason: none of these values are secret; Terraform is the source of truth for them and the workflow only reads them.
-- Debt created: the values are set by hand once and must be updated by hand if Terraform ever recreates one of these resources with a new identifier.
-- Revisit when: Terraform starts writing these outputs into the Actions environment automatically, as `auvral-infra` does.
+- Debt created: they were set by hand once from `terraform output`, and had to be set again by hand whenever Terraform recreated one of those resources.
+- Resolved by: 0007_deploy_workflows. The variables stay variables; Terraform now writes them.
+- Revisit when: never, now that the source of truth writes them itself.
 - Source: setup
 
 ## 2026-09-17: run the workflow linter as an npm devDependency of app/, downloaded per run
@@ -105,3 +106,22 @@ source: 0003_terraform_environments
 - Debt created: none.
 - Revisit when: a root needs a different validate invocation, such as a workspace or a variable file.
 - Source: 0003_terraform_environments
+
+## 2026-09-19: one deploy-dev.yml with three jobs, not a separate e2e workflow on the promotion pull request
+
+- Decision: `deploy-dev.yml` runs `deploy`, then `e2e-dev`, then `promotion-pr` on every push to `develop`, and `ci.yml` gains a `push: develop` trigger. The suite and the CI checks attach to the commit `develop` points at, which is the promotion pull request's head, which is what the `main` ruleset reads.
+- Alternatives rejected: an `e2e-dev.yml` on `pull_request` into `main`, which is what every doc described until now.
+- Reason: a pull request opened with `GITHUB_TOKEN` fires no `pull_request` event, so neither `e2e-dev` nor `ci` would ever report on that pull request and both required checks would need an admin bypass forever. A `pull_request` run would also race the deploy it is supposed to verify.
+  Chaining the jobs makes the order explicit: nothing tests dev before dev has the code.
+- Debt created: `e2e-dev` runs after every push to `develop`, so a flaky spec blocks promotion until it is rerun or fixed.
+- Revisit when: GitHub lets a `GITHUB_TOKEN` pull request trigger workflows, or the suite grows long enough that running it on every merge costs more than it proves.
+- Source: 0007_deploy_workflows
+
+## 2026-09-19: the promotion pull request opens whatever the suite's result
+
+- Decision: `promotion-pr` declares `needs: [deploy, e2e-dev]` with `if: ${{ !cancelled() }}`, so it opens the pull request even when the deploy or the suite failed, and the pull request carries the red check.
+- Alternatives rejected: gating it on both jobs succeeding, which is the default.
+- Reason: the ruleset already blocks the merge, so the gate adds no safety; what it removes is visibility. A change that broke dev is exactly the one Sebastian needs to see sitting in a pull request with a red check, rather than absent with nothing to read.
+- Debt created: none. The ordering is kept; only the gate on failure is lifted.
+- Revisit when: never expected.
+- Source: 0007_deploy_workflows

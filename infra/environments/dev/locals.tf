@@ -9,9 +9,11 @@ locals {
   hosted_zone = "sdfles.com"
 
   ### GitHub ###################################################################
-  github_owner      = "sebasfles"
-  github_repository = "my-napkin"
-  git_branch        = "develop"
+  github_owner               = "sebasfles"
+  github_repository          = "my-napkin"
+  github_app_id              = "4985607"
+  github_app_installation_id = "162648841"
+  git_branch                 = "develop"
 
   ### Environment differences ##################################################
   extra_cors_origins     = ["http://localhost:3000"]

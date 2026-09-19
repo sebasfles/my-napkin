@@ -5,12 +5,15 @@ on:
     branches:
       - develop
       - main
+  push:
+    branches:
+      - develop
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:

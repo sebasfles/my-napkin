@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-19
+source: 0007_deploy_workflows
 ---
 
 # Product Requirements Document
@@ -32,7 +32,7 @@ Details: [modules/app/prd.md](modules/app/prd.md)
 
 ### Hosting (modules `infra`, `deploy`)
 
-The site lives on AWS under the user's domain with TLS and is deployed automatically whenever `main` changes.
+The site lives on AWS under the user's domain with TLS and is deployed automatically: `develop` to the dev environment, and `main`, which only the promotion pull request touches, to production.
 The user never touches a server; the only manual operations are applying infrastructure changes and setting the password.
 Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](modules/deploy/prd.md)
 
