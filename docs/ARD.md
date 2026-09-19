@@ -103,3 +103,5 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
+| infra | 2026-09-18 | A mutating request through CloudFront has to carry `x-amz-content-sha256`, which a plain browser request does not send | A route handler behind CloudFront must accept a POST from an unmodified browser request |
+| infra | 2026-09-18 | The bundle ships inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped | The OpenNext bundle approaches 50 MB |

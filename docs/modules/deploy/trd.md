@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-18
-source: 0002_ci_workflow
+source: 0003_terraform_environments
 ---
 
 # deploy: technical
@@ -22,7 +22,7 @@ source: 0002_ci_workflow
 
 `ci.yml` (pull_request into `develop` and `main`, runner `ubuntu-latest`, `timeout-minutes: 20`): `npm ci` in `app/`, then lint, typecheck and unit tests for `app`, the Terraform checks, and the workflow linter, in one job so the rulesets have a single check name to require.
 Node comes from the root `.nvmrc` and the npm cache is keyed on `app/package-lock.json`.
-The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds a `main.tf`, so the Terraform task inherits a working check instead of writing one.
+The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds any `.tf` file, which is what makes `core` a checked root even though its resources live in `oidc.tf`, `github.tf` and `budget.tf` rather than a `main.tf`.
 `permissions: contents: read`, no secret, and `pull_request` rather than `pull_request_target`, so pull requests from forks of this public repo still run.
 Concurrency is one group per pull request with `cancel-in-progress`, so a push supersedes the run in flight.
 Required check on both rulesets.

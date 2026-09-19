@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-18
+source: 0003_terraform_environments
 ---
 
 # infra: architecture and debt
@@ -16,8 +16,8 @@ source: setup
 
 ## 2026-09-17: Terraform state in an S3 backend outside the repo
 
-- Decision: state lives in bucket `napkin-terraform-state`, key `prd/terraform.tfstate`, with `use_lockfile = true`; it is never committed.
-- Alternatives rejected: state committed in the repo.
+- Decision: state lives in bucket `napkin-terraform-state-975050033628`, one key per root (`core/`, `dev/` and `prd/terraform.tfstate`), with `use_lockfile = true`; it is never committed.
+- Alternatives rejected: state committed in the repo; the plain name `napkin-terraform-state`, which already exists in another AWS account, so `terraform init` could never claim it.
 - Reason: the tfstate carries the Lambda's environment variables (`app_password`, `session_secret`) in plain text, and the repo is public.
 - Debt created: the state bucket is created by hand once, before the first `terraform init`; Terraform cannot create the bucket that holds its own state.
 - Revisit when: never, this is the standard pattern.
@@ -34,10 +34,10 @@ source: setup
 
 ## 2026-09-17: `lifecycle ignore_changes` on the Lambda function
 
-- Decision: the Lambda resource ignores changes to `s3_key`, `s3_object_version`, `source_code_hash` and `publish`.
-- Alternatives rejected: letting Terraform manage the deployed code on every apply.
+- Decision: the Lambda resource is created from a local zip built by `archive_file` and ignores changes to `filename`, `source_code_hash` and `publish`.
+- Alternatives rejected: letting Terraform manage the deployed code on every apply; shipping the bundle through an artifacts bucket, as `auvral-infra` does, which would need a bucket this task grants nobody.
 - Reason: Terraform owns the function's configuration; the GitHub Actions workflow owns its code via `update-function-code`. Without `ignore_changes`, every code deploy shows as drift on the next `plan`.
-- Debt created: the first apply creates the function against a placeholder bootstrap zip that answers nothing useful until the first workflow run deploys real code.
+- Debt created: the first apply creates the function against a placeholder zip that answers 503 `not deployed` until the first workflow run deploys real code. With no artifacts bucket the workflow pushes the bundle inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped.
 - Revisit when: never, this is the pattern already used by `auvral-infra` and `diy-infra`.
 - Source: setup
 
@@ -46,7 +46,9 @@ source: setup
 - Decision: CloudFront's non-static origin is the Lambda Function URL, with `AWS_IAM` auth and a CloudFront Origin Access Control, not an API Gateway HTTP API.
 - Alternatives rejected: API Gateway HTTP API as origin.
 - Reason: a Function URL is simpler and carries no per-request cost; the OAC stops the URL from being called directly, bypassing CloudFront's cache, TLS and domain handling.
-- Debt created: none.
+- Debt created: with OAC in front of the Function URL, a mutating request has to carry the hash of its own body.
+  Measured on `dev`: a POST through CloudFront with no `x-amz-content-sha256` answers 403 with the body `The request signature we calculated does not match the signature you provided`, and the same POST carrying the hex SHA256 of the body in that header reaches the function.
+  `docs/modules/app/trd.md` owns four such routes, and 0004 and 0005 are already merged against the assumption that a plain browser request works.
 - Revisit when: the app needs something a Function URL cannot provide (custom authorizers, usage plans).
 - Source: setup
 
@@ -67,3 +69,12 @@ source: setup
 - Debt created: none.
 - Revisit when: a future requirement needs network isolation.
 - Source: setup
+
+## 2026-09-18: CloudFront in front of a Function URL needs two grants, not one
+
+- Decision: the stack grants the CloudFront service principal both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction`, each pinned to the distribution ARN, which is the pair AWS's origin access control documentation requires.
+- Alternatives rejected: the single `lambda:InvokeFunctionUrl` grant, which is what a non-OAC caller needs and what the reference repositories show.
+- Reason: with only the first grant, every request through CloudFront answers 403, the function is never invoked and its log group stays empty, so the symptom points at signing or at the OAC rather than at a missing permission. A sigv4 request signed by hand still succeeds, which makes it easy to conclude the origin is fine.
+- Debt created: none.
+- Revisit when: AWS changes the documented permission pair.
+- Source: 0003_terraform_environments

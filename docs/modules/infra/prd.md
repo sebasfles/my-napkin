@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-18
+source: 0003_terraform_environments
 ---
 
 # infra: product
 
-Greenfield: this describes the planned behavior, nothing here is built yet.
+`dev` is applied and answers on its domain; `core` and `prd` are written and planned but not yet applied.
 
 ## Purpose
 
