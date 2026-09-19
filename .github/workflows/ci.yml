@@ -54,7 +54,7 @@ jobs:
           fi
           terraform fmt -check -recursive infra
           for root in infra/environments/*/; do
-            [ -f "$root/main.tf" ] || continue
+            [ -n "$(find "$root" -maxdepth 1 -name '*.tf' -print -quit)" ] || continue
             echo "::group::terraform validate $root"
             terraform -chdir="$root" init -backend=false -input=false
             terraform -chdir="$root" validate

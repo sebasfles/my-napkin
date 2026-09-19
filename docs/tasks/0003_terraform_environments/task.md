@@ -190,3 +190,17 @@ Deferred, out of this task's scope:
 - `.github/workflows/ci.yml`, merged with 0002, validates a root only when it holds a `main.tf`, and `core` holds none because its resources live in `oidc.tf`, `github.tf` and `budget.tf`.
   CI therefore skips `infra-core` silently while `docs/TRD.md` lists it as a target.
   The fix is one line in the workflow's loop, which belongs to `deploy_workflows` and not here.
+
+### Round 2
+
+One finding, one line, in a file this task otherwise does not own.
+
+`.github/workflows/ci.yml` validated a Terraform root only when it held a `main.tf`, so `core`, whose resources live in `oidc.tf`, `github.tf` and `budget.tf`, was skipped in silence while `docs/TRD.md#Verification targets` lists `infra-core` as a target.
+The guard now tests for any `.tf` file in the root, `[ -n "$(find "$root" -maxdepth 1 -name '*.tf' -print -quit)" ] || continue`, so the loop follows the roots that exist instead of a naming convention.
+Ran the loop locally against this layout: it now selects `core`, `dev` and `prd`, where before it selected two.
+
+This is a deliberate one-line excursion into the `deploy` component, agreed with the om-reviewer rather than left as a note for `deploy_workflows`.
+The reason is that this task is what creates a root without a `main.tf`, so it is what breaks the workflow's assumption, and a required check that reports success without running the thing it claims to check is worse than no check at all.
+
+`npm run lint:workflows` needs `app/`'s dependencies, which this worktree had never installed, so round 2 also ran `npm ci` there.
+That touches nothing tracked.
