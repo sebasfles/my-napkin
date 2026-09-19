@@ -9,7 +9,7 @@ phases: 0
 depends_on: ["0002", "0003"]
 ticket:
 created: 2026-09-18
-updated: 2026-09-18
+updated: 2026-09-19
 ---
 
 # 0007 Deploy workflows
@@ -29,11 +29,11 @@ Sebastian never deploys by hand.
 - `.github/workflows/deploy-prd.yml` (push to `main`): the reusable workflow with `prd`, nothing else. No e2e runs against prd, ever (Sebastian, 2026-09-18); the proof is the `e2e-dev` job on the same commits before promotion.
 - Concurrency group per environment, queued, never cancelled.
 - `infra/docs/deploy.md`, `docs/modules/deploy/*` and the repo README updated to this design: no `e2e-dev.yml`, no `@aws` tag, how a change reaches prd.
+- Terraform owns the Actions environments (Sebastian, 2026-09-19, over setting them by hand): `infra/modules/github/actions_environment` copied from diy-infra (`repository`, `environment`, `env_vars`, `env_secrets`); `infra/stacks/app` creates environment `{env}` with variables `AWS_ROLE_ARN`, `LAMBDA_FUNCTION_NAME`, `ASSETS_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID` from its own resources and secret `APP_PASSWORD` from `var.app_password`; `dev` and `prd` roots configure the `github` provider with the same App as `core`. The om-developer applies `dev` and `prd` with the `personal` profile (Sebastian, 2026-09-19). The debt rows "Four Actions variables set by hand" and "Actions variables updated by hand if Terraform recreates a resource" in `docs/ARD.md` and `docs/modules/infra/ard.md` are closed.
 
 ## Out of scope
 
-- Terraform resources (0003).
-- Creating the Actions environments `dev` and `prd`, their four variables and the `dev` secret `APP_PASSWORD`: Sebastian, by hand, from `terraform output`, before delegation.
+- AWS resources (0003).
 - Rollback automation: a rollback is a revert PR through the same flow (Sebastian, 2026-09-17).
 - Deferred: a `workflow_dispatch` that redeploys a given `main` SHA to prd, only if a revert ever proves too slow.
 - Deferred: an artifacts bucket and `--s3-bucket` upload if the server bundle ever exceeds the 50 MB `--zip-file` cap.
@@ -65,7 +65,7 @@ None.
 
 ## Infra
 
-- GitHub Actions environments `dev` and `prd`, each with variables `AWS_ROLE_ARN`, `LAMBDA_FUNCTION_NAME`, `ASSETS_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`; `dev` also holds secret `APP_PASSWORD`, equal to `app_password` in dev's `terraform.tfvars`. Set by hand by Sebastian; not Terraform (ARD debt).
+- GitHub Actions environments `dev` and `prd`, each with variables `AWS_ROLE_ARN`, `LAMBDA_FUNCTION_NAME`, `ASSETS_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID` and secret `APP_PASSWORD`, created by Terraform in `stacks/app` through the GitHub App; applied in `dev` and `prd` by the om-developer.
 - AWS: nothing new; consumes the deploy roles, buckets, functions and distributions from 0003.
 
 ## Design
