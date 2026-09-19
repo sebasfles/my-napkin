@@ -153,11 +153,14 @@ source: 0004_diagram_persistence
 
 - Decision: `stop()` starts no further upload and lets one already running finish, `abandon()` writes nothing ever, and the editor abandons when the diagram was deleted and stops otherwise.
   The saver also reads a `deleted` marker the provider sets before the DELETE leaves, checked before the debounce advances and before the upload writes.
+  Both are undone by `resume()`, which the effect calls on setup, because the saver lives in a `useMemo` and the stop lives in an effect cleanup, and an effect cleanup has to be undoable by the next effect run.
 - Alternatives rejected: a single `stop()` that refuses every pending write; relying on the editor unmounting to know the diagram is gone; aborting the request in flight with an `AbortController`.
 - Reason: the flush on unmount is what saves a change made in the last second and a half before switching diagrams, so a single stop that refuses everything trades an orphan object for the user's work.
   Unmount order cannot carry it either: the editor only unmounts after the DELETE responds, which on a cold Lambda outlives the debounce.
 - Debt created: a PUT whose bytes are already on the wire when the DELETE lands can still leave a scene object no code will delete.
 - Revisit when: orphan objects show up in the bucket, or a lifecycle rule is wanted to sweep them.
+- Note: without `resume()` the first remount stopped the saver permanently and autosave died in silence, in production as much as in development.
+  The Playwright suite runs against `npm run dev`, so React Strict Mode is part of the environment under test, and that is what made it catchable.
 - Source: 0004_diagram_persistence
 
 ## 2026-09-18: Opening a diagram adopts the editor's first report as the baseline

@@ -26,6 +26,7 @@ export interface SceneSaver {
   change(scene: Scene): void;
   flush(): void;
   dirty(): boolean;
+  resume(): void;
   stop(): void;
   abandon(): void;
 }
@@ -146,6 +147,11 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
     dirty() {
       return changed || status !== "idle";
+    },
+
+    resume() {
+      stopped = false;
+      abandoned = false;
     },
 
     stop() {

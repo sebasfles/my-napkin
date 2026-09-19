@@ -48,10 +48,13 @@ export function saveIndicator(page: Page): Locator {
 export async function newDiagram(page: Page, label: string): Promise<string> {
   await expect(page.getByTestId("diagram-list")).toBeVisible({ timeout: awsTimeout });
   const before = await page.getByTestId("diagram-item").count();
+  const from = page.url();
 
   await page.getByTestId("diagram-new").click();
   await expect(page.getByTestId("diagram-item")).toHaveCount(before + 1, { timeout: awsTimeout });
-  await expect(page).toHaveURL(diagramUrl);
+  await page.waitForURL((url) => url.href !== from && diagramUrl.test(url.href), {
+    timeout: awsTimeout,
+  });
   await expect(page.locator(".excalidraw")).toBeVisible();
 
   sequence += 1;
@@ -120,16 +123,15 @@ export async function pasteImage(page: Page) {
   const box = await canvas.boundingBox();
   if (!box) throw new Error("the editor canvas has no layout box");
 
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5);
 
-  const clipboardData = await page.evaluateHandle(async (base64) => {
+  await page.evaluate(async (base64) => {
     const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
-    const transfer = new DataTransfer();
-    transfer.items.add(new File([blob], "red.png", { type: "image/png" }));
-    return transfer;
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
   }, image);
 
-  await canvas.dispatchEvent("paste", { clipboardData });
+  await page.keyboard.press("ControlOrMeta+V");
 }
 
 export async function expectSomethingOnTheCanvas(page: Page) {

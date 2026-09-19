@@ -333,3 +333,26 @@ Nothing else appeared: CORS on the presigned GET works, the scene downloads, the
 The presigned PUT, the image round trip and Scan consistency stay unproven, because nothing has uploaded yet.
 
 Swept dev afterwards: one `e2e ` leftover and its scene object removed, leaving only the app's own auto created diagram.
+
+### Round 9: green
+
+The suite passes against dev: 29 passed, 0 failed, exit 0, 2.1 minutes, plus lint, typecheck, unit (108) and the deploy target.
+
+All three approved changes are in.
+
+- `resume()` clears `stopped` and `abandoned`, and the effect calls it on setup, so cleanup is undone by the next setup as React requires.
+  Two tests earn it and both fail with the guard reverted: a cleanup and setup cycle leaves the saver uploading normally, and `abandon()` then `resume()` still refuses while the deleted marker is true.
+  The ARD entry for the pair now carries the lesson and the reason it was catchable at all, which is that the suite runs against `npm run dev` and Strict Mode is therefore part of the environment under test.
+- `newDiagram` captures the URL before clicking and waits for it to change, rather than for a URL that already matched.
+- `UpdatedAtLine` passes `now` from `useNow()`; the 1152 warnings per run are gone and `useFormatter` stays.
+
+One more thing the run caught, and it was my spec, not the product.
+The pasted image test failed with 0 red pixels before any reload, and the trace showed no PUT at all, so the paste had changed nothing.
+The synthetic `ClipboardEvent` carrying a `DataTransfer` never reached the editor's handler.
+Writing the PNG to the real clipboard and pressing Ctrl+V works, and it is what the convention asks for anyway, since that is what a person does.
+With it the image survives the reload and its pixels are on the canvas, which proves `files` through `initialData`, the first risk the plan named.
+
+What the green run proves that nothing before it could: the presigned PUT with its signed `Content-Type`, CORS on the PUT from the browser, the `updatedAt` touch, the scene and the image surviving a reload, the failed save indicator through a blocked PUT and the recovery on the next change, delete removing both the item and the object, and the first load auto create.
+Acceptance 1 to 5 are covered by the suite; acceptance 3 is the spec that asserts every scene request goes to an amazonaws host.
+
+The suite cleaned up after itself: dev holds only the app's own auto created diagram and its 40 byte empty scene, which also proves POST writes the empty object against real S3.

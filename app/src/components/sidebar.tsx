@@ -3,7 +3,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useState } from "react";
 import { useDiagrams } from "@/components/diagrams-provider";
 import { LocaleToggle } from "@/components/locale-toggle";
@@ -276,10 +276,11 @@ function SaveStatusLine({ status }: { status: "saved" | "saving" | "failed" }) {
 
 function UpdatedAtLine({ updatedAt }: { updatedAt: string }) {
   const format = useFormatter();
+  const now = useNow();
 
   return (
     <span className="block truncate text-xs text-muted-foreground">
-      {format.relativeTime(new Date(updatedAt))}
+      {format.relativeTime(new Date(updatedAt), now)}
     </span>
   );
 }

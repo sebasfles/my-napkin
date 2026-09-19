@@ -44,6 +44,8 @@ export function useSceneSave({
   );
 
   useEffect(() => {
+    saver.resume();
+
     const warnWhileDirty = (event: BeforeUnloadEvent) => {
       if (saver.dirty()) event.preventDefault();
     };

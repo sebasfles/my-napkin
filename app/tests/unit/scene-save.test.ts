@@ -375,6 +375,35 @@ describe("createSceneSaver", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
+  it("saves normally after a cleanup and setup cycle, which is what a remount is", async () => {
+    const { saver, put, statuses } = setup();
+
+    saver.flush();
+    saver.stop();
+    saver.resume();
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(["saving", "idle"]);
+  });
+
+  it("still refuses to upload after resume while the diagram is deleted", async () => {
+    let gone = false;
+    const { saver, put, touch } = setup({ deleted: () => gone });
+
+    gone = true;
+    saver.abandon();
+    saver.resume();
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+    expect(touch).not.toHaveBeenCalled();
+  });
+
   it("stops reporting once stopped, but still finishes the save it started", async () => {
     const { saver, put, statuses } = setup();
 
