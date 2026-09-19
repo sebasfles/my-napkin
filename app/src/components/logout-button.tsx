@@ -12,7 +12,12 @@ export function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
-    await logout();
+    try {
+      await logout();
+    } catch (error) {
+      console.error(error);
+    }
+
     router.replace(loginPath);
     router.refresh();
   }

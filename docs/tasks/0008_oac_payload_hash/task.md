@@ -114,3 +114,11 @@ Consolidated 2026-09-18 with the om-manager and Sebastian.
 - No new Playwright spec: `login.spec.ts`'s existing "closes the session from the sidebar" test already drives the logout button through a click and asserts the redirect to `/login` and the cleared cookie, which is what changed; it passed unchanged against the new client component.
 - Environment-only fix, no code implication: this worktree's `node_modules` was missing `@aws-sdk/lib-dynamodb`, `@aws-sdk/s3-request-presigner` and `aws-sdk-client-mock` (declared in `package.json`, absent from the tree); ran `npm ci` before `typecheck` and the unit suite.
 - Nothing deferred; full Scope implemented in this round. Acceptance 3 (deployed dev) stays unverifiable from this branch, as `Context & decisions` already states.
+
+### Round 2
+
+Applied all three findings.
+
+- `verify.log` was stamped at `8286fee` (`origin/develop`'s tip), the parent of round 1's commit, because verify ran on the uncommitted working tree before the round 1 commit. This round's block is written after committing, at this round's own commit sha.
+- `app/src/components/logout-button.tsx`: `handleLogout` now wraps `await logout()` in a `try`/`catch` that logs the error to the console, then always navigates to `/login` and refreshes. A failed logout call (network error, or a 403 if the header were ever wrong) no longer leaves the click's promise unhandled, and the button always lands the visitor on `/login`, matching the native form it replaces, which always navigated whatever the response. If `/api/logout` truly failed to clear the cookie, the gate on the next protected request is what still enforces it, same as before this task.
+- `app/tests/e2e/save-reload.spec.ts`: extended "sends the scene straight to S3, never through the app server" to also collect `request.headers()` and assert every `/api/` request in the flow carries a 64-character hex `x-amz-content-sha256` and every `/scenes/` (S3) request does not. This is the one spec in the suite that already exercises both an app call and a presigned S3 call in the same flow, so it is the assertion point the `[e2e-worth]` check should keep pointing at, not a new file.

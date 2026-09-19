@@ -70,10 +70,12 @@ test.describe("save and reload", () => {
     await expect(page.getByTestId("diagram-item").first()).toContainText(newest);
   });
 
-  test("sends the scene straight to S3, never through the app server", async ({ page }) => {
-    const requests: { method: string; url: string }[] = [];
+  test("sends the scene straight to S3, never through the app server, signing only the app's own requests", async ({
+    page,
+  }) => {
+    const requests: { method: string; url: string; headers: Record<string, string> }[] = [];
     page.on("request", (request) => {
-      requests.push({ method: request.method(), url: request.url() });
+      requests.push({ method: request.method(), url: request.url(), headers: request.headers() });
     });
 
     await openApp(page);
@@ -85,11 +87,17 @@ test.describe("save and reload", () => {
     const scenes = requests.filter((request) => request.url.includes("/scenes/"));
     const uploads = scenes.filter((request) => request.method === "PUT");
     const downloads = scenes.filter((request) => request.method === "GET");
+    const apiCalls = requests.filter((request) => request.url.includes("/api/"));
 
     expect(uploads.length).toBeGreaterThan(0);
     expect(downloads.length).toBeGreaterThan(0);
+    expect(apiCalls.length).toBeGreaterThan(0);
     for (const request of scenes) {
       expect(new URL(request.url).hostname).toMatch(/amazonaws\.com$/);
+      expect(request.headers["x-amz-content-sha256"]).toBeUndefined();
+    }
+    for (const request of apiCalls) {
+      expect(request.headers["x-amz-content-sha256"]).toMatch(/^[0-9a-f]{64}$/);
     }
     expect(
       requests.filter((request) => request.method === "PUT" && request.url.includes("/api/")),
