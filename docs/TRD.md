@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-18
+source: 0003_terraform_environments
 ---
 
 # Technical Requirements Document
@@ -28,10 +28,10 @@ The app's shell is built; everything else is the design the code must converge t
 
 ### infra
 
-- Stack: Terraform >= 1.10, `hashicorp/aws ~> 6`, `integrations/github ~> 6` authenticated as a GitHub App, state in S3 bucket `napkin-terraform-state` with `use_lockfile`, one key per root.
-- Layout: `environments/core/` (GitHub OIDC provider, branch rulesets), `environments/dev/` and `environments/prd/` (one AWS environment each, calling `stacks/app`), `modules/aws/` and `modules/github/` (leaf modules), `docs/` (setup and deploy notes).
+- Stack: Terraform >= 1.10, `hashicorp/aws ~> 6`, `integrations/github ~> 6` authenticated as a GitHub App, state in S3 bucket `napkin-terraform-state-975050033628` with `use_lockfile`, one key per root.
+- Layout: `environments/core/` (GitHub OIDC provider, branch rulesets, monthly budget alert), `environments/dev/` and `environments/prd/` (one AWS environment each, calling `stacks/app`), `modules/aws/` and `modules/github/` (leaf modules), `docs/` (setup and deploy notes).
 - Install: `terraform init` in the root's directory after `source .env`.
-- Workspace files: per root, `.env` (`AWS_PROFILE=personal`) and `terraform.tfvars` (`app_password` and `session_secret` in dev and prd; `github_app_pem` in core), both gitignored, both with a committed `.example`.
+- Workspace files: per root, `.env` (`AWS_PROFILE=personal`) and `terraform.tfvars` (`app_password` and `session_secret` in dev and prd; `github_app_pem` and `budget_notification_email` in core), both gitignored, both with a committed `.example`.
 - API spec: none.
 - Data: none of its own.
 - Delivery: `terraform apply` run by Sebastian from his machine, never from CI.

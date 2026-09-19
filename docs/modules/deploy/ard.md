@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-18
-source: 0002_ci_workflow
+source: 0003_terraform_environments
 ---
 
 # deploy: architecture decisions and debt
@@ -96,3 +96,12 @@ source: 0002_ci_workflow
   A floating major can still break the gate on an upstream release, which is what the red proofs and a green baseline on each Dependabot PR are for.
 - Revisit when: an action ships a breaking change inside a major, or a supply chain incident makes SHA pinning worth the diff noise.
 - Source: 0002_ci_workflow
+
+## 2026-09-18: the ci root guard follows Terraform files, not a `main.tf`
+
+- Decision: `ci.yml` validates every `infra/environments/*/` that holds any `.tf` file, replacing the `main.tf` test of the entry above.
+- Alternatives rejected: giving `core` a `main.tf` it does not need so the old guard would match it; leaving the guard alone and letting `ci` report success while skipping a root.
+- Reason: `core`'s resources live in `oidc.tf`, `github.tf` and `budget.tf`, so the old guard skipped it in silence while `docs/TRD.md` lists `infra-core` as a verification target, and a required check that passes without running what it claims to check is worse than a missing check.
+- Debt created: none.
+- Revisit when: a root needs a different validate invocation, such as a workspace or a variable file.
+- Source: 0003_terraform_environments

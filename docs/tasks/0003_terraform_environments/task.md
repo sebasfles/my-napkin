@@ -204,3 +204,11 @@ The reason is that this task is what creates a root without a `main.tf`, so it i
 
 `npm run lint:workflows` needs `app/`'s dependencies, which this worktree had never installed, so round 2 also ran `npm ci` there.
 That touches nothing tracked.
+
+### Documentation
+
+`document-task` also corrected three facts in `docs/TRD.md#infra` that this task proved wrong: the state bucket name, the budget alert living in `core`, and `budget_notification_email` belonging in `core`'s tfvars.
+That file belongs to `setup` and the om-manager, so the edit is a deliberate excursion made on the om-reviewer's instruction, the same shape as the `ci.yml` line in round 2, and it leaves the section the same length.
+
+A grep of `docs/` for every fact this task changed found one more that nobody had spotted: `docs/modules/deploy/ard.md` still described the ci root guard as testing for a `main.tf`.
+The original entry stays as written, since an ARD is a log of what was decided when, and a new entry records the change instead.

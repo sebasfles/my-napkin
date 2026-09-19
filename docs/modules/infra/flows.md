@@ -22,7 +22,7 @@ sequenceDiagram
   participant DB as DynamoDB (diagrams)
   participant S3S as S3 (scenes)
 
-  B->>CF: GET /_next/static/* or public/*
+  B->>CF: GET /_next/static/*
   CF->>S3A: GetObject (via OAC)
   S3A-->>CF: static file
   CF-->>B: static file (cached)
