@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { signedFetch } from "@/lib/signed-fetch";
 
 type ErrorKey = "invalidPassword" | "unexpected";
 
@@ -28,7 +29,7 @@ export function LoginForm({ next }: { next: string }) {
     setError(null);
 
     try {
-      const response = await fetch("/api/login", {
+      const response = await signedFetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ password }),

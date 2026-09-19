@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-18
-source: 0003_terraform_environments
+updated: 2026-09-19
+source: 0008_oac_payload_hash
 ---
 
 # infra: architecture and debt
@@ -49,6 +49,8 @@ source: 0003_terraform_environments
 - Debt created: with OAC in front of the Function URL, a mutating request has to carry the hash of its own body.
   Measured on `dev`: a POST through CloudFront with no `x-amz-content-sha256` answers 403 with the body `The request signature we calculated does not match the signature you provided`, and the same POST carrying the hex SHA256 of the body in that header reaches the function.
   `docs/modules/app/trd.md` owns four such routes, and 0004 and 0005 are already merged against the assumption that a plain browser request works.
+- Resolved by: 0008_oac_payload_hash, 2026-09-19.
+  Every browser call to the app's own API now carries the header; see `docs/modules/app/ard.md` for the client-side hash and the narrower debt it leaves open, a third party that cannot compute the hash itself.
 - Revisit when: the app needs something a Function URL cannot provide (custom authorizers, usage plans).
 - Source: setup
 
