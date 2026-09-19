@@ -356,3 +356,16 @@ What the green run proves that nothing before it could: the presigned PUT with i
 Acceptance 1 to 5 are covered by the suite; acceptance 3 is the spec that asserts every scene request goes to an amazonaws host.
 
 The suite cleaned up after itself: dev holds only the app's own auto created diagram and its 40 byte empty scene, which also proves POST writes the empty object against real S3.
+
+### Round 10: docs findings
+
+Finding 2 applied: `docs/ARD.md` carries the shadcn row from 0001, dated to its entry.
+I checked the claim before fixing it rather than trusting it: the module `ard.md` has ten entries whose `Debt created` is not none, the index had nine rows for `app`, and the shadcn preset was the gap.
+Ten and ten now.
+
+Finding 1 held, with evidence, for the om-reviewer to settle.
+Both files already read `updated: 2026-09-18`, and I believe that is right, because this project dates documents by the local day.
+The precedent the finding cites, `fd95fb0`, set `updated: 2026-09-18` on a commit made at 2026-09-18 18:43 -05.
+My two edits are `afa37ac` at 2026-09-18 19:32 -05 and `ec7ee0c` at 2026-09-18 19:55 -05, the same local day.
+The 2026-09-19 in the finding comes from `verify.log`, whose timestamps I write in UTC because `verify-task` asks for an ISO timestamp, and UTC rolls over at 19:00 local here.
+Dating the docs 2026-09-19 would put them a day ahead of every commit in the repo and of the machine's own today, and a document dated in the future is as hard to trust as one dated too early, which is the finding's own argument.

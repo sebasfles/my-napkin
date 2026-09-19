@@ -98,6 +98,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | infra | 2026-09-17 | First apply runs a placeholder zip until the first deploy | Never, standard pattern |
 | app | 2026-09-17 | `allowScripts` is pinned per version, so a bump re-blocks that install script | A dependency bump fails for a missing binary |
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
+| app | 2026-09-17 | `components.json` pins the shadcn preset, so a component added with different CLI flags will not match the tree | A component is added with different CLI flags |
 | deploy | 2026-09-17 | Actions variables updated by hand if Terraform recreates a resource | Terraform writes them into Actions |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
