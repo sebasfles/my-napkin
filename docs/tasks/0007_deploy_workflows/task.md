@@ -176,3 +176,38 @@ Two notes on finding 2, neither changing what was asked:
 - The round 2 e2e ran with `app/.next` deleted first, so the first editor paint was compiled on demand, which is the condition that failed in round 1. It passed in 7.5s. That is evidence the suite is green cold, not proof the slow path is gone: the compile time varies, which is what made it flaky. What the change guarantees is that the assertion now has the same 30s ceiling as the navigation one line above it, so a slow compile can no longer fail it while the navigation survives.
 
 Unchanged from round 1 and still pending: no `terraform plan` and no `terraform apply`; the four `.env` and `terraform.tfvars` files are still absent from the worktree, and the GitHub App's Variables and Secrets permissions are still unverified.
+
+### Applies, and who ran them
+
+Scope delegated the `dev` and `prd` applies to me, and I could not run them.
+`terraform apply` was denied by this session's permission settings before it executed, classified as a secret-store write, which is a fair reading: the sixth resource writes `APP_PASSWORD` into a GitHub Actions environment secret.
+Sebastian ran both applies himself from this worktree instead.
+I did not ask the om-reviewer to run them on my behalf, and I did not split the apply with `-target` to leave the secret behind: the first would move a decision made about this session onto another one, and the second would have left `dev` half applied with `e2e-dev` unable to log in.
+
+What I did run, and what it settled:
+
+- `terraform init` and `terraform plan` in both roots. Both plans: `6 to add, 0 to change, 0 to destroy`, every address under `module.app.module.actions_environment.*`.
+- The `0 to change` is the part worth keeping. Both plans refreshed 30 existing resources first, including `module.app.module.server.aws_lambda_function.this`, and found no drift, which is what proves the `terraform.tfvars` in this worktree carry the same `app_password` and `session_secret` the environments were already applied with. A different password would have appeared there as a change to the Lambda's environment and would have broken login and `e2e-dev` on apply.
+- Those same refreshes showed `prd`'s AWS side already exists with real ids, so `docs/modules/infra/trd.md` no longer says `prd` has never been applied.
+
+Sebastian's applies: `dev` and `prd` each `Apply complete! Resources: 6 added, 0 changed, 0 destroyed`, the five names read back as `my-napkin:{env}:{NAME}`.
+That is also what settled the open question from round 1: the App's Environments, Variables and Secrets grants are sufficient, which no plan could have shown, since planning a create needs no write.
+
+The round 1 "Pending" list is now closed: both applies done, the App permissions verified by the applies themselves.
+
+### Documentation pass
+
+Modules in the diff: `deploy` and `infra` from the plan, plus `app`, which the diff reached through the one-line spec fix of round 2.
+
+Touched: every file of `deploy` except `database.md`; `infra`'s `README.md`, `prd.md`, `trd.md` and `ard.md`; `app`'s `trd.md` and a new `ard.md` entry.
+
+Left alone, with the reason:
+
+- `docs/modules/deploy/database.md` and `docs/modules/infra/database.md`: both already say the module owns no tables, which this task does not change.
+- `docs/modules/infra/flows.md`: it diagrams the request path, which no part of this task touches. The deploy and promotion flows live in `docs/modules/deploy/flows.md`, and both were rewritten.
+- `docs/modules/app/README.md`, `prd.md`, `database.md`, `flows.md`: the `app` change is a test timeout. No user-visible behavior, no endpoint, no table, no flow.
+- `docs/modules/app/ard.md` entries of 2026-09-18 still name `e2e-dev.yml` inside their `Reason`. Left as written: an ARD is a dated log of what was decided then, and rewriting the reasoning of a past decision to match today's layout would make the log lie about its own history. The new entry above them carries the current shape.
+
+One correction this pass made that the plan did not anticipate: `docs/modules/infra/trd.md` claimed `prd` had never been applied. The refresh in both `terraform plan` runs listed 30 existing resources per root with real AWS ids, so that line was false before this task and is now fixed.
+
+`docs/ARD.md` debt index: two rows removed (both now carry `Resolved by`), three added (the App key in three tfvars, the flaky spec blocking promotion, the twin assertion at line 97).

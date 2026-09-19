@@ -111,3 +111,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-19 | A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash | A third party needs to POST to the app (webhooks) |
 | infra | 2026-09-19 | Rotating the GitHub App key edits the `terraform.tfvars` of three roots | A secret manager holds the key for every root |
 | deploy | 2026-09-19 | `e2e-dev` runs on every push to `develop`, so a flaky spec blocks promotion | The suite is long or flaky enough to be worth gating differently |
+| app | 2026-09-19 | The twin assertion at `diagram-list.spec.ts:97` keeps the 15s default, so a change in run order moves the flake rather than removing it | The suite stops running serially in file order |

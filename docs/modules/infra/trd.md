@@ -5,8 +5,7 @@ source: 0007_deploy_workflows
 
 # infra: technical
 
-Every path below exists.
-`core` and `prd` are written but not applied: `dev` is the only environment that has been through an `apply`.
+Every path below exists, and all three roots have been applied.
 
 ## Structure
 
