@@ -79,7 +79,8 @@ The theme is `next-themes` with the class strategy, persisted in localStorage, a
 
 `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE` and `SCENES_BUCKET` are required, documented in `app/.env.example` and read through `src/lib/env.ts`.
 The accessors run per request and never at module import, and both AWS clients are built on first use, so a build with nothing in the environment still succeeds and a request without a variable fails loudly.
-The AWS region and the credentials come from the ambient environment, the `personal` profile locally and the Lambda role in AWS, so neither is a variable of this module.
+The region and the credentials come from the environment the process runs in, never from an explicit argument in code: in AWS the Lambda runtime provides `AWS_REGION` and the role provides the credentials, and locally `.env.local` provides `AWS_REGION` while the `personal` profile provides the credentials.
+A profile carries no region unless one was configured, which is why the local variable exists and why Terraform still grants only four.
 Locale and theme are never configured; both are read from the browser and persisted client-side.
 
 ## Testing

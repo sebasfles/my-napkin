@@ -130,6 +130,18 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
   Until then the om-developer verifies lint, typecheck and unit only, and no round is clean without a green e2e block at that round's commit.
 - The three shell specs (`editor`, `locale`, `theme`) go through `/`, which now auto-creates and redirects, so this task updates them and they create and clean up real diagrams. `editor.spec.ts` loses its empty-state assertion, which the task already removes from `docs/modules/app/prd.md`.
 
+### Correction 2026-09-19: the region is ambient in Lambda, a documented variable locally
+
+The first real run against dev failed 24 specs on one cause, `Region is missing` out of `src/lib/dynamo.ts`, and the five that passed were the login specs that never reach DynamoDB.
+
+- My decision "the region comes from the ambient environment, never from an explicit variable" was right about Lambda and wrong about the developer machine (om-reviewer).
+  The reserved variable argument only ever applied to the Lambda, where the runtime sets `AWS_REGION` itself; locally nothing does unless the profile carries a region, and this machine's `personal` profile does not.
+- The correction: `AWS_REGION` is documented in `.env.example` as a local development variable and placed in `.env.local` by the om-reviewer, which is where it now is.
+  Nothing changes in AWS: Terraform still grants the four variables of 0003 and the runtime still supplies the region.
+  The code is unchanged and still passes no explicit region, so what the decision protected (no region hardcoded, no fifth Lambda variable) still holds.
+- Rejected: setting the region on the profile with `aws configure`, because a green run would then depend on undocumented machine state and the next clone fails the same way; and a `?? "us-east-1"` fallback in code, because it copies infrastructure truth into the app and hides a misconfiguration instead of reporting it.
+- What this says about the gate: every round before this one was green on lint, typecheck and unit, and the task was one decision away from shipping something that could not talk to AWS at all from a fresh clone.
+
 ## om-developer notes
 
 ### Round 1
@@ -292,3 +304,32 @@ The om-reviewer's method is the right one and I used it here: the key of a Markd
 Listing the first cell of every row in every doc table leaves three repeats, all legitimate, the module names in the debt index, the component names in `docs/TRD.md`, and `GET` and `POST` in the endpoint table, which I checked again as method plus route: seven endpoints, no duplicates.
 
 Not acted on, recorded as the om-reviewer's: the `styles` flag on the generated `ui/alert-dialog.tsx` overlay, which the check itself exempts, and the `i18n` checker answering with prose before a clean rerun.
+
+### Round 8: the region, and what the suite found next
+
+Option 1 applied: `.env.example` documents `AWS_REGION=us-east-1` as local only, saying the Lambda runtime provides it in AWS, and the app trd's Configuration paragraph now describes where the region and the credentials come from in each environment instead of claiming the region is never a variable of this module.
+No code changed for it.
+
+The suite went from 5 passed, 24 failed to 19 passed, 10 failed.
+The region was the whole of the first wall; what is behind it is two separate causes, one in the code and one in a helper, both diagnosed from evidence rather than guessed.
+
+Cause 1, the code: autosave is dead in development, and the reason is mine from round 2.
+`useSceneSave`'s effect cleanup calls `saver.stop()`, but the saver is created in `useMemo`, so the two have different lifecycles.
+React Strict Mode, on in `next dev`, mounts, unmounts and remounts every component, and on that simulated unmount the cleanup stops a saver that the second mount then reuses, because Strict Mode preserves hook state while re-running effects.
+From that moment `stopped` is true forever: `advance` refuses to upload and suppresses every status, which is why no spec ever saw a save indicator and why every scene object in dev is still the 40 byte empty one.
+The trace shows it exactly: `GET /urls` and the scene download both 200, no PUT ever, and with probes in place, `fire, pending: true` followed by `advancing, stopped: true`.
+The deeper defect is that an effect cleanup must be undoable by the next effect run, and `stop()` was a one way kill on an object that outlives the effect.
+It would not have shown in production, where Strict Mode does not double invoke, which makes it worse rather than better: a latent kill switch on the save path.
+
+Cause 2, a helper: `newDiagram` renames the wrong diagram.
+It clicks new, waits for the item count to grow and for the URL to match `/d/{uuid}`, but the URL already matched before the click, so the wait proves nothing and the rename can land on the previously active diagram.
+That is what produced `Napkin 18092026 (2)` where the test expected its own name, and the two items matching one name that broke `deleteDiagram` with a strict mode violation.
+A real person cannot type that fast; the helper can, so the fix belongs in the helper, which must wait for the URL to change, not merely to look like a diagram URL.
+
+Also seen, not a failure: next-intl warned 1152 times that `relativeTime` got no `now`, from `UpdatedAtLine`.
+It is the hydration fallback the library documents, and the fix is `useNow()`.
+
+Nothing else appeared: CORS on the presigned GET works, the scene downloads, the login and list paths are green.
+The presigned PUT, the image round trip and Scan consistency stay unproven, because nothing has uploaded yet.
+
+Swept dev afterwards: one `e2e ` leftover and its scene object removed, leaving only the app's own auto created diagram.
