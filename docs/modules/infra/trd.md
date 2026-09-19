@@ -1,24 +1,24 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-18
+source: 0003_terraform_environments
 ---
 
 # infra: technical
 
-Greenfield: nothing in this module is built yet.
-Structure below is the planned layout from the project plan, not code that exists.
+Every path below exists.
+`core` and `prd` are written but not applied: `dev` is the only environment that has been through an `apply`.
 
-## Structure (planned)
+## Structure
 
 | Path | What |
 |---|---|
-| `infra/environments/core/` | Root: GitHub OIDC provider (one per account), branch rulesets for `develop` and `main` through the GitHub provider as a GitHub App; `versions.tf`, `providers.tf`, `locals.tf` (app id, installation id), `variables.tf` (`github_app_pem`), `oidc.tf`, `github.tf`, `outputs.tf`, `.env.example`, `terraform.tfvars.example` |
+| `infra/environments/core/` | Root: GitHub OIDC provider (one per account), branch rulesets for `develop` and `main` through the GitHub provider as a GitHub App, and the monthly budget alert. Its resources live in `oidc.tf`, `github.tf` and `budget.tf`, so this root has no `main.tf`; state key `core/terraform.tfstate` |
 | `infra/environments/dev/` | Root for `dev`: `locals.tf` (`env = "dev"`, `base_domain = "dev.sdfles.com"`, naming, tags), `variables.tf` (`app_password`, `session_secret`), `main.tf` (calls `stacks/app`), `outputs.tf`, `.env.example`, `terraform.tfvars.example`; state key `dev/terraform.tfstate` |
 | `infra/environments/prd/` | Same shape as `dev` with `base_domain = "sdfles.com"`; state key `prd/terraform.tfstate` |
-| `infra/stacks/app/` | Composite stack: one environment's AWS side, wires every `modules/aws/*` module, derives `napkin.{base_domain}`, creates that environment's deploy role trusting its branch |
+| `infra/stacks/app/` | Composite stack: one environment's AWS side in `storage.tf`, `database.tf`, `compute.tf`, `cdn.tf` and `github_actions.tf`, deriving `napkin.{base_domain}` and creating that environment's deploy role trusting its branch |
 | `infra/modules/aws/s3/` | Leaf module, reused for the assets bucket and the scenes bucket |
 | `infra/modules/aws/dynamodb_table/` | Leaf module for the `diagrams` table |
-| `infra/modules/aws/lambda_function/` | Leaf module for the Next.js server Lambda, code changes ignored via `lifecycle` |
+| `infra/modules/aws/lambda_function/` | Leaf module for the Next.js server Lambda, its log group, its role and its `AWS_IAM` Function URL, code changes ignored via `lifecycle` |
 | `infra/modules/aws/cloudfront/` | Leaf module for the distribution, its Origin Access Controls and behaviors |
 | `infra/modules/aws/acm/` | Leaf module for the DNS-validated certificate in `us-east-1` |
 | `infra/modules/github/branch_ruleset/` | Leaf module, copied from `local-auctions-infra` with zero required approvals and repository admin bypass |
@@ -49,9 +49,10 @@ Jobs, listeners or scheduled work: none.
 Root variables, backed by each root's `terraform.tfvars` (gitignored), all sensitive; everything else is a literal in `locals.tf`.
 
 - `dev`, `prd`: `app_password` (compared against the login form) and `session_secret` (HMAC key for the session cookie), both injected into that environment's Lambda.
-- `core`: `github_app_pem`, the private key of the GitHub App.
+- `core`: `github_app_pem`, the private key of the GitHub App, and `budget_notification_email`, which is a variable rather than a literal because the repository is public.
+- Everything that differs between environments lives in that root's `locals.tf`, including the CORS origins, PITR, deletion protection and `force_destroy`, so `dev/main.tf` and `prd/main.tf` are identical.
 
 ## Testing
 
-- `terraform fmt -check -recursive` from `infra/`, `terraform validate` from each root after `terraform init -backend=false`.
+- `terraform fmt -check -recursive` from `infra/`, `terraform validate` from each root after `terraform init -backend=false`, both run on every pull request by `ci.yml`.
 - No automated test suite; `terraform plan` is the practical check before every `apply`.

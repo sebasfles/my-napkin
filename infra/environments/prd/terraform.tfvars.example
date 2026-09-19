@@ -1,0 +1,2 @@
+app_password   = "the password the login form asks for"
+session_secret = "a long random string, the HMAC key of the session cookie"

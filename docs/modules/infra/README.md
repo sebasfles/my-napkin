@@ -1,17 +1,17 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-18
+source: 0003_terraform_environments
 ---
 
 # infra
 
-Terraform that provisions the AWS infrastructure my-napkin runs on: one AWS account, one region, two environments (`dev`, `prd`), plus the GitHub rulesets of the repository.
+Terraform that provisions the AWS infrastructure my-napkin runs on: one AWS account, one region, two environments (`dev`, `prd`), plus an account-level `core` root holding the GitHub OIDC provider, the branch rulesets and the monthly budget alert.
 It creates infrastructure only.
 It never deploys application code; that is `deploy`'s job.
 
 ## Boundaries
 
-- Owns: the assets and scenes S3 buckets, the DynamoDB table, the Lambda function's configuration, CloudFront, the ACM certificate, the `napkin` Route53 records, the GitHub OIDC provider and deploy role.
+- Owns: the assets and scenes S3 buckets, the DynamoDB table, the Lambda function's configuration, CloudFront, the ACM certificate, the `napkin` Route53 records, the GitHub OIDC provider and deploy role, the branch rulesets and the monthly budget alert.
 - Does not own: the Lambda's code (pushed by `deploy`), the table's items and the scenes' content (owned in behavior by `app`), the `sdfles.com` hosted zone itself (read only, never imported).
 - Code: `infra/`
 

@@ -1,0 +1,2 @@
+github_app_pem            = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+budget_notification_email = "you@example.com"
