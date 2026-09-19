@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0008_oac_payload_hash
+source: 0007_deploy_workflows
 ---
 
 # app: architecture decisions
@@ -251,3 +251,13 @@ source: 0008_oac_payload_hash
 - A stored scene keeps the shape it was written in; the editor normalizes it on read, never on disk.
 - `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.
 - A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash.
+
+## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
+
+- Decision: `app/tests/e2e/diagram-list.spec.ts:23` asserts `toBeVisible({ timeout: 30_000 })` on `.excalidraw`, matching the `toHaveURL` one line above it. The identical pair at lines 96-97 keeps the 15s default.
+- Alternatives rejected: raising `expect.timeout` for the whole suite in `playwright.config.ts`, which would slow every genuine failure to 30s; a helper wrapping the assertion, which would spread one site's problem across the file; leaving it and relying on CI's single retry.
+- Reason: spec files run alphabetically and this is the first test of the first file, so it is the only `.excalidraw` assertion in the suite that waits on a cold compile of the editor route. Every other one sits behind a warm one. It failed once on exactly that, while the navigation directly above it survived because it already had 30s, which is the asymmetry this removes.
+  The timeout is a ceiling, not a delay: a fast run is unaffected.
+- Debt created: the twin at line 97 still carries the default, so if execution order ever changes and that test becomes the cold one, the flake moves there rather than disappearing.
+- Revisit when: the suite stops running serially in file order, or a second cold editor paint appears.
+- Source: 0007_deploy_workflows

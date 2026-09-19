@@ -73,3 +73,21 @@ resource "aws_iam_role_policy" "deploy" {
     ]
   })
 }
+
+module "actions_environment" {
+  source = "../../modules/github/actions_environment"
+
+  repository  = var.github_repository
+  environment = var.env
+
+  env_vars = {
+    AWS_ROLE_ARN               = aws_iam_role.deploy.arn
+    LAMBDA_FUNCTION_NAME       = module.server.name
+    ASSETS_BUCKET              = module.assets_bucket.id
+    CLOUDFRONT_DISTRIBUTION_ID = module.cdn.distribution_id
+  }
+
+  env_secrets = {
+    APP_PASSWORD = var.app_password
+  }
+}

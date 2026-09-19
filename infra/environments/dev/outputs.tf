@@ -1,20 +1,20 @@
 output "deploy_role_arn" {
-  description = "Value of the AWS_ROLE_ARN Actions variable of this environment"
+  description = "Role the deploy workflow assumes over OIDC. Terraform writes it into the environment's AWS_ROLE_ARN."
   value       = module.app.deploy_role_arn
 }
 
 output "lambda_function_name" {
-  description = "Value of the LAMBDA_FUNCTION_NAME Actions variable of this environment"
+  description = "Server function the deploy workflow updates the code of. Terraform writes it into the environment's LAMBDA_FUNCTION_NAME."
   value       = module.app.lambda_function_name
 }
 
 output "assets_bucket" {
-  description = "Value of the ASSETS_BUCKET Actions variable of this environment"
+  description = "Bucket the deploy workflow syncs the build output to. Terraform writes it into the environment's ASSETS_BUCKET."
   value       = module.app.assets_bucket
 }
 
 output "cloudfront_distribution_id" {
-  description = "Value of the CLOUDFRONT_DISTRIBUTION_ID Actions variable of this environment"
+  description = "Distribution the deploy workflow invalidates. Terraform writes it into the environment's CLOUDFRONT_DISTRIBUTION_ID."
   value       = module.app.cloudfront_distribution_id
 }
 

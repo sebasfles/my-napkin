@@ -1,2 +1,3 @@
+github_app_pem = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 app_password   = "the password the login form asks for"
 session_secret = "a long random string, the HMAC key of the session cookie"

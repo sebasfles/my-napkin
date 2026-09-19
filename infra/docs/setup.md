@@ -28,15 +28,18 @@ Terraform cannot hold the state of the bucket its own state lives in.
 
 ## 2. The GitHub App
 
-`core` manages the rulesets as a GitHub App, because a personal access token would be a long-lived credential in a public repository's toolchain.
+All three roots talk to GitHub as the same GitHub App, because a personal access token would be a long-lived credential in a public repository's toolchain.
+`core` manages the rulesets with it; `dev` and `prd` manage their Actions environment with it.
 
 1. Create a private GitHub App owned by `sebasfles`, no webhook.
-2. Repository permissions: Administration read and write, Metadata read.
+2. Repository permissions: Administration read and write (the rulesets and the environments), Environments read and write, Secrets read and write (`APP_PASSWORD`), Variables read and write (the four deploy variables), Metadata read.
+   This is the set the `dev` and `prd` applies of 0007 ran with; Administration and Metadata alone are enough for `core`'s rulesets but not for an Actions environment.
 3. Install it on `sebasfles/my-napkin` only.
 4. Generate a private key and keep the `.pem`.
 
-The app id and the installation id are literals in `environments/core/locals.tf`.
-The key goes into `environments/core/terraform.tfvars` as `github_app_pem`, with the newlines written as `\n`.
+The app id and the installation id are literals in the `locals.tf` of each root.
+The key goes into every root's `terraform.tfvars` as `github_app_pem`, with the newlines written as `\n`.
+Rotating it means editing three files; that is recorded as debt in `docs/modules/infra/ard.md`.
 
 ## 3. Apply, in order
 
@@ -49,29 +52,29 @@ cp terraform.tfvars.example terraform.tfvars   # github_app_pem, budget_notifica
 terraform init && terraform apply
 ```
 
-Then `dev`, then `prd`, each the same way with its own `terraform.tfvars` (`app_password`, `session_secret`).
+Then `dev`, then `prd`, each the same way with its own `terraform.tfvars` (`github_app_pem`, `app_password`, `session_secret`).
 
 The first apply of an environment takes several minutes: ACM waits on DNS validation, and CloudFront on its own deployment.
 It creates the server function against a placeholder that answers `503 not deployed` until the first workflow run replaces the code.
 
-`app_password` of `dev` has to match the `APP_PASSWORD` secret of the repository's `dev` Actions environment, which is what the end-to-end suite logs in with.
+## 4. What the apply writes into Actions
 
-## 4. What to copy into Actions, once
+Nothing is copied by hand.
+Applying `dev` or `prd` creates the Actions environment of the same name and fills it from that environment's own resources:
 
-Each environment's outputs feed the Actions environment of the same name (`dev`, `prd`), as variables, not secrets.
-
-| Output | Actions variable |
+| Resource | Actions variable |
 |---|---|
 | `deploy_role_arn` | `AWS_ROLE_ARN` |
 | `lambda_function_name` | `LAMBDA_FUNCTION_NAME` |
 | `assets_bucket` | `ASSETS_BUCKET` |
 | `cloudfront_distribution_id` | `CLOUDFRONT_DISTRIBUTION_ID` |
 
-```bash
-terraform output
-```
+It also writes `app_password` as the environment's `APP_PASSWORD` secret, which is what the end-to-end suite logs in with on `dev`.
+Each of the five lands with the id `my-napkin:{env}:{NAME}`.
+The same `terraform.tfvars` therefore drives the login form, the server function's environment and the suite's password at once, and they cannot drift apart.
+`prd` gets that secret too, for symmetry; nothing reads it, because no suite ever runs against prd.
 
-Set them again if Terraform ever replaces one of those resources.
+An apply that replaces the function, the bucket or the distribution rewrites the matching variable in the same run.
 
 ## 5. Local development
 

@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0008_oac_payload_hash
+source: 0007_deploy_workflows
 ---
 
 # app: technical
@@ -93,7 +93,7 @@ Locale and theme are never configured; both are read from the browser and persis
 - Lint: `npm run lint` (ESLint, then Prettier in check mode).
 - Typecheck: `npm run typecheck`.
 - Unit: `npx vitest run`, over `tests/unit/`, Node environment, pure functions only.
-- E2E: `npx playwright test --workers=1`, run on a developer machine and in `e2e-dev.yml` against `napkin.dev.sdfles.com`; `ci.yml` runs none.
+- E2E: `npx playwright test --workers=1`, run on a developer machine and in the `e2e-dev` job of `deploy-dev.yml` against `napkin.dev.sdfles.com`; `ci.yml` runs none.
 - Playwright starts `npm run dev` itself unless `BASE_URL` is set, and reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local` to start it and to log in.
   It never adopts a server already on the port; a busy port is an error, because that server is usually another workspace's tree.
 - The repositories are tested with `aws-sdk-client-mock`, the saver with injected ports and fake timers, so the unit suite needs no credentials.

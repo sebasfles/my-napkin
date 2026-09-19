@@ -1,0 +1,79 @@
+name: reusable-deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Actions environment holding this deploy's variables and secrets
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build with OpenNext
+        working-directory: app
+        run: npx open-next build
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Package the server function
+        working-directory: app/.open-next/server-functions/default
+        run: |
+          zip -qr "$RUNNER_TEMP/server-function.zip" .
+          ls -lh "$RUNNER_TEMP/server-function.zip"
+
+      - name: Update the function code
+        env:
+          FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$FUNCTION_NAME" \
+            --zip-file "fileb://$RUNNER_TEMP/server-function.zip" \
+            --no-cli-pager
+          aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME"
+
+      - name: Sync the static assets
+        working-directory: app/.open-next/assets
+        env:
+          ASSETS_BUCKET: ${{ vars.ASSETS_BUCKET }}
+        run: |
+          aws s3 sync . "s3://$ASSETS_BUCKET" \
+            --exclude '*' \
+            --include '_next/static/*' \
+            --cache-control 'public,max-age=31536000,immutable' \
+            --no-progress
+          aws s3 sync . "s3://$ASSETS_BUCKET" \
+            --exclude '_next/static/*' \
+            --cache-control 'public,max-age=300,must-revalidate' \
+            --no-progress
+
+      - name: Invalidate the distribution
+        env:
+          DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths '/*' \
+            --no-cli-pager

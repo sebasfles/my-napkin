@@ -30,8 +30,15 @@ The editor is then served at `http://localhost:3000`.
 | `npm run lint` | ESLint and Prettier |
 | `npm run typecheck` | TypeScript, no emit |
 | `npx vitest run` | Unit tests |
-| `npx playwright test --workers=1 --grep-invert @aws` | End-to-end tests |
+| `npx playwright test --workers=1` | End-to-end tests, against dev |
 | `npx open-next build` | AWS build artifact, into `.open-next/` |
+
+## How a change ships
+
+Every change arrives by pull request into `develop`, gated by one `ci` check.
+Merging it deploys `napkin.dev.sdfles.com`, runs the full Playwright suite against that deployed environment, and opens the pull request `develop -> main`.
+That pull request carries `ci` and `e2e-dev` on its head commit as the proof the change works deployed; merging it deploys `napkin.sdfles.com`.
+Nothing is deployed by hand, and no browser test ever runs against production.
 
 ## Documentation
 

@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0008_oac_payload_hash
+source: 0007_deploy_workflows
 ---
 
 # infra: architecture and debt
@@ -80,3 +80,15 @@ source: 0008_oac_payload_hash
 - Debt created: none.
 - Revisit when: AWS changes the documented permission pair.
 - Source: 0003_terraform_environments
+
+## 2026-09-19: Terraform owns the two GitHub Actions environments
+
+- Decision: `stacks/app` creates the Actions environment named after `var.env` through `modules/github/actions_environment`, with `AWS_ROLE_ARN`, `LAMBDA_FUNCTION_NAME`, `ASSETS_BUCKET` and `CLOUDFRONT_DISTRIBUTION_ID` taken from the resources of that same stack and `APP_PASSWORD` from `var.app_password`. `dev` and `prd` configure the `github` provider with the same GitHub App as `core`.
+- Alternatives rejected: keeping the four variables and the secret as a manual step after each apply, which is how they were defined until now; a `core`-owned module reading the other roots' outputs with `terraform_remote_state`, which would make `core` depend on the environments it is applied before.
+- Reason: the value and the resource it names are produced by the same apply, so they cannot drift. The manual step also had no signal: a recreated bucket left a stale variable behind and the next deploy failed against a resource that no longer existed.
+  The module is copied from `diy-infra` without its `lifecycle { ignore_changes = all }`, because nothing else manages these environments here and ignoring every change would hide a protection rule or a variable edited by hand.
+  Its `for_each = nonsensitive(toset(keys(var.env_secrets)))` is kept: `for_each` cannot take a sensitive value, and the names of the secrets are not the secrets.
+  The secret is written through the resource's `value`, not `plaintext_value`, which provider 6 deprecates in favour of it.
+- Debt created: the App's private key now lives in the `terraform.tfvars` of all three roots, so rotating it means editing three files. `prd` also gets an `APP_PASSWORD` secret that nothing reads, since no suite runs against prd; it is already in prd's state through the Lambda's environment, so it adds no exposure.
+- Revisit when: a secret manager holds the App key for every root, or a third environment makes the copies worth removing.
+- Source: 0007_deploy_workflows
