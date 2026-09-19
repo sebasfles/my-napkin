@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-18
-source: 0004_diagram_persistence
+updated: 2026-09-19
+source: 0008_oac_payload_hash
 ---
 
 # app: architecture decisions
@@ -223,6 +223,19 @@ source: 0004_diagram_persistence
 - Revisit when: a second `ToggleGroup` is added, or the CLI ships a variant whose selected state already differs from its hover state.
 - Source: 0006_theme_three_state
 
+## 2026-09-19: Client-side SHA-256 of the request body instead of Lambda@Edge signing
+
+- Decision: `src/lib/signed-fetch.ts` wraps `fetch` for same-origin calls.
+  It hashes the request body with `crypto.subtle.digest` (the hash of the empty string when there is no body) and sets `x-amz-content-sha256`, on every method, since a same-origin GET needs the header as much as a POST.
+  It throws when the body is present but not a string, since hashing anything else would not match the bytes `fetch` puts on the wire.
+  `src/lib/api.ts`'s `call()` and `login-form.tsx`'s own `fetch` both go through it; the two presigned S3 calls in `api.ts` (`loadScene`, `putScene`) do not, since they never reach CloudFront.
+  No route handler answers a native form post or a Server Action, since a browser cannot set a header on either; `logout-button.tsx` became a client component for this reason.
+- Alternatives rejected: Lambda@Edge signing (SST's `oac-with-edge-signing`); setting the Function URL's auth to `NONE`.
+- Reason: this app controls every POST source, so hashing client-side adds no Lambda@Edge function, no latency and no extra 1 MB body cap; `NONE` would leave the Function URL invocable outside CloudFront, which is cost and abuse surface `infra/ard.md`'s "Function URL over API Gateway" entry rejects.
+- Debt created: a third party cannot compute this header, so a webhook or another caller that is not this app's own browser code cannot POST through the OAC-protected Function URL.
+- Revisit when: a third party needs to POST to the app; Lambda@Edge signing is the fallback.
+- Source: 0008_oac_payload_hash
+
 ## Known debt
 
 - Scenes never go through the API, because of the 6 MB Lambda request limit.
@@ -237,3 +250,4 @@ source: 0004_diagram_persistence
 - The first paint of the diagram list waits for a round trip, since no page renders it on the server.
 - A stored scene keeps the shape it was written in; the editor normalizes it on read, never on disk.
 - `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.
+- A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash.
