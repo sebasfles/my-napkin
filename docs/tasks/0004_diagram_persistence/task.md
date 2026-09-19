@@ -130,7 +130,7 @@ Consolidated 2026-09-18 with Sebastian through the om-manager.
   Until then the om-developer verifies lint, typecheck and unit only, and no round is clean without a green e2e block at that round's commit.
 - The three shell specs (`editor`, `locale`, `theme`) go through `/`, which now auto-creates and redirects, so this task updates them and they create and clean up real diagrams. `editor.spec.ts` loses its empty-state assertion, which the task already removes from `docs/modules/app/prd.md`.
 
-### Correction 2026-09-19: the region is ambient in Lambda, a documented variable locally
+### Correction 2026-09-18: the region is ambient in Lambda, a documented variable locally
 
 The first real run against dev failed 24 specs on one cause, `Region is missing` out of `src/lib/dynamo.ts`, and the five that passed were the login specs that never reach DynamoDB.
 
