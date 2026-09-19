@@ -369,3 +369,31 @@ The precedent the finding cites, `fd95fb0`, set `updated: 2026-09-18` on a commi
 My two edits are `afa37ac` at 2026-09-18 19:32 -05 and `ec7ee0c` at 2026-09-18 19:55 -05, the same local day.
 The 2026-09-19 in the finding comes from `verify.log`, whose timestamps I write in UTC because `verify-task` asks for an ISO timestamp, and UTC rolls over at 19:00 local here.
 Dating the docs 2026-09-19 would put them a day ahead of every commit in the repo and of the machine's own today, and a document dated in the future is as hard to trust as one dated too early, which is the finding's own argument.
+
+### Round 10: rebase onto 0003, and three flaky specs made deterministic
+
+Rebased on `00c8b05`, carrying the om-reviewer's `docs(tasks)` commit through.
+One conflict, the `docs/ARD.md` debt index, append against append: 0003's two `infra` rows and my four `app` rows all stay, in the order the tasks landed, which is how the table already groups a date.
+`docs/TRD.md` is byte identical to develop, since I never edit it.
+`docs/modules/app/{trd,ard}.md` kept the round 8 and 9 edits, and `docs/ARD.md` kept the shadcn row.
+
+The rerun the om-reviewer asked for was not green, and it was worth running: three consecutive runs failed, each on a different spec, 28 of 29 every time.
+That is not one flake, it is three defects of one family, all mine, all in the specs rather than the product.
+
+1. `expectSomethingOnTheCanvas` clicked the canvas at (5, 5), which is where the editor's own menu button sits, so the click could open the menu and the Ctrl+A that followed selected nothing.
+   Worse, the helper fired the keypress once and then waited for an effect that nothing would retrigger.
+   It now clicks in open canvas and retries the press and the check together, which is what a person does when a page was still settling.
+   The (5, 5) was meant to be fixed in round 1: the edit was a text replacement that matched nothing, and I confirmed it by the absence of an error rather than by reading the file.
+   That is exactly the mistake round 6 was about, made earlier in the task and only surfaced now.
+   Every scripted edit since round 6 asserts its match; this one predates the habit.
+2. Waiting for `.excalidraw` used Playwright's 5 second default, which a dev server compiling a route for the first time can exceed.
+   That is a property of the environment, not of one assertion, so `playwright.config.ts` now sets `expect.timeout` to 15 seconds.
+   It is a shared file, so the om-reviewer should know it affects 0005's specs too.
+3. `save-reload` asserted the indicator passes through `Saving` before `Saved`.
+   Against real S3 the save can finish between two polls, so the assertion was on a state that is real but not reliably observable.
+   The spec now asserts only where it settles, `Saved`, and the passage through `saving` stays covered by the state machine's unit tests, where it is deterministic.
+
+After those, five full runs: one green, then two more green, then the recorded one green, with 29 passed each.
+Four consecutive green runs is the evidence for calling it stable, not the single green run that this round started with.
+
+Dev after all of it: only the app's own auto created diagram, no `e2e ` leftovers.

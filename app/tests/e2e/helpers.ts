@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export const savedText = "Saved";
-export const savingText = "Saving";
 export const saveFailedText = "Not saved, retrying on the next change";
 
 const awsTimeout = 30_000;
@@ -135,13 +134,17 @@ export async function pasteImage(page: Page) {
 }
 
 export async function expectSomethingOnTheCanvas(page: Page) {
-  await page
-    .locator("canvas")
-    .last()
-    .click({ position: { x: 5, y: 5 } });
-  await page.keyboard.press("Control+a");
+  const shapeProperties = page.locator(".excalidraw .App-menu__left");
 
-  await expect(page.locator(".excalidraw .App-menu__left")).toBeVisible();
+  await expect(async () => {
+    const box = await page.locator("canvas").last().boundingBox();
+    if (!box) throw new Error("the editor canvas has no layout box");
+
+    await page.mouse.click(box.x + box.width * 0.9, box.y + box.height * 0.5);
+    await page.keyboard.press("Control+a");
+
+    await expect(shapeProperties).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: awsTimeout });
 }
 
 export async function redPixelsOnCanvas(page: Page): Promise<number> {

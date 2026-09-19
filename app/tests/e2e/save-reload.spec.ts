@@ -10,7 +10,6 @@ import {
   removeDiagramsCreatedHere,
   saveIndicator,
   savedText,
-  savingText,
 } from "./helpers";
 
 test.describe("save and reload", () => {
@@ -25,7 +24,6 @@ test.describe("save and reload", () => {
     await expect(page.locator(".excalidraw .App-menu__left")).toBeHidden();
     await drawRectangle(page);
 
-    await expect(saveIndicator(page)).toHaveText(savingText, { timeout: 30_000 });
     await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
 
     await page.reload();
