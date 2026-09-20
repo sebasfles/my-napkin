@@ -52,15 +52,26 @@ export function itemList(page: Page): Locator {
 }
 
 export function diagramItem(page: Page, name: string): Locator {
-  return itemList(page).getByTestId("diagram-item").filter({ hasText: name });
+  return itemList(page)
+    .getByTestId("diagram-item")
+    .filter({ has: exactly(page, name) });
 }
 
 export function folderItem(page: Page, name: string): Locator {
-  return itemList(page).getByTestId("folder-item").filter({ hasText: name });
+  return itemList(page)
+    .getByTestId("folder-item")
+    .filter({ has: exactly(page, name) });
 }
 
 export function pinnedItem(page: Page, name: string): Locator {
-  return page.getByTestId("pinned-list").getByTestId("diagram-item").filter({ hasText: name });
+  return page
+    .getByTestId("pinned-list")
+    .getByTestId("diagram-item")
+    .filter({ has: exactly(page, name) });
+}
+
+function exactly(page: Page, name: string): Locator {
+  return page.getByText(name, { exact: true });
 }
 
 export function tabs(page: Page): Locator {

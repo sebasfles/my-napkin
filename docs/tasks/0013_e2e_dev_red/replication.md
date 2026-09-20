@@ -66,3 +66,12 @@ Why the two helpers sit differently in that window is not established; `pasteIma
 
 
 ## om-reviewer verification
+
+2026-09-20, round 1 at `1cc4d5f`.
+
+- Cause 2: verified. The om-developer's run against deployed dev returns 63 passed, 1 failed, 0 flaky, with all eight `drawRectangle` specs passing and `save-reload.spec.ts:35` passing without a retry, against the same environment that failed them twice each in run 35526315218.
+  The Observed section's first bullet no longer reproduces.
+- Cause 1: not yet observable, by design, and the Observed section's second bullet still reproduces.
+  Probed by the om-reviewer against dev at review time: `/icon-192.png` answers 404, `/static/icon-192.png` answers 307 to `/login` because the deployed gate predates this branch, `/manifest.webmanifest` and `/icon.png` answer 200 from the Lambda, which is the wildcard rejection holding.
+  The new keys reach the assets bucket on the merge deploy and the CloudFront behavior on Sebastian's apply, so Expected is provable only after both, per Acceptance 2 as adjusted in `Context & decisions`.
+- The steps as written remain executable; no correction to preconditions or steps was needed.

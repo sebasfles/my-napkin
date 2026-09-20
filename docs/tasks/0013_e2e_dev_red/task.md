@@ -148,3 +148,20 @@ Deferred, noticed and deliberately not done:
 - `newFolderNamed` tracks its folder only after the create round trip, the same leak shape as the one fixed above. It is a smaller window, the folder carries its final name from the start, and none of the strays found were folders.
 - `src/lib/api.ts:130` raises a pre-existing `@next/next/no-location-assign-relative-destination` lint warning. Untouched by this task and not in a file it had to open.
 - Three workspaces share port 3000 and one 7.6 GiB machine, and `playwright.config.ts` sets `reuseExistingServer: false`, so a second suite fails outright and a third crashes browser pages. It is why one verification block in this task's `verify.log` is a `fail` recording browser crashes rather than assertion failures. It needs owning above this task; it is not a code change here.
+
+### Round 2
+
+Both findings applied.
+
+Finding 1, fixed by making the match exact rather than by changing the handle. `diagramItem`, `folderItem` and `pinnedItem` now filter on `has: getByText(name, { exact: true })` instead of `hasText`, which is a case-insensitive substring.
+
+- Tracking the row id was the other option offered and I did not take it. `createdByPage` and `foldersByPage` hold names, `retrack` moves names, and `deleteDiagram` takes a name, so putting an id into those lists would have made their contents heterogeneous and changed what 0012 rebases onto, to fix one call site.
+- Exact matching fixes the invariant instead: a tracked name resolves to the row it names and to no other. It also closes the same hazard for `e2eName`, where `-1` is a prefix of `-10`, which was never reachable in practice but was the same latent defect the round was pulled up for.
+- No caller relied on substring matching; every one passes a full name.
+
+Finding 2, the infra and deploy targets re-run at this round's tip and logged there, so no reader has to date a block to trust it.
+
+### Round 2 verification note
+
+The suite against deployed dev was re-run at this tip rather than carried over from round 1, because finding 1 changes how every spec resolves a row and the cause 2 proof is worth nothing at a stale commit.
+
