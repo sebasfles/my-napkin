@@ -116,4 +116,14 @@ The screenshots were retaken afterwards so they show a real list rather than tha
 
 Screenshots, light and dark, in `{{workspace}}/screenshots/`, never committed: login, sidebar, item menu, rename dialog, info dialog, delete confirmation, the locked row with the editor in view mode, and the delete dialog that asks to unlock first.
 
+### Documentation
+
+`app` only, on the clean signal.
+`prd.md` drops renaming in place and gains the item menu, lock and Info; `trd.md` corrects the PATCH and `/urls` descriptions and records the typeface; `database.md` carries the new attributes, the narrowed meaning of `updatedAt` and the lock condition; `flows.md` corrects the save sequence and says a locked diagram never enters it; `README.md` corrects one line.
+Three ARD entries: `updatedAt` as an edit only, the lock enforced at both the condition and the signature, and the non-modal item menu with the bug that forced it.
+One debt line and one `docs/ARD.md` index row for the presigned window.
+Nothing in `docs/PRD.md`: folders arrive in phase 2.
+`updatedAt` as an edit only was already in `Context & decisions`, so it is not new; it is in `ard.md` because the module's reader will never open this task folder, and the om-reviewer asked for it by name.
+Nothing was resolved: no debt this phase touched had an entry to close.
+
 ## Result
