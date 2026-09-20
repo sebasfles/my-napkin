@@ -69,6 +69,42 @@ test.describe("sidebar collapse", () => {
     await expect(sidebar(page)).toHaveAttribute("data-collapsed", "false");
   });
 
+  test("toggles with Alt+B from the canvas, from the sidebar, and across a reload", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await newDiagram(page, "shortcut");
+
+    await page.locator("canvas.excalidraw__canvas.interactive").click();
+    await expect(
+      page.locator(".excalidraw-container"),
+      "the click never reached the editor, so this case would prove nothing about the canvas",
+    ).toBeFocused();
+
+    await page.keyboard.press("Alt+b");
+
+    await expect(
+      sidebar(page),
+      "Alt+B reaches the sidebar while the canvas has focus",
+    ).toHaveAttribute("data-collapsed", "true");
+    await expect(page.getByTestId("sidebar-rail")).toBeVisible();
+
+    await page.getByTestId("sidebar-toggle").focus();
+    await page.keyboard.press("Alt+b");
+
+    await expect(sidebar(page)).toHaveAttribute("data-collapsed", "false");
+    await expect(page.getByTestId("item-list")).toBeVisible();
+
+    await page.keyboard.press("Alt+b");
+    await expect(sidebar(page)).toHaveAttribute("data-collapsed", "true");
+
+    await page.reload();
+    await expect(
+      sidebar(page),
+      "the shortcut writes the same cookie the control does",
+    ).toHaveAttribute("data-collapsed", "true", { timeout: awsTimeout });
+  });
+
   test("shows the rail sections, with Libraries announced as coming soon", async ({ page }) => {
     await openApp(page);
     await page.getByTestId("sidebar-toggle").click();

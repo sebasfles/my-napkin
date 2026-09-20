@@ -102,3 +102,43 @@ Consolidated 2026-09-20 with Sebastian through the om-manager.
 - The suite is chromium only (`app/playwright.config.ts:37`), so the Firefox bookmarks-menu case in Approach is judged by reading the handler's `preventDefault`, never by a run.
 
 ## om-developer notes
+
+### Round 1
+
+Done:
+
+- `src/lib/shortcuts.ts` is the pure chord table, with `KeyChord`, `TabCommand` and one entry point, `shortcutFor`, returning `{ kind: "tab", command }` or `{ kind: "toggleSidebar" }`.
+  `tabs.ts` keeps only the tab state.
+- `src/components/shortcuts.tsx` holds the single capture-phase `window` listener and is mounted in `(editor)/layout.tsx` beside `<PageTitle />`.
+  `tab-bar.tsx` lost the listener and now only renders the bar, so it can still return `null` without taking the chords with it.
+- `toggleCollapsed` in `use-sidebar-collapsed.ts` reads the cookie at call time; `setCollapsed` and it share one `store`, so the listener needs no server value and never re-registers.
+- The chord shows as `sidebar.shortcut` ("Alt+B" in both catalogs) in the collapse and rail-expand tooltips, in the muted tone `RailSection` already uses for its hint; the `aria-label`s keep the plain action.
+- "My Napkin" in `metadata.title`, `sidebar.title` and `login.title` of both catalogs, `manifest.name`, and `short_name` "Napkin".
+- `README.md` rewritten as the product's front page, and `docs/PRD.md` names the product.
+- Tests: `tests/unit/shortcuts.test.ts` (the moved `tabShortcut` cases plus Alt+B, and Alt+Shift+B, Ctrl+Alt+B, Cmd+Alt+B, bare B all left to the editor), the Alt+B case in `tests/e2e/sidebar-collapse.spec.ts` (canvas focused, sidebar focused, reload), the renamed `appName` and a `short_name` assertion in `tests/e2e/metadata.spec.ts`, and `page-title.test.ts` renamed with it.
+
+Decisions this round, beyond `Approach` and `Context & decisions`:
+
+- One matcher, `shortcutFor`, instead of keeping `tabShortcut` exported beside it.
+  Two exported matchers over the same event is how the table stops being one table, which is the reason the table moved in the first place.
+  The tab commands keep their shape, wrapped in the `tab` variant.
+- The shortcut shows in the tooltip as a muted second line rather than through a new `Kbd` component.
+  `ui/tooltip.tsx` already styles a `data-slot="kbd"` child, but no such component exists in `components/ui/`, and adding one from the shadcn CLI is a wider change than this task asked for.
+
+Pending, for the documentation step:
+
+- `docs/modules/app/prd.md` (the shortcut next to the rail, the product name) and `docs/modules/app/trd.md#Keyboard` (the listener moved out of `tab-bar.tsx`), which `document-task` writes once on the clean signal.
+  `README.md` and `docs/PRD.md` landed here instead, since `document-task` is scoped to `docs/modules/` and the `Debt index`, and these two are Scope, not module docs.
+
+Deferred, not touched:
+
+- `tests/e2e/pinning.spec.ts:49` asserts on row 0 of the pinned list, so any pinned diagram another run left in the shared dev table fails it.
+  It failed that way in this round's first e2e run and is unrelated to this diff; 0013 owns the e2e-on-dev work, so a fix from here would collide with it.
+- Two workspaces cannot run the suite at once: they share the dev table and port 3000.
+
+Pending, e2e:
+
+- Lint, typecheck and unit are green on this commit.
+  The full e2e run is owed: the first came back 64 of 65 with the pinned-row collision above, and the re-run was terminated from outside after 8 green specs while three suites shared 7.8 GiB of memory.
+  Held for the om-reviewer's `e2e slot free`.
+

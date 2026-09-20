@@ -1,13 +1,14 @@
 {
   "metadata": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "description": "A personal whiteboard with diagrams that persist across sessions."
   },
   "sidebar": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "diagrams": "Diagrams",
     "collapse": "Collapse the sidebar",
     "expand": "Expand the sidebar",
+    "shortcut": "Alt+B",
     "libraries": "Libraries",
     "comingSoon": "Coming soon",
     "pinned": "Pinned",
@@ -85,7 +86,7 @@
     "saveFailed": "Not saved, retrying on the next change"
   },
   "login": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "subtitle": "Enter the password to open your diagrams.",
     "passwordLabel": "Password",
     "submit": "Enter",

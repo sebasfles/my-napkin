@@ -145,7 +145,10 @@ export function Sidebar({ collapsed: collapsedOnTheServer }: { collapsed: boolea
                   <PanelLeftClose aria-hidden />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">{t("collapse")}</TooltipContent>
+              <TooltipContent side="right">
+                <span>{t("collapse")}</span>
+                <span className="text-background/70">{t("shortcut")}</span>
+              </TooltipContent>
             </Tooltip>
           </div>
 
@@ -355,7 +358,10 @@ function SidebarRail({ onExpand }: { onExpand: () => void }) {
             <NapkinMark className="size-4" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right">{t("expand")}</TooltipContent>
+        <TooltipContent side="right">
+          <span>{t("expand")}</span>
+          <span className="text-background/70">{t("shortcut")}</span>
+        </TooltipContent>
       </Tooltip>
 
       <RailSection
