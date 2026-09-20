@@ -20,8 +20,9 @@ The priorities are, in order: it works, it costs nothing fixed per month, and it
 ### Diagrams (module `app`)
 
 The user works from a sidebar of folders and diagrams: folders nest to any depth, the sidebar shows one at a time under a breadcrumb back to the top, and a pinned diagram stays one click away in a section above it, wherever it lives.
-A menu on every row renames, locks, pins, moves or deletes.
+A menu on every row renames, locks, pins, moves or deletes, and the sidebar collapses to a rail when the drawing wants the room.
 The diagrams he opens stay open as tabs above the canvas, the one he only glanced at giving way to the next until an edit or a double click keeps it, and both the tabs and the folder he was in come back after a reload.
+He opens what he wants to open: the app starts with nothing on the canvas and an invitation to pick or create, and never chooses a diagram for him.
 Edits save automatically shortly after he stops drawing, pasted images included, and reopening a diagram restores it as it was left.
 Details: [modules/app/prd.md](modules/app/prd.md)
 

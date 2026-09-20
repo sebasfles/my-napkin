@@ -120,4 +120,38 @@ A spec that ends on `/login` holding real items now fails loudly, with "the app 
 
 Nothing else changed; the diff of this round is `tests/e2e/helpers.ts` alone.
 
+### Documentation
+
+`app`, plus `docs/PRD.md`, which the om-reviewer delegated because this phase removes a promise the product used to make.
+
+`docs/PRD.md`: the Diagrams capability gains the rail in the sentence that already listed what the sidebar does, and one sentence of its own for the thing that changed, that the app starts with nothing on the canvas and never chooses a diagram for the user.
+Nothing else there claimed the old behaviour.
+
+`docs/modules/app/prd.md`: read back whole, and two lines were false rather than merely incomplete.
+"There is no empty state at the top" is now the paragraph that describes it, naming the three ways a user arrives at it, a new browser, the last tab closing, and an address for a diagram that no longer exists, and the fact that the app creates nothing on its own.
+The other was in the folders flow: deleting a folder "leaves the user on another diagram", which stopped being true when the tab layer took over that landing in phase 3 and is now wrong twice over, so it says the tabs close and the user lands beside them or on the empty workspace.
+The Interface section gains the rail and the browser tab, the breadcrumb flow gains the cut name with its hover, and the per-browser rule absorbed the rail rather than growing a line.
+Cut to pay: the tabs flow said the tabs and the open diagram come back after a reload, which the per-browser rule under Rules now says for all three kinds of state, and the lock flow repeated the folder-delete confirmation that the folders flow already describes.
+
+`docs/modules/app/trd.md`: the structure table carries the metadata files and the icon generator, the third `localStorage` store, and the two pages whose meaning changed.
+`/d/[id]/page.tsx` rendering `null` gets its own short paragraph under the table, because it is the one thing in this diff that reads as a mistake to someone opening the file cold, and the paragraph says what breaks if it is "fixed".
+A `Page metadata` section says what is in the head, that only the title is set at runtime and why, and where each icon is actually served from, which I corrected after checking the OpenNext build rather than assuming: `favicon.ico` and the two `public/` PNGs are copied to the assets bucket, the rest are routes the Lambda answers, and the gate lets all of them through as root files with an extension.
+Testing gains the rule this phase's round 2 came from: a helper waits for the sidebar before it counts anything in it.
+Cut to pay: the Configuration section explained the local `AWS_REGION` in two sentences that `docs/TRD.md` already carries in full, and now points there instead; the typeface paragraph folded into one sentence.
+
+`ard.md`: eight entries.
+The scene handover carries the numbers, because "the editor lives in the layout and the page renders nothing" is exactly the shape a later reader deletes as indirection, and the 271ms in production and 367 to 441ms in dev are what make the case.
+The title from the client, the palette in four places, `aria-disabled` over `disabled`, the shortcut reading the address at key time, the cleanup that waits for the list, the collapsed sidebar's first paint, and the 401 that still leaves through `window.location.assign`.
+The last three carry debt, and those three rows are in the `Debt index` of `docs/ARD.md`.
+Nothing was resolved; no debt this phase touched had an entry to close.
+
+`database.md` is untouched, as the om-reviewer said: this phase stored nothing new, and the three pieces of per-browser state are not the table's business.
+`flows.md` earns nothing either.
+The scene handover is a sequence one could draw, but it is three sentences in `trd.md` and an entry with the measurement beside it, and a diagram would restate them and then go stale the first time the surface learns a second route.
+
+`README.md` gains the rail and the empty state in the line that lists what the workspace holds.
+
+One thing for the om-manager rather than for me: `docs/TRD.md` describes the app's Layout as `src/app/`, `src/proxy.ts`, `src/i18n/`, `src/lib/`, `src/components/ui/`, `src/messages/` and `tests/`, which is now missing `public/` and `scripts/`.
+It is his file and the omission is small, so I left it.
+
 ## Result
