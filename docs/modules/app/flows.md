@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0012_libraries
 ---
 
 # app: flows
@@ -76,3 +76,5 @@ The first status report of this flow is also what keeps the diagram's tab: a pre
 Opening a diagram never saves it: the editor's first report after a mount becomes the baseline when it changes no element.
 Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back; deleting a folder stops the savers of every diagram under it the same way, before the cascade starts.
 A locked diagram never enters this flow at all: the editor mounts no saver, `/urls` signs no upload, and the PATCH is refused by a condition on the item, so a browser that locked nothing is stopped too.
+A library canvas runs the same flow with the same machine: `/urls` hands back a second pair, and the injected write derives the items from the frames in memory, PUTs the canvas, PUTs the items and PATCHes the counts with `itemCount`.
+It is one save, so a failure anywhere in it is one failed save that repeats both idempotent PUTs, exactly as a PUT landing with a failed PATCH already does.

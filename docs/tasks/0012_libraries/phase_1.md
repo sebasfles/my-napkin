@@ -129,7 +129,9 @@ Then the suite went red twice on specs this phase does not own, and the second r
 
 `page.getByTestId("diagram-item").first()` was unscoped in five places across three spec files.
 The pinned section renders above the folder section from the same `DiagramRow`, carrying the same `data-testid`, so the moment anything is pinned those assertions stop asking "the first row of the list" and start asking "the first diagram row anywhere on the page".
-`save-reload.spec.ts` was the one that failed, and the ordering makes the diagnosis airtight: with `workers=1` the files run alphabetically, `pinning` is tenth, and `save-reload` is the only one of the three that runs after it.
+`save-reload.spec.ts` was the one that failed, and the ordering explains why it and not the others: with `workers=1` the files run alphabetically, `pinning` is tenth, and `save-reload` is the only one of the three that runs after it.
+The leftover is necessary but not sufficient, and I want that recorded honestly rather than tidily: the same suite passed this spec in rounds 1 and 2 with the same defect present, so something else decides whether the pinned row is on screen at that moment, and I did not find out what.
+Scoping the locator makes the question moot rather than answering it.
 The failure's own resolution line carries `data-pinned="true"` and the snapshot shows the pinned glyph beside the row.
 The row was `e2e pin inside`, created inside a folder by `pinning.spec.ts` and left behind because `removeItemsCreatedHere` looks for diagrams at the root only.
 The assertion that failed was the one right after creating `newest`, before the test opens anything, so "opening a diagram saves nothing" was never exercised and nothing in the save path was implicated.
@@ -142,5 +144,15 @@ The other red, `item-menu.spec.ts:46`, is not this and I could not prove it.
 Its row was unpinned, at root, default-named and about a second old, which is what a person creating a diagram on dev looks like and is not what `adoptActiveDiagram` leaves behind, since it renames immediately.
 The suite reads and writes the real dev table, so anyone using `napkin.dev.sdfles.com` writes into the list these specs assert on.
 That one is an argument for isolating the table, not something this phase can fix.
+
+### Documentation
+
+Module docs updated: `README.md`, `prd.md`, `trd.md`, `database.md`, `flows.md` and `ard.md` of `app`, plus the `Debt index` of `docs/ARD.md`.
+Six ARD entries, and the 2026-09-18 saver entry widened in place, in both its `Debt created` line and the known-debt list, to say a diagram's scene object or a library's two under `libraries/{id}/`.
+The matching row in the `Debt index` was widened in place too rather than duplicated, and four rows were added for the debt the new entries create.
+
+One thing I did not do, for the om-reviewer to decide. `task.md#Scope` asks for a `docs/PRD.md` capability line, and `document-task` reserves `docs/PRD.md`, `docs/TRD.md` and everything in `docs/ARD.md` except the `Debt index` for `setup` and the om-manager.
+I followed the skill and left `docs/PRD.md` alone.
+It is arguably phase 3's anyway, since the capability a user would read about in the product PRD is only whole once the panel exists, but the choice is not mine to make silently.
 
 ## Result
