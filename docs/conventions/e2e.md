@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0007_deploy_workflows
+updated: 2026-09-20
+source: 0010_e2e_login_payload_hash
 ---
 
 # End-to-end tests
@@ -23,6 +23,7 @@ Playwright specs are the proof that a user flow works; a change to a user flow s
 - Where specs run: in the `e2e-dev` job of `deploy-dev.yml`, after every push to `develop`, against the deployed `https://napkin.dev.sdfles.com` with `BASE_URL` and `APP_PASSWORD` from the `dev` environment; and on a developer machine against `npm run dev` with `.env.local` pointing at dev. `ci.yml` runs no e2e, and nothing ever runs against prd.
 - Specs run serially (`--workers=1`), behave like a person (navigate, click, type, paste, read the screen; no test-only handles, no internal state) and clean up the diagrams they create.
 - A spec asserts what the user sees, not implementation details; no assertions on network payloads unless the flow is the network call itself.
+- Logging in is no exception: `login()` in `helpers.ts` types the password into the form. A spec never posts to the API from outside the browser, because deployed dev sits behind CloudFront's origin access control, which answers 403 to a request with a body and no payload hash, while `npm run dev` does not; such a shortcut passes locally and fails only in `e2e-dev`.
 
 ## Not a user flow
 

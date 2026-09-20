@@ -18,8 +18,12 @@ export function e2ePassword(): string {
 }
 
 export async function login(page: Page) {
-  const response = await page.request.post("/api/login", { data: { password: e2ePassword() } });
-  expect(response.status(), "the password does not open this environment").toBe(200);
+  await page.goto("/login");
+  await page.locator('input[name="password"]').fill(e2ePassword());
+  await page.locator('button[type="submit"]').click();
+  await expect(page, "the password does not open this environment").not.toHaveURL(/\/login/, {
+    timeout: awsTimeout,
+  });
 }
 
 export async function openApp(page: Page) {

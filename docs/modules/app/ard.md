@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0007_deploy_workflows
+updated: 2026-09-20
+source: 0010_e2e_login_payload_hash
 ---
 
 # app: architecture decisions
@@ -230,6 +230,7 @@ source: 0007_deploy_workflows
   It throws when the body is present but not a string, since hashing anything else would not match the bytes `fetch` puts on the wire.
   `src/lib/api.ts`'s `call()` and `login-form.tsx`'s own `fetch` both go through it; the two presigned S3 calls in `api.ts` (`loadScene`, `putScene`) do not, since they never reach CloudFront.
   No route handler answers a native form post or a Server Action, since a browser cannot set a header on either; `logout-button.tsx` became a client component for this reason.
+  Nothing posts from outside the browser: the suite's `login()` in `tests/e2e/helpers.ts` used to post straight to `/api/login` through Playwright's request context, bypassing `signedFetch`, and the first `e2e-dev` run against deployed dev answered 403 to every login; since 0010 it types the password into the form, like a person, so no test code carries the header.
 - Alternatives rejected: Lambda@Edge signing (SST's `oac-with-edge-signing`); setting the Function URL's auth to `NONE`.
 - Reason: this app controls every POST source, so hashing client-side adds no Lambda@Edge function, no latency and no extra 1 MB body cap; `NONE` would leave the Function URL invocable outside CloudFront, which is cost and abuse surface `infra/ard.md`'s "Function URL over API Gateway" entry rejects.
 - Debt created: a third party cannot compute this header, so a webhook or another caller that is not this app's own browser code cannot POST through the OAC-protected Function URL.
