@@ -15,7 +15,8 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 ## Interface
 
 The user opens `/`, is asked for the password once, and lands on a diagram, with the editor filling the viewport beside a sidebar.
-The sidebar carries the app name, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the two controls that change how everything looks, language and theme, and a way to close the session.
+The sidebar carries the app name, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the language and theme controls, and a way to close the session.
+A bar of tabs sits above the canvas, one per diagram the user has open.
 Everything outside the canvas is set in the app's own typeface, with its monospaced companion for dates, sizes and counts; the canvas keeps the editor's own.
 The interface starts in the browser's language, Spanish or English, and in its light or dark preference, and the editor follows both; either can be overridden from the sidebar and survives a reload, the theme keeping system as a choice of its own so the browser's preference can always be handed back.
 
@@ -32,7 +33,7 @@ The interface starts in the browser's language, Spanish or English, and in its l
 
 ### Browse and edit diagrams
 
-1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first, each with the time since its last change.
+1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first, each with the time since it was last drawn on, which keeps ageing and never runs ahead of the edit it describes.
 2. User opens one; its drawing, pasted images included, comes back as it was left.
 3. User draws; changes are saved on their own a second or two after the user stops.
 4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
@@ -54,6 +55,17 @@ The interface starts in the browser's language, Spanish or English, and in its l
 6. Deleting a folder asks for confirmation that says how many diagrams and folders are inside, and how many of those diagrams are locked, because it takes all of them; deleting the folder the open diagram was in leaves the user on another diagram.
 7. The folder the user was last looking at is where he finds himself after a reload, and opening a diagram takes the sidebar to the folder that diagram lives in.
 
+### Keep several diagrams open
+
+1. Opening a diagram puts it in a tab above the canvas, and the tab bar is where the user moves between the diagrams he is working on.
+2. A diagram he only glanced at takes a single preview tab, written in italics: the next diagram he opens takes its place rather than adding to the row.
+   A double click on the row or on the tab keeps it, and so does the first edit, which is what turns a glance into work in progress.
+3. A tab closes from its own button or with Alt+W, and the user lands on the tab beside it, or on a diagram again when he closed the last one.
+4. The keyboard reaches the tabs while the user is drawing: Alt and a digit jumps to that tab, Alt+Shift with an arrow moves to the next or the previous one, Alt+W closes.
+   Nothing the editor binds is taken away.
+5. The tabs and the diagram he was on come back after a reload, per browser, as the folder he was in does.
+6. A tab whose diagram was deleted closes itself, including every tab a deleted folder took with it.
+
 ### Lock a diagram
 
 1. User locks a finished diagram from its menu; the row shows a lock and the editor opens it read only.
@@ -73,7 +85,7 @@ A list that cannot be loaded offers to try again rather than pretending to be em
 
 - Only one user; there is no concept of ownership or sharing per diagram.
 - A locked diagram is refused by the server, not only by the browser that locked it.
-- Where the user is in the tree is remembered per browser, not per diagram, and no address points at a folder.
+- Which diagrams are open and where the user is in the tree are remembered per browser; the address names the open diagram and nothing else, so no link points at a folder or at a set of tabs.
 - A diagram's saved scene includes any pasted images, so they survive closing and reopening.
 - Static assets are public; no diagram data is public.
 - A valid session lasts 30 days, after which the user must log in again.

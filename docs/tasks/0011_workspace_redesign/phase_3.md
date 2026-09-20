@@ -101,4 +101,41 @@ It fails on the unfixed component for the reason it names, and I ran it that way
 
 `7-tab-bar-light.png` and `7-tab-bar-dark.png` were retaken: the three rows that read "in 3 seconds" now read "now".
 
+### Documentation
+
+`app`, plus `docs/PRD.md` and `docs/TRD.md` as the om-reviewer and the om-manager directed, which is where task Acceptance 10 finishes.
+
+`docs/PRD.md`: the Diagrams capability was rewritten rather than appended to, and I read it back as the reviewer asked.
+It now moves from the sidebar to the menu to the tabs to saving, four sentences that describe one workspace; before, it read as a list list, then a folders sentence, then a saving sentence, which is the shape of three phases rather than of a product.
+Tabs are in it as behaviour the user recognises, a glance giving way to the next until an edit keeps it, not as a feature name.
+Cut to pay: the language rule and the theme rule under Cross-cutting rules were the same sentence twice and are now one.
+
+`docs/TRD.md`, the three delegated: the app's `API spec` line says all seven handlers are built, the `app` row of the Modules table calls the module a workspace of folders, pins and tabs, and the Workspace files line carries `AWS_REGION` with the reason it exists locally and not in AWS, since a missing line there is what cost this task two rounds.
+Two more in the same paragraph I corrected rather than left, and they are the om-manager's file, so they are named here: the Layout line said `src/lib/` holds "later dynamo and s3" when both have existed since 0004, and the Data line called the table "the diagram index" when it has held folders since phase 2.
+
+`prd.md` gains "Keep several diagrams open" as a flow of its own: the preview tab and what keeps it, closing and where the user lands, the keyboard as something usable while drawing, what survives a reload, and a tab that closes itself when its diagram is deleted.
+The per-browser rule absorbed the tabs instead of gaining a second line beside it, and the row's time now carries its two invariants where the reader first meets it: it keeps ageing, and it never runs ahead of the edit it describes.
+
+`trd.md` carries `tabs.ts`, `use-tabs.ts` and the tab bar in the structure table, `use-tabs.ts` sharing a row with `use-sidebar-folder.ts` because they are one pattern, and a short `Keyboard` section, which the om-reviewer asked for and which is the one thing here a future reader needs before adding a global shortcut: capture on `window`, an exact match, `event.code`, and nothing claimed that was not matched.
+The "Jobs, listeners or scheduled work: none" line would have contradicted it, so it now says which listener exists.
+Cut to pay: the sentence explaining the `{ items }` payload, which the ARD entry beside it already argues and the line under it already states.
+
+`ard.md`: four entries, the three the om-reviewer named plus the relative time.
+The fourth is there because `Math.max(now, updatedAt)` in a formatter is exactly the kind of line a later reader deletes as defensive noise, and the entry carries the measurement that says otherwise: with the interval in and the clamp out, the regression failed forty-nine polls in a row.
+One debt row, in the module list and in the `docs/ARD.md` index: an unknown id in the address is now navigated away by two paths, which the om-reviewer let pass on the record and which belongs written down rather than remembered.
+Nothing was resolved; no debt this phase touched had an entry to close.
+
+`flows.md` earns no diagram for tabs, which was my call to make.
+The preview rule is three sentences in `prd.md` and a reducer whose every branch is unit tested; a state diagram would restate it and then go stale the first time a fourth way to open a tab appears.
+What it did earn is one line in the save flow, where the tab promotion actually lives: the first status report keeps the tab, which is why the two share a callback instead of each deciding what an edit is.
+
+`database.md` is untouched: tabs are client state, they touch no stored item, and a line saying so would be a line about nothing.
+
+### For the pull request
+
+Three things in this phase are worth Sebastian's eye beyond the screenshots.
+The first is that a single click and a double click now mean different things in the sidebar, which is the one habit this phase asks him to learn, and the italics are the whole of the affordance.
+The second is that a pan or a zoom keeps a preview tab, because the app has always counted those as edits worth saving; if that feels wrong in use, the place to change it is the definition of an edit, not the tab.
+The third is that the row times in the sidebar were lying, in both directions, and now do not; it is the one fix in this phase that was not in its plan.
+
 ## Result
