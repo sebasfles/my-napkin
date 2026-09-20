@@ -1,38 +1,74 @@
 "use client";
 
-import { LibraryBig, Plus } from "lucide-react";
-import Link from "next/link";
+import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { LibraryRow } from "@/components/item-row";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace-provider";
-import type { Library } from "@/lib/diagrams";
-import { defaultLibraryName, librariesOf } from "@/lib/libraries";
-import { cn } from "@/lib/utils";
+import { isDiagram, type Diagram } from "@/lib/diagrams";
+import {
+  defaultLibraryName,
+  importedLibraryName,
+  librariesOf,
+  libraryFileExtension,
+  linksLibrary,
+  nextLibraryIds,
+} from "@/lib/libraries";
+import { exportLibrary, readLibraryFile, writeImportedLibrary } from "@/lib/library-io";
 
-export function LibraryList({ activeId }: { activeId: string | null }) {
+export function LibraryList({
+  activeId,
+  onRename,
+  onDelete,
+}: {
+  activeId: string | null;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const t = useTranslations("library");
   const router = useRouter();
-  const { items, loading, failed, reload, createLibrary } = useWorkspace();
-  const [creating, setCreating] = useState(false);
+  const { items, loading, failed, reload, createLibrary, markSaved, setLibraryIds } =
+    useWorkspace();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
 
   const libraries = librariesOf(items);
+  const names = libraries.map((library) => library.name);
+  const open = items.find((item) => item.id === activeId) ?? null;
+  const diagram: Diagram | null = open !== null && isDiagram(open) ? open : null;
 
-  async function onCreate() {
-    setCreating(true);
+  async function attempt(action: () => Promise<void>) {
+    setBusy(true);
     setActionFailed(false);
 
     try {
-      const created = await createLibrary(defaultLibraryName(libraries.map((one) => one.name)));
-      router.push(`/d/${created.id}`);
+      await action();
     } catch {
       setActionFailed(true);
     }
 
-    setCreating(false);
+    setBusy(false);
+  }
+
+  function onCreate() {
+    void attempt(async () => {
+      const created = await createLibrary(defaultLibraryName(names));
+      router.push(`/d/${created.id}`);
+    });
+  }
+
+  function onImport(file: File) {
+    void attempt(async () => {
+      const imported = await readLibraryFile(file);
+      const created = await createLibrary(importedLibraryName(file.name, names));
+
+      markSaved(await writeImportedLibrary(created.id, imported));
+      router.push(`/d/${created.id}`);
+    });
   }
 
   return (
@@ -41,17 +77,42 @@ export function LibraryList({ activeId }: { activeId: string | null }) {
         <h2 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
           {t("title")}
         </h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t("new")}
-          data-testid="library-new"
-          disabled={loading || creating}
-          onClick={onCreate}
-        >
-          <Plus aria-hidden />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("import")}
+            data-testid="library-import"
+            disabled={loading || busy}
+            onClick={() => fileInput.current?.click()}
+          >
+            <Upload aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("new")}
+            data-testid="library-new"
+            disabled={loading || busy}
+            onClick={onCreate}
+          >
+            <Plus aria-hidden />
+          </Button>
+        </div>
       </div>
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept={libraryFileExtension}
+        className="hidden"
+        data-testid="library-file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) onImport(file);
+        }}
+      />
 
       {loading ? (
         <ul className="space-y-1" aria-hidden data-testid="library-list-loading">
@@ -77,7 +138,30 @@ export function LibraryList({ activeId }: { activeId: string | null }) {
         <ul className="space-y-0.5" data-testid="library-list">
           {libraries.map((library) => (
             <li key={library.id}>
-              <LibraryRow library={library} active={library.id === activeId} />
+              <LibraryRow
+                library={library}
+                active={library.id === activeId}
+                linked={diagram !== null && linksLibrary(diagram, library.id)}
+                linkable={diagram !== null}
+                onRename={() => onRename(library.id)}
+                onDelete={() => onDelete(library.id)}
+                onExport={() => void attempt(() => exportLibrary(library))}
+                onToggleLink={() => {
+                  if (diagram === null) return;
+
+                  void attempt(() =>
+                    setLibraryIds(
+                      diagram.id,
+                      nextLibraryIds(
+                        diagram,
+                        libraries,
+                        library.id,
+                        !linksLibrary(diagram, library.id),
+                      ),
+                    ),
+                  );
+                }}
+              />
             </li>
           ))}
         </ul>
@@ -89,45 +173,5 @@ export function LibraryList({ activeId }: { activeId: string | null }) {
         </p>
       ) : null}
     </section>
-  );
-}
-
-function LibraryRow({ library, active }: { library: Library; active: boolean }) {
-  const t = useTranslations("library");
-
-  return (
-    <div
-      className={cn(
-        "group relative flex items-center gap-2 rounded-lg px-2 transition-colors hover:bg-sidebar-accent",
-        active && "bg-sidebar-accent text-sidebar-accent-foreground",
-      )}
-      data-testid="library-item"
-      data-active={active}
-      data-items={library.itemCount ?? 0}
-    >
-      {active ? (
-        <span
-          aria-hidden
-          className="absolute top-2 bottom-2 -left-1 w-0.5 rounded-full bg-primary"
-        />
-      ) : null}
-
-      <LibraryBig aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-
-      <Link
-        href={`/d/${library.id}`}
-        className="min-w-0 flex-1 rounded-md py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span
-          data-testid="library-item-name"
-          className={cn("block truncate text-sm", active && "font-medium")}
-        >
-          {library.name}
-        </span>
-        <span className="block text-xs text-muted-foreground" data-testid="library-item-count">
-          {t("itemCount", { count: library.itemCount ?? 0 })}
-        </span>
-      </Link>
-    </div>
   );
 }

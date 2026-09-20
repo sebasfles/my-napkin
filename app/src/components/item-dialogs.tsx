@@ -28,6 +28,7 @@ import { byteSize, type ByteUnit } from "@/lib/bytes";
 import {
   isDiagram,
   isFolder,
+  isLibrary,
   isLocked,
   parentOf,
   type Diagram,
@@ -56,7 +57,13 @@ export function NameDialog({
       <DialogContent data-testid="name-dialog">
         <DialogHeader>
           <DialogTitle>
-            {creating ? t("newFolderTitle") : isFolder(item) ? t("renameFolder") : t("renameTitle")}
+            {creating
+              ? t("newFolderTitle")
+              : isFolder(item)
+                ? t("renameFolder")
+                : isLibrary(item)
+                  ? t("renameLibrary")
+                  : t("renameTitle")}
           </DialogTitle>
           <DialogDescription>{creating ? t("newFolderBody") : t("renameBody")}</DialogDescription>
         </DialogHeader>
@@ -309,11 +316,13 @@ export function DeleteDialog({
 }: DialogProps & { item: Item | null; items: Item[]; onConfirm: () => void }) {
   const t = useTranslations("sidebar");
   const locked = item !== null && isDiagram(item) && isLocked(item);
+  const library = item !== null && isLibrary(item);
   const name = item?.name ?? "";
   const counts = item && isFolder(item) ? subtreeCounts(items, item.id) : null;
 
   function body(): string {
     if (locked) return t("deleteLockedBody", { name });
+    if (library) return t("deleteLibraryBody", { name });
     if (counts === null) return t("deleteBody", { name });
 
     return [
@@ -330,7 +339,13 @@ export function DeleteDialog({
       <AlertDialogContent data-testid="delete-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {locked ? t("deleteLockedTitle") : counts ? t("deleteFolderTitle") : t("deleteTitle")}
+            {locked
+              ? t("deleteLockedTitle")
+              : library
+                ? t("deleteLibraryTitle")
+                : counts
+                  ? t("deleteFolderTitle")
+                  : t("deleteTitle")}
           </AlertDialogTitle>
           <AlertDialogDescription>{body()}</AlertDialogDescription>
         </AlertDialogHeader>

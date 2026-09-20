@@ -2,9 +2,13 @@
 
 import {
   ChevronRight,
+  Download,
   Folder as FolderIcon,
   FolderInput,
   Info,
+  LibraryBig,
+  Link2,
+  Link2Off,
   Lock,
   LockOpen,
   MoreHorizontal,
@@ -25,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { isLocked, isPinned, type Diagram, type Folder } from "@/lib/diagrams";
+import { isLocked, isPinned, type Diagram, type Folder, type Library } from "@/lib/diagrams";
 import { saveIndicator, type SaveStatus } from "@/lib/save-state";
 import { cn } from "@/lib/utils";
 
@@ -162,6 +166,88 @@ export function FolderRow({
         <DropdownMenuItem data-testid="menu-move" onSelect={onMove}>
           <FolderInput aria-hidden />
           {t("move")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" data-testid="menu-delete" onSelect={onDelete}>
+          <Trash2 aria-hidden />
+          {t("delete")}
+        </DropdownMenuItem>
+      </RowMenu>
+    </div>
+  );
+}
+
+export function LibraryRow({
+  library,
+  active,
+  linked,
+  linkable,
+  onRename,
+  onToggleLink,
+  onExport,
+  onDelete,
+}: {
+  library: Library;
+  active: boolean;
+  linked: boolean;
+  linkable: boolean;
+  onRename: () => void;
+  onToggleLink: () => void;
+  onExport: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations("sidebar");
+  const l = useTranslations("library");
+
+  return (
+    <div
+      className={cn(rowClass, active && "bg-sidebar-accent text-sidebar-accent-foreground")}
+      data-testid="library-item"
+      data-active={active}
+      data-linked={linked}
+      data-items={library.itemCount ?? 0}
+    >
+      {active ? (
+        <span
+          aria-hidden
+          className="absolute top-2 bottom-2 -left-1 w-0.5 rounded-full bg-primary"
+        />
+      ) : null}
+
+      <LibraryBig aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+
+      <Link
+        href={`/d/${library.id}`}
+        className="min-w-0 flex-1 rounded-md py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <span
+          data-testid="library-item-name"
+          className={cn("block truncate text-sm", active && "font-medium")}
+        >
+          {library.name}
+        </span>
+        <span
+          className="block truncate text-xs text-muted-foreground"
+          data-testid="library-item-count"
+        >
+          {l("itemCount", { count: library.itemCount ?? 0 })}
+        </span>
+      </Link>
+
+      {linked ? <Glyph label={l("linkedGlyph")} testId="library-linked" icon={<Link2 />} /> : null}
+
+      <RowMenu label={t("menu", { name: library.name })}>
+        <DropdownMenuItem data-testid="menu-rename" onSelect={onRename}>
+          <Pencil aria-hidden />
+          {t("rename")}
+        </DropdownMenuItem>
+        <DropdownMenuItem data-testid="menu-link" disabled={!linkable} onSelect={onToggleLink}>
+          {linked ? <Link2Off aria-hidden /> : <Link2 aria-hidden />}
+          {linked ? l("unlink") : l("link")}
+        </DropdownMenuItem>
+        <DropdownMenuItem data-testid="menu-export" onSelect={onExport}>
+          <Download aria-hidden />
+          {l("export")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" data-testid="menu-delete" onSelect={onDelete}>

@@ -67,7 +67,10 @@
     "actionFailed": "No funcionó. Inténtalo de nuevo.",
     "retry": "Reintentar",
     "logout": "Cerrar sesión",
-    "sections": "Secciones del espacio"
+    "sections": "Secciones del espacio",
+    "renameLibrary": "Renombrar biblioteca",
+    "deleteLibraryTitle": "¿Eliminar esta biblioteca?",
+    "deleteLibraryBody": "{name} y sus elementos se eliminan definitivamente. Los diagramas conservan todo lo que ya insertaron de ella. Esto no se puede deshacer."
   },
   "tabs": {
     "label": "Diagramas abiertos",
@@ -83,7 +86,12 @@
     "retry": "Reintentar",
     "actionFailed": "No funcionó. Inténtalo de nuevo.",
     "emptyCanvas": "Cada marco que dibujes aquí es un elemento de la biblioteca, y el nombre del marco lo nombra.",
-    "imageInFrame": "Las imágenes no se guardan en un elemento de biblioteca"
+    "imageInFrame": "Las imágenes no se guardan en un elemento de biblioteca",
+    "import": "Importar un archivo de biblioteca",
+    "export": "Exportar",
+    "link": "Vincular a este diagrama",
+    "unlink": "Desvincular de este diagrama",
+    "linkedGlyph": "Vinculada al diagrama abierto"
   },
   "editor": {
     "loading": "Cargando",

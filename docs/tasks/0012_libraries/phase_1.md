@@ -156,3 +156,23 @@ I followed the skill and left `docs/PRD.md` alone.
 It is arguably phase 3's anyway, since the capability a user would read about in the product PRD is only whole once the panel exists, but the choice is not mine to make silently.
 
 ## Result
+
+Merged as `934acdb`, PR #24, three rounds.
+
+Delivered as scoped. `kind: "library"` and `libraryIds`, the four routes, the two objects, the canvas as a tab at `/d/{id}`, the derivation and its inverse, the hints, and the Libraries list with its item count, create and open.
+
+Deviations from the plan, all recorded in the PR's `Decisions`:
+
+- Five `diagram-item` first-row assertions in `diagram-list`, `item-menu` and `save-reload` were scoped to the list. They were unscoped and the pinned section renders above the list from the same component with the same testid, so they silently asked a different question whenever anything was pinned. Outside this task's files, taken under `AGENTS.md`'s rule that a test defect gets fixed when seen.
+- The rail's `hint` prop went with the "coming soon" placeholder this phase removed, since its only caller was that placeholder.
+- The `docs/PRD.md` capability line was not written. It belongs to phase 3, where the capability is first whole, and that file is the om-manager's to write, not the om-developer's.
+
+Debt created, all four in the `Debt index`: a library created and never opened has no `items.json`, so a reader must treat its absence as no items; a scene-only PATCH carries no kind condition, so the API would take diagram counts on a library though no UI can send them; derived element ids are positional, so an insert near the front of a frame renumbers the rest of `items.json`; and keeping the editor package out of the unit suite rests on `library-file.ts` being the only module that reaches it, by convention rather than by a rule. The existing 2026-09-18 orphan entry was widened in place to cover a library's two objects.
+
+What phase 2 must know:
+
+- `librariesByPage` in `tests/e2e/helpers.ts` tracks a library by id at creation and `removeItemsCreatedHere` deletes it through the API, because phase 1 gives a library no menu. Phase 2 adds rename and delete to the row, and both should move onto the UI, which also removes the last `x-amz-content-sha256` the suite carries.
+- `framesFromLibraryItems` exists, is unit tested and has no caller in `app/src`. Phase 2's import is its first one.
+- `libraryIds` is plumbed end to end and unused: the PATCH intent, the validation and the repository all work. Phase 2's link and unlink only have to call it.
+- Four suite findings belong to a follow-up task, not to phase 2: the 30s budget that `awsTimeout` consumes whole, `removeItemsCreatedHere` silently skipping anything inside a folder, and a local `verify-task` not being isolated from Sebastian using dev by hand. The unscoped locators were the fourth and are fixed.
+

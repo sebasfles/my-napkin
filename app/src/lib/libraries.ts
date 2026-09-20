@@ -1,6 +1,8 @@
-import { byNameAsc, isLibrary, type Item, type Library } from "@/lib/diagrams";
+import { byNameAsc, isLibrary, type Diagram, type Item, type Library } from "@/lib/diagrams";
 
 const prefix = "Library";
+
+export const libraryFileExtension = ".excalidrawlib";
 
 export function librariesOf(items: Item[]): Library[] {
   return items.filter(isLibrary).sort(byNameAsc);
@@ -14,4 +16,25 @@ export function defaultLibraryName(existingNames: readonly string[]): string {
   while (taken.has(`${prefix} (${suffix})`)) suffix += 1;
 
   return `${prefix} (${suffix})`;
+}
+
+export function importedLibraryName(fileName: string, existingNames: readonly string[]): string {
+  const stem = fileName.replace(/\.[^.]+$/, "").trim();
+  return stem.length === 0 ? defaultLibraryName(existingNames) : stem;
+}
+
+export function linksLibrary(diagram: Diagram, libraryId: string): boolean {
+  return (diagram.libraryIds ?? []).includes(libraryId);
+}
+
+export function nextLibraryIds(
+  diagram: Diagram,
+  libraries: readonly Library[],
+  libraryId: string,
+  linked: boolean,
+): string[] {
+  const alive = new Set(libraries.map((library) => library.id));
+  const kept = (diagram.libraryIds ?? []).filter((id) => id !== libraryId && alive.has(id));
+
+  return linked ? [...kept, libraryId] : kept;
 }

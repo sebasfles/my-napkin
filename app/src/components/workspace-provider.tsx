@@ -16,6 +16,7 @@ import {
   createLibrary,
   deleteItem,
   fetchItems,
+  linkLibraries,
   lockDiagram,
   moveItem,
   pinDiagram,
@@ -51,6 +52,7 @@ interface WorkspaceValue {
   rename: (id: string, name: string) => Promise<void>;
   move: (id: string, parentId: ParentId) => Promise<void>;
   setPinned: (id: string, pinned: boolean) => Promise<void>;
+  setLibraryIds: (id: string, libraryIds: string[]) => Promise<void>;
   setLock: (id: string, locked: boolean) => Promise<void>;
   registerSaver: (id: string, settle: () => Promise<void>) => () => void;
   remove: (id: string) => Promise<string[]>;
@@ -153,6 +155,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [merge],
   );
 
+  const setLibraryIds = useCallback(
+    async (id: string, libraryIds: string[]) => {
+      const updated = await linkLibraries(id, libraryIds);
+      merge(id, { libraryIds: updated.libraryIds ?? [] });
+    },
+    [merge],
+  );
+
   const registerSaver = useCallback((id: string, settle: () => Promise<void>) => {
     settlers.current.set(id, settle);
 
@@ -218,6 +228,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       rename,
       move,
       setPinned,
+      setLibraryIds,
       setLock,
       registerSaver,
       remove,
@@ -240,6 +251,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       rename,
       reportSave,
       saveStatus,
+      setLibraryIds,
       setLock,
       setPinned,
       state,
