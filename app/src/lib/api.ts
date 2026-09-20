@@ -1,4 +1,4 @@
-import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, SceneAccess, SceneStats, SceneUrls } from "@/lib/diagrams";
 import { loginPath } from "@/lib/gate";
 import { emptyScene, parseScene, sceneContentType, type Scene } from "@/lib/scene";
 import { signedFetch } from "@/lib/signed-fetch";
@@ -41,11 +41,11 @@ export async function logout(): Promise<void> {
   await call("/api/logout", { method: "POST" });
 }
 
-export async function fetchSceneUrls(id: string): Promise<SceneUrls> {
-  return request<SceneUrls>(`/api/diagrams/${id}/urls`);
+export async function fetchSceneUrls(id: string): Promise<SceneAccess> {
+  return request<SceneAccess>(`/api/diagrams/${id}/urls`);
 }
 
-export async function loadScene(id: string): Promise<{ scene: Scene; urls: SceneUrls }> {
+export async function loadScene(id: string): Promise<{ scene: Scene; urls: SceneAccess }> {
   const urls = await fetchSceneUrls(id);
   const response = await fetch(urls.get);
 

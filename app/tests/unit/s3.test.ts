@@ -26,25 +26,32 @@ afterEach(() => {
 
 describe("sceneStore.urls", () => {
   it("signs a GET and a PUT for the diagram's scene object", async () => {
-    const urls = await sceneStore.urls("diagram-1");
+    const urls = await sceneStore.urls("diagram-1", true);
 
-    for (const url of [urls.get, urls.put]) {
+    for (const url of [urls.get, urls.put ?? ""]) {
       expect(url).toContain("napkin-test-scenes");
       expect(url).toContain("scenes/diagram-1.json");
     }
     expect(new URL(urls.get).searchParams.get("X-Amz-Expires")).toBe("300");
-    expect(new URL(urls.put).searchParams.get("X-Amz-Expires")).toBe("300");
+    expect(new URL(urls.put ?? "").searchParams.get("X-Amz-Expires")).toBe("300");
   });
 
   it("signs the PUT with the content type the browser must send", async () => {
-    const { put } = await sceneStore.urls("diagram-1");
+    const { put } = await sceneStore.urls("diagram-1", true);
 
-    expect(new URL(put).searchParams.get("X-Amz-SignedHeaders")).toContain("content-type");
+    expect(new URL(put ?? "").searchParams.get("X-Amz-SignedHeaders")).toContain("content-type");
+  });
+
+  it("signs no upload at all when the caller asks for read access only", async () => {
+    const urls = await sceneStore.urls("diagram-1", false);
+
+    expect(urls.put).toBeUndefined();
+    expect(urls.get).toContain("scenes/diagram-1.json");
   });
 
   it("reports when the urls stop working, five minutes out", async () => {
     const before = Date.now();
-    const { expiresAt } = await sceneStore.urls("diagram-1");
+    const { expiresAt } = await sceneStore.urls("diagram-1", true);
 
     expect(Date.parse(expiresAt)).toBeGreaterThan(before + 290_000);
     expect(Date.parse(expiresAt)).toBeLessThanOrEqual(Date.now() + 300_000);
@@ -53,7 +60,7 @@ describe("sceneStore.urls", () => {
   it("fails loudly when the bucket name is missing", async () => {
     delete process.env.SCENES_BUCKET;
 
-    await expect(sceneStore.urls("diagram-1")).rejects.toThrow("SCENES_BUCKET is not set");
+    await expect(sceneStore.urls("diagram-1", true)).rejects.toThrow("SCENES_BUCKET is not set");
   });
 });
 

@@ -98,7 +98,10 @@ export const diagramRepository: DiagramRepository = {
           TableName: diagramsTable(),
           Key: { id },
           UpdateExpression: expression,
-          ConditionExpression: "attribute_exists(id)",
+          ConditionExpression:
+            changes.scene === undefined
+              ? "attribute_exists(id)"
+              : "attribute_exists(id) AND attribute_not_exists(lockedAt)",
           ExpressionAttributeValues: Object.keys(values).length > 0 ? values : undefined,
           ExpressionAttributeNames: Object.keys(names).length > 0 ? names : undefined,
           ReturnValues: "ALL_NEW",

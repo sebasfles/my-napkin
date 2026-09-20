@@ -149,6 +149,48 @@ describe("createSceneSaver", () => {
     });
   });
 
+  it("settles: the caller can wait until nothing is pending and nothing is in flight", async () => {
+    const { saver, put, save } = setup();
+    let release = () => {};
+    put.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    saver.change(scene(2));
+    const settled = vi.fn();
+    void saver.settle().then(settled);
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(settled).not.toHaveBeenCalled();
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(settled).toHaveBeenCalled();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saver.dirty()).toBe(false);
+  });
+
+  it("asks for fresh urls when the ones it holds carry no upload, and gives up if none comes", async () => {
+    const { saver, put, requestUrls } = setup({
+      initialUrls: { get: "https://scenes/get", expiresAt: new Date(now + 300_000).toISOString() },
+    });
+    requestUrls.mockResolvedValue({
+      get: "https://scenes/get",
+      expiresAt: new Date(now + 300_000).toISOString(),
+    });
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(requestUrls).toHaveBeenCalledWith("diagram-1");
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it("holds a change made during an upload and sends it when that upload finishes", async () => {
     const { saver, put, statuses } = setup();
     let release = () => {};

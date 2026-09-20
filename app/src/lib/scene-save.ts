@@ -25,6 +25,7 @@ export interface SceneSaverOptions {
 export interface SceneSaver {
   change(scene: Scene): void;
   flush(): void;
+  settle(): Promise<void>;
   dirty(): boolean;
   resume(): void;
   stop(): void;
@@ -44,6 +45,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   let pendingSerialized: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let changed = false;
+  let inFlight: Promise<void> | null = null;
   let stopped = false;
   let abandoned = false;
   let reconciled = false;
@@ -57,13 +59,21 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     const transition = nextSaveState(status, event);
     status = transition.status;
     if (!stopped) options.onStatus(status);
-    if (transition.upload && !stopped) void upload();
+    if (transition.upload && !stopped) start();
+  }
+
+  function start(): void {
+    const running = upload().finally(() => {
+      if (inFlight === running) inFlight = null;
+    });
+    inFlight = running;
   }
 
   async function putUrl(): Promise<string> {
-    if (!urls || Date.parse(urls.expiresAt) - now() < renewUrlMs) {
+    if (!urls?.put || Date.parse(urls.expiresAt) - now() < renewUrlMs) {
       urls = await options.urls(options.diagramId);
     }
+    if (!urls.put) throw new Error(`${options.diagramId} is locked, so no upload is signed`);
     return urls.put;
   }
 
@@ -143,6 +153,12 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     flush() {
       cancelTimer();
       fire();
+    },
+
+    async settle() {
+      cancelTimer();
+      fire();
+      while (inFlight) await inFlight;
     },
 
     dirty() {

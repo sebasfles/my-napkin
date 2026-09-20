@@ -13,7 +13,7 @@ import type { RefObject } from "react";
 import { useDiagrams } from "@/components/diagrams-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
-import { isLocked, type SceneUrls } from "@/lib/diagrams";
+import { isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
 import { editorLangCode } from "@/lib/editor";
 import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
@@ -25,20 +25,18 @@ const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Exca
   ssr: false,
 });
 
-type Mode = "editing" | "locked";
-
 export function Editor({ diagramId }: { diagramId: string }) {
   const t = useTranslations("editor");
   const router = useRouter();
   const { diagrams, failed: listFailed } = useDiagrams();
-  const [loaded, setLoaded] = useState<{ scene: Scene; urls: SceneUrls } | null>(null);
+  const [loaded, setLoaded] = useState<{ scene: Scene; urls: SceneAccess } | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const diagram = diagrams.find((item) => item.id === diagramId) ?? null;
-  const mode: Mode | null = diagram ? (isLocked(diagram) ? "locked" : "editing") : null;
+  const cached = diagrams.find((item) => item.id === diagramId) ?? null;
+  const cachedLock = cached ? isLocked(cached) : null;
+  const locked = cachedLock ?? loaded?.urls.locked ?? true;
 
   useEffect(() => {
-    if (mode === null) return;
     let active = true;
 
     loadScene(diagramId)
@@ -54,16 +52,16 @@ export function Editor({ diagramId }: { diagramId: string }) {
     return () => {
       active = false;
     };
-  }, [diagramId, mode, router]);
+  }, [diagramId, router]);
 
   return (
     <div className="h-full w-full" data-testid="editor">
-      {loaded && mode ? (
+      {loaded ? (
         <EditorCanvas
           diagramId={diagramId}
           scene={loaded.scene}
           urls={loaded.urls}
-          locked={mode === "locked"}
+          locked={locked}
         />
       ) : (
         <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -123,7 +121,7 @@ function SceneSaving({
   urls: SceneUrls;
   saverRef: RefObject<SceneSaver | null>;
 }) {
-  const { isDeleted, markSaved, reportSave } = useDiagrams();
+  const { isDeleted, markSaved, registerSaver, reportSave } = useDiagrams();
 
   const onStatus = useCallback(
     (status: SaveStatus) => reportSave(diagramId, status),
@@ -141,10 +139,13 @@ function SceneSaving({
 
   useEffect(() => {
     saverRef.current = saver;
+    const unregister = registerSaver(diagramId, saver.settle);
+
     return () => {
       saverRef.current = null;
+      unregister();
     };
-  }, [saver, saverRef]);
+  }, [diagramId, registerSaver, saver, saverRef]);
 
   return null;
 }

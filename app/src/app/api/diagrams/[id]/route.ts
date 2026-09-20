@@ -14,9 +14,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   const diagram = await diagramRepository.update(id, parsed.changes);
-  if (!diagram) return NextResponse.json({ error: "diagram not found" }, { status: 404 });
+  if (diagram) return NextResponse.json({ diagram });
 
-  return NextResponse.json({ diagram });
+  if (parsed.changes.scene !== undefined && (await diagramRepository.get(id))) {
+    return NextResponse.json({ error: "diagram is locked" }, { status: 409 });
+  }
+
+  return NextResponse.json({ error: "diagram not found" }, { status: 404 });
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {

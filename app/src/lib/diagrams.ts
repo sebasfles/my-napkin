@@ -21,8 +21,12 @@ export interface DiagramChanges {
 
 export interface SceneUrls {
   get: string;
-  put: string;
+  put?: string;
   expiresAt: string;
+}
+
+export interface SceneAccess extends SceneUrls {
+  locked: boolean;
 }
 
 export interface DiagramRepository {
@@ -34,7 +38,7 @@ export interface DiagramRepository {
 }
 
 export interface SceneStore {
-  urls(id: string): Promise<SceneUrls>;
+  urls(id: string, write: boolean): Promise<SceneUrls>;
   createEmpty(id: string): Promise<void>;
   remove(id: string): Promise<void>;
 }

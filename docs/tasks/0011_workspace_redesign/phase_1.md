@@ -69,4 +69,29 @@ Deferred, out of this phase's scope:
 - `docs/modules/app/prd.md` still describes renaming in place; `document-task` corrects it on the clean signal, as `Context & decisions` sets out.
 
 
+### Round 2
+
+All three findings applied.
+
+1. The editor no longer waits for the cached record, so an unknown id reaches `loadScene` again and its 404 sends the user back to `/`, and an id the cached list has not heard of still opens.
+   The lock state now comes from the server on that same call: `GET /urls` answers `locked`, and the editor reads `cachedLock ?? urls.locked`, defaulting to locked while nothing is known.
+   The cached record wins when it exists, which is what makes Lock and Unlock take effect in the open editor without a refetch; the server's answer covers every case the cache cannot.
+   The reload on lock change is gone with it, and with it the stale baseline trade-off the round 1 notes described: the saver now asks for fresh urls the first time it needs an upload it has no signature for.
+2. The write path refuses while `lockedAt` is set, in two places and without an extra read on the happy path.
+   `GET /urls` signs no PUT at all for a locked diagram, so a fresh signature cannot be obtained; `sceneStore.urls(id, write)` takes that as an argument rather than signing one and throwing it away.
+   The scene PATCH carries `attribute_exists(id) AND attribute_not_exists(lockedAt)` as its condition, so DynamoDB refuses it atomically, and the route turns that refusal into 409 by reading the item only on the failure path, which is how it tells a locked diagram from a missing one.
+   A rename and an unlock keep the plain `attribute_exists(id)` condition, or a locked diagram could never be renamed or unlocked again.
+   Closing the PATCH forced the lock itself to be sequenced: the saver gained `settle()`, which flushes and then waits for the upload in flight, and the provider awaits the open diagram's `settle()` before it writes the lock.
+   Without that, Lock would have raced its own flush and answered 409 to the user's last edit, which is the opposite of what the decision asks.
+3. The rename assertion moved off `info-updated`, whose minute resolution made it unfalsifiable, onto the list order, which is sorted by `updatedAt` desc.
+   Two diagrams are created, the older one is renamed, and the order has to hold both in the page and after a reload, so it now fails if a rename moves `updatedAt` in the client cache or in the table.
+
+Added beyond the findings, because finding 2 is about the second tab and nothing proved that end to end: `item-menu.spec.ts` opens the same diagram in a second page, locks it from the first, draws in the second and asserts the save indicator reports the failure.
+
+Residue, for the ARD at `document-task`:
+
+- A presigned PUT handed out before the lock stays valid for its five minutes, so the scene object is still writable inside that window by a tab that already held a signature.
+  The PATCH is refused throughout, so the item's `updatedAt` and counters never move, and the window closes by itself.
+- The same window covers a change made between `settle()` and the lock landing: its PUT can still reach S3 while its PATCH answers 409, and the user sees the save indicator report the failure rather than a silent loss.
+
 ## Result

@@ -28,6 +28,7 @@ interface DiagramsValue {
   create: () => Promise<Diagram>;
   rename: (id: string, name: string) => Promise<void>;
   setLock: (id: string, locked: boolean) => Promise<void>;
+  registerSaver: (id: string, settle: () => Promise<void>) => () => void;
   remove: (id: string) => Promise<void>;
   markSaved: (diagram: Diagram) => void;
   isDeleted: (id: string) => boolean;
@@ -43,6 +44,7 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveReport | null>(null);
   const deleted = useRef<Set<string>>(new Set());
+  const settlers = useRef<Map<string, () => Promise<void>>>(new Map());
 
   useEffect(() => {
     let active = true;
@@ -95,8 +97,18 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
     [merge],
   );
 
+  const registerSaver = useCallback((id: string, settle: () => Promise<void>) => {
+    settlers.current.set(id, settle);
+
+    return () => {
+      if (settlers.current.get(id) === settle) settlers.current.delete(id);
+    };
+  }, []);
+
   const setLock = useCallback(
     async (id: string, locked: boolean) => {
+      if (locked) await settlers.current.get(id)?.();
+
       const updated = await lockDiagram(id, locked);
       merge(id, { lockedAt: updated.lockedAt });
     },
@@ -138,6 +150,7 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
       create,
       rename,
       setLock,
+      registerSaver,
       remove,
       markSaved,
       isDeleted,
@@ -149,6 +162,7 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
       diagrams,
       isDeleted,
       markSaved,
+      registerSaver,
       reload,
       remove,
       rename,

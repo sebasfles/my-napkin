@@ -7,6 +7,7 @@ import {
   openItemMenu,
   removeDiagramsCreatedHere,
   renameDiagram,
+  saveFailedText,
   saveIndicator,
   savedText,
   setDiagramLock,
@@ -44,19 +45,24 @@ test.describe("diagram item menu", () => {
 
   test("renaming a diagram does not count as editing it", async ({ page }) => {
     await openApp(page);
-    const name = await newDiagram(page, "menu rename");
+    const older = await newDiagram(page, "menu rename older");
+    const newer = await newDiagram(page, "menu rename newer");
 
-    await openInfo(page, name);
-    const edited = await page.getByTestId("info-updated").textContent();
-    await closeInfo(page);
+    const firstRow = page.getByTestId("diagram-item").first();
+    await expect(firstRow, "the list is ordered by last edit, newest first").toContainText(newer);
 
-    const renamed = `${name} again`;
-    await renameDiagram(page, name, renamed);
+    const renamed = `${older} again`;
+    await renameDiagram(page, older, renamed);
 
-    await openInfo(page, renamed);
-    await expect(page.getByTestId("info-name")).toHaveText(renamed);
-    await expect(page.getByTestId("info-updated")).toHaveText(edited ?? "");
-    await closeInfo(page);
+    await expect(firstRow, "a rename must not move a diagram to the top").toContainText(newer);
+
+    await page.reload();
+    await expect(page.getByTestId("diagram-list")).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByTestId("diagram-item").first(),
+      "and the stored order must agree after a reload",
+    ).toContainText(newer);
+    await expect(diagramItem(page, renamed)).toBeVisible();
   });
 
   test("info reports what the saved scene holds", async ({ page }) => {
@@ -104,6 +110,29 @@ test.describe("diagram item menu", () => {
     await expect(page.getByTestId("info-elements")).toHaveText("1");
     await expect(page.getByTestId("info-locked")).not.toHaveText("-");
     await closeInfo(page);
+  });
+
+  test("a second tab cannot save over a diagram locked while it was open", async ({
+    page,
+    context,
+  }) => {
+    await openApp(page);
+    const name = await newDiagram(page, "menu lock second tab");
+
+    const other = await context.newPage();
+    await other.goto(page.url());
+    await expect(other.locator(".excalidraw")).toBeVisible({ timeout: 30_000 });
+
+    await setDiagramLock(page, name, true);
+
+    await drawRectangle(other, 0.6);
+    await expect(
+      saveIndicator(other),
+      "the server must refuse the write the stale tab still believes it can make",
+    ).toHaveText(saveFailedText, { timeout: 30_000 });
+
+    await other.close();
+    await setDiagramLock(page, name, false);
   });
 
   test("a locked diagram asks to be unlocked before it can be deleted", async ({ page }) => {

@@ -149,6 +149,27 @@ describe("diagramRepository.update", () => {
     expect(input.ExpressionAttributeValues).toBeUndefined();
   });
 
+  it("refuses to write the scene counters while the diagram is locked", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
+
+    await diagramRepository.update("one", { scene: { elementCount: 1, sceneBytes: 2 } });
+
+    expect(dynamo.commandCalls(UpdateCommand)[0].args[0].input.ConditionExpression).toBe(
+      "attribute_exists(id) AND attribute_not_exists(lockedAt)",
+    );
+  });
+
+  it("leaves a rename and an unlock free of that condition", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
+
+    await diagramRepository.update("one", { name: "Sketches" });
+    await diagramRepository.update("one", { lockedAt: null });
+
+    for (const call of dynamo.commandCalls(UpdateCommand)) {
+      expect(call.args[0].input.ConditionExpression).toBe("attribute_exists(id)");
+    }
+  });
+
   it("never creates a diagram that is not there", async () => {
     dynamo
       .on(UpdateCommand)
