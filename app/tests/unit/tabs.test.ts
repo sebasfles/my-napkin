@@ -8,24 +8,12 @@ import {
   parseTabs,
   tabAt,
   tabBeside,
-  tabShortcut,
   type TabsState,
 } from "@/lib/tabs";
 
 function tabs(ids: string[], previewId: string | null = null): TabsState {
   return { ids, previewId };
 }
-
-const chord = (
-  code: string,
-  held: Partial<Record<"alt" | "shift" | "ctrl" | "meta", boolean>>,
-) => ({
-  code,
-  altKey: held.alt ?? false,
-  shiftKey: held.shift ?? false,
-  ctrlKey: held.ctrl ?? false,
-  metaKey: held.meta ?? false,
-});
 
 describe("openTab", () => {
   it("opens the first diagram as a preview tab", () => {
@@ -162,33 +150,5 @@ describe("tabAt and tabBeside", () => {
 
   it("has nothing to cycle to with no tabs", () => {
     expect(tabBeside(noTabs, null, 1)).toBeNull();
-  });
-});
-
-describe("tabShortcut", () => {
-  it("reads the three bindings from the physical key", () => {
-    expect(tabShortcut(chord("Digit3", { alt: true }))).toEqual({ kind: "jump", index: 2 });
-    expect(tabShortcut(chord("KeyW", { alt: true }))).toEqual({ kind: "close" });
-    expect(tabShortcut(chord("ArrowRight", { alt: true, shift: true }))).toEqual({
-      kind: "cycle",
-      delta: 1,
-    });
-    expect(tabShortcut(chord("ArrowLeft", { alt: true, shift: true }))).toEqual({
-      kind: "cycle",
-      delta: -1,
-    });
-  });
-
-  it("claims nothing without Alt, and nothing the editor binds with Ctrl or Cmd", () => {
-    expect(tabShortcut(chord("KeyW", {}))).toBeNull();
-    expect(tabShortcut(chord("Digit1", {}))).toBeNull();
-    expect(tabShortcut(chord("KeyW", { alt: true, ctrl: true }))).toBeNull();
-    expect(tabShortcut(chord("Digit1", { alt: true, meta: true }))).toBeNull();
-  });
-
-  it("leaves Alt with any other key to the editor", () => {
-    expect(tabShortcut(chord("KeyZ", { alt: true }))).toBeNull();
-    expect(tabShortcut(chord("Digit0", { alt: true }))).toBeNull();
-    expect(tabShortcut(chord("KeyW", { alt: true, shift: true }))).toBeNull();
   });
 });

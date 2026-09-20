@@ -1,13 +1,14 @@
 {
   "metadata": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "description": "Una pizarra personal con diagramas que persisten entre sesiones."
   },
   "sidebar": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "diagrams": "Diagramas",
     "collapse": "Contraer la barra lateral",
     "expand": "Desplegar la barra lateral",
+    "shortcut": "Alt+B",
     "libraries": "Bibliotecas",
     "comingSoon": "Próximamente",
     "pinned": "Fijados",
@@ -85,7 +86,7 @@
     "saveFailed": "Sin guardar, se reintenta en el próximo cambio"
   },
   "login": {
-    "title": "my-napkin",
+    "title": "My Napkin",
     "subtitle": "Escribe la contraseña para abrir tus diagramas.",
     "passwordLabel": "Contraseña",
     "submit": "Entrar",

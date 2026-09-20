@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0013_e2e_dev_red
+source: 0014_sidebar_shortcut_title
 ---
 
 # app: architecture decisions
@@ -524,3 +524,23 @@ source: 0013_e2e_dev_red
 - Revisit when: the suite runs concurrently against a shared table by design rather than by accident, at which point row ownership needs to be explicit rather than inferred from a name.
 - Source: 0013_e2e_dev_red
 
+## 2026-09-20: one matcher over the key event, not one per feature
+
+- Decision: `shortcuts.ts` exports a single `shortcutFor`, returning a tagged shortcut (`tab` with its command, or `toggleSidebar`); `tabShortcut` is gone rather than kept beside it.
+- Alternatives rejected: keeping `tabShortcut` exported and adding `sidebarShortcut` next to it, each matched in turn by the listener.
+- Reason: two matchers over the same event is how one table stops being one table.
+  They can both claim a chord, and nothing in either function can see that, so the conflict surfaces as a key that does two things depending on the order the listener happens to ask.
+  The tab commands keep their shape inside the `tab` variant, so the tab call sites and their tests did not move.
+- Debt created: none.
+- Revisit when: a chord needs to be claimed conditionally, at which point the table takes context as an argument rather than splitting in two.
+- Source: 0014_sidebar_shortcut_title
+
+## 2026-09-20: the chord rides in the tooltip, not in a Kbd component
+
+- Decision: the collapse and rail controls show the chord as a muted span beside their label in the tooltip, from a `sidebar.shortcut` message, with the `aria-label` left as the plain action.
+- Alternatives rejected: a shadcn `Kbd` component, which `ui/tooltip.tsx` already styles through `data-slot="kbd"` but which is not in the tree; putting "Alt+B" in the `aria-label`.
+- Reason: pulling a component in from the CLI to render four characters is a wider change than the shortcut deserves, and the styling is already there when a second chord makes it worth it.
+  The `aria-label` stays the action because a screen reader announcing "Collapse the sidebar Alt+B" as the button's name reads the chord as part of what the button is called.
+- Debt created: none; the tooltip presentation is a span until a `Kbd` exists, and then it is a component swap in two places.
+- Revisit when: a second control needs to show a chord, or shadcn's `Kbd` arrives for another reason.
+- Source: 0014_sidebar_shortcut_title

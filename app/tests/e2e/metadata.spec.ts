@@ -8,7 +8,7 @@ import {
   tab,
 } from "./helpers";
 
-const appName = "my-napkin";
+const appName = "My Napkin";
 
 function asRgb(page: Page, color: string): Promise<string> {
   return page.evaluate((value) => {
@@ -94,6 +94,7 @@ test.describe("page metadata", () => {
 
     const manifest = await (await request.get(manifestHref!)).json();
     expect(manifest.name).toBe(appName);
+    expect(manifest.short_name, "the launcher label is short").toBe("Napkin");
     expect(manifest.icons.length).toBeGreaterThan(0);
 
     for (const icon of manifest.icons) {

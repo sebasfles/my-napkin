@@ -3,8 +3,8 @@ import { themeColors } from "@/lib/theme-colors";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "my-napkin",
-    short_name: "napkin",
+    name: "My Napkin",
+    short_name: "Napkin",
     start_url: "/",
     display: "standalone",
     background_color: themeColors.light,

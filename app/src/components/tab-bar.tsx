@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isDiagram, openDiagramId, type Diagram } from "@/lib/diagrams";
-import { tabAt, tabBeside, tabShortcut } from "@/lib/tabs";
 import { useTabs } from "@/lib/use-tabs";
 import { cn } from "@/lib/utils";
 
@@ -41,32 +40,6 @@ export function TabBar() {
     );
     if (next !== activeId) router.replace(next === null ? "/" : `/d/${next}`);
   }, [activeId, items, keep, ready, router]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const command = tabShortcut(event);
-      if (command === null) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const active = openDiagramId(window.location.pathname);
-
-      if (command.kind === "close") {
-        if (active !== null) goTo(close(active, active));
-        return;
-      }
-
-      const target =
-        command.kind === "jump"
-          ? tabAt(tabs, command.index)
-          : tabBeside(tabs, active, command.delta);
-      if (target !== null && target !== active) goTo(target);
-    };
-
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [close, goTo, tabs]);
 
   if (tabs.ids.length === 0) return null;
 

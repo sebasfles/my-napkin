@@ -15,16 +15,21 @@ function stored(): boolean {
   return document.cookie.split("; ").includes(`${sidebarCollapsedCookie}=true`);
 }
 
+function store(next: boolean): void {
+  document.cookie = next
+    ? `${sidebarCollapsedCookie}=true; path=/; max-age=${sidebarCollapsedMaxAge}; samesite=lax`
+    : `${sidebarCollapsedCookie}=; path=/; max-age=0; samesite=lax`;
+
+  for (const listener of listeners) listener();
+}
+
+export function toggleCollapsed(): void {
+  store(!stored());
+}
+
 export function useSidebarCollapsed(serverValue: boolean): [boolean, (collapsed: boolean) => void] {
   const collapsed = useSyncExternalStore(subscribe, stored, () => serverValue);
-
-  const setCollapsed = useCallback((next: boolean) => {
-    document.cookie = next
-      ? `${sidebarCollapsedCookie}=true; path=/; max-age=${sidebarCollapsedMaxAge}; samesite=lax`
-      : `${sidebarCollapsedCookie}=; path=/; max-age=0; samesite=lax`;
-
-    for (const listener of listeners) listener();
-  }, []);
+  const setCollapsed = useCallback((next: boolean) => store(next), []);
 
   return [collapsed, setCollapsed];
 }

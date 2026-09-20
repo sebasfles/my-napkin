@@ -1,13 +1,13 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0014_sidebar_shortcut_title
 ---
 
 # Product Requirements Document
 
 ## Product
 
-my-napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.sdfles.com`.
+My Napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.sdfles.com`.
 It gives him a list of named diagrams that persist between sessions and devices, with the same editor as excalidraw.com, behind a single password.
 The priorities are, in order: it works, it costs nothing fixed per month, and it stays trivial to update when Excalidraw ships a new version.
 
