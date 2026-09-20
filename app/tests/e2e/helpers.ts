@@ -198,7 +198,7 @@ export async function showDiagrams(page: Page) {
   await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
 }
 
-export async function newLibrary(page: Page, label: string): Promise<{ id: string; name: string }> {
+export async function newLibrary(page: Page): Promise<string> {
   await showLibraries(page);
   const before = await libraryList(page).getByTestId("library-item").count();
   const from = page.url();
@@ -208,47 +208,30 @@ export async function newLibrary(page: Page, label: string): Promise<{ id: strin
     timeout: awsTimeout,
   });
 
-  // Tracked the moment the row exists, as adoptActiveDiagram does, so a failure before the naming
-  // below still leaves it collectable. The id rather than the name, because the cleanup deletes
-  // through the API: phase 1 gives a library no menu to delete it from.
+  // Tracked the moment the row exists, as adoptActiveDiagram does, so a failure in the waits below
+  // still leaves it collectable. The id rather than the name, because the cleanup deletes through
+  // the API: phase 1 gives a library no menu to delete it from, and no rename to make its name
+  // unique either, which is why nothing here locates a library by name.
   const id = page.url().split("/d/")[1];
   track(librariesByPage, page, id);
 
   await expect(libraryList(page).getByTestId("library-item")).toHaveCount(before + 1, {
     timeout: awsTimeout,
   });
-
-  const name = e2eName(label);
-  await nameLibrary(page, id, name);
   await expect(page.locator(".excalidraw")).toBeVisible({ timeout: awsTimeout });
 
-  return { id, name };
-}
-
-// The name only has to make a stray recognisable in the table the three tasks share, so it is
-// written straight to the API and the open sidebar keeps the name it drew. Phase 2 adds the rename
-// and the delete to the row's menu, and both of these should move onto it.
-async function nameLibrary(page: Page, id: string, name: string): Promise<void> {
-  const response = await apiRequest(page, "patch", `/api/diagrams/${id}`, { name });
-  if (!response.ok()) {
-    throw new Error(`naming the library ${id} answered ${response.status()}`);
-  }
+  return id;
 }
 
 // CloudFront's Origin Access Control refuses a mutating request whose body it cannot hash, which is
 // why `modules/app/ard.md` 2026-09-19 took the header out of the suite and made login type into the
-// form. These two calls cannot: phase 1 gives a library neither a rename nor a delete in the UI, so
-// the cleanup has no other way to remove what it created. They go through Playwright's request
-// context for the session cookie, and borrow the app's own hash rather than computing a second one.
-async function apiRequest(page: Page, method: "patch" | "delete", path: string, body?: object) {
-  const payload = body === undefined ? undefined : JSON.stringify(body);
-
-  return page.request[method](path, {
-    headers: {
-      "content-type": "application/json",
-      "x-amz-content-sha256": await payloadHash(payload),
-    },
-    ...(payload === undefined ? {} : { data: body }),
+// form. This one call cannot: phase 1 gives a library no delete in the UI, so the cleanup has no
+// other way to remove what it created. It goes through Playwright's request context for the session
+// cookie, carries no body, and borrows the app's own hash rather than computing a second one.
+// Phase 2 moves it onto the row's menu and this goes away.
+async function deleteThroughApi(page: Page, id: string) {
+  return page.request.delete(`/api/diagrams/${id}`, {
+    headers: { "x-amz-content-sha256": await payloadHash(undefined) },
   });
 }
 
@@ -376,7 +359,7 @@ export async function removeItemsCreatedHere(page: Page) {
   librariesByPage.delete(page);
 
   for (const id of libraries) {
-    const response = await apiRequest(page, "delete", `/api/diagrams/${id}`);
+    const response = await deleteThroughApi(page, id);
     if (!response.ok()) {
       throw new Error(
         `the library ${id} is still in the table: DELETE answered ${response.status()}`,

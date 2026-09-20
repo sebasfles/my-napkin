@@ -71,6 +71,12 @@ export function framesFromLibraryItems(
       id: `frame_${at}_${index}`,
     }));
     const ids = new Map(item.elements.map((element, index) => [element.id, held[index].id]));
+    const groups = new Map(
+      [...new Set(item.elements.flatMap((element) => element.groupIds))].map((groupId, index) => [
+        groupId,
+        `frame_${at}_g${index}`,
+      ]),
+    );
 
     return [
       frame,
@@ -79,6 +85,7 @@ export function framesFromLibraryItems(
         x: element.x - cell.x + x + layout.padding,
         y: element.y - cell.y + y + layout.padding,
         frameId: frame.id,
+        groupIds: element.groupIds.map((groupId) => groups.get(groupId) ?? groupId),
         boundElements: remapBound(element.boundElements, ids),
         ...containment(element, ids),
       })),

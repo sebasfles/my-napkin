@@ -18,11 +18,11 @@ test("a new library opens as its own canvas, which explains what a frame is for"
   page,
 }) => {
   await openApp(page);
-  const library = await newLibrary(page, "library");
+  const libraryId = await newLibrary(page);
 
   await expect(activeTab(page)).toHaveAttribute("data-library", "true");
-  await expect(libraryItem(page, library.id)).toHaveAttribute("data-active", "true");
-  await expect(libraryItem(page, library.id)).toHaveAttribute("data-items", "0");
+  await expect(libraryItem(page, libraryId)).toHaveAttribute("data-active", "true");
+  await expect(libraryItem(page, libraryId)).toHaveAttribute("data-items", "0");
   await expect(page.getByTestId("empty-library-canvas")).toBeVisible();
 });
 
@@ -30,8 +30,8 @@ test("every frame drawn in a library canvas becomes an item, and deleting it tak
   page,
 }) => {
   await openApp(page);
-  const library = await newLibrary(page, "library");
-  const row = libraryItem(page, library.id);
+  const libraryId = await newLibrary(page);
+  const row = libraryItem(page, libraryId);
 
   await drawFrame(page, 0.3);
   await expect(row).toHaveAttribute("data-items", "1", { timeout: awsTimeout });
@@ -47,16 +47,16 @@ test("every frame drawn in a library canvas becomes an item, and deleting it tak
 
 test("a library brings its canvas and its item count back after a reload", async ({ page }) => {
   await openApp(page);
-  const library = await newLibrary(page, "library");
+  const libraryId = await newLibrary(page);
 
   await drawFrame(page, 0.35);
-  await expect(libraryItem(page, library.id)).toHaveAttribute("data-items", "1", {
+  await expect(libraryItem(page, libraryId)).toHaveAttribute("data-items", "1", {
     timeout: awsTimeout,
   });
 
   await page.reload();
   await expect(page.locator(".excalidraw")).toBeVisible({ timeout: awsTimeout });
-  await expect(libraryItem(page, library.id)).toHaveAttribute("data-items", "1", {
+  await expect(libraryItem(page, libraryId)).toHaveAttribute("data-items", "1", {
     timeout: awsTimeout,
   });
   await expect(page.getByTestId("empty-library-canvas")).toHaveCount(0);

@@ -290,6 +290,39 @@ describe("framesFromLibraryItems", () => {
     expect(new Set(elements.map((one) => one.id)).size).toBe(elements.length);
   });
 
+  it("gives two items that shared a group id disjoint groups, so one frame cannot drag the other", () => {
+    const shared = "group-1";
+    const elements = framesFromLibraryItems([
+      item("One", { id: "a", groupIds: [shared] }, { id: "b", groupIds: [shared] }),
+      item("Two", { id: "c", groupIds: [shared] }, { id: "d", groupIds: [shared] }),
+    ]);
+
+    const frames = elements.filter((one) => one.type === "frame");
+    const groupsOf = (frameId: string) =>
+      new Set(
+        elements.filter((one) => one.frameId === frameId).flatMap((one) => [...one.groupIds]),
+      );
+
+    const first = groupsOf(frames[0].id);
+    const second = groupsOf(frames[1].id);
+
+    expect(first.size).toBe(1);
+    expect(second.size).toBe(1);
+    expect([...first].every((groupId) => !second.has(groupId))).toBe(true);
+    expect(first.has(shared)).toBe(false);
+  });
+
+  it("keeps the elements of one item grouped together", () => {
+    const elements = framesFromLibraryItems([
+      item("One", { id: "a", groupIds: ["g"] }, { id: "b", groupIds: ["g"] }),
+    ]);
+
+    const held = elements.filter((one) => one.type !== "frame");
+    expect(held).toHaveLength(2);
+    expect(held[0].groupIds).toEqual(held[1].groupIds);
+    expect(held[0].groupIds).toHaveLength(1);
+  });
+
   it("round trips through the derivation, keeping names and relative geometry", () => {
     const before = [
       item("Arrowhead", { id: "a" }, { id: "b", x: 120, y: 40 }),

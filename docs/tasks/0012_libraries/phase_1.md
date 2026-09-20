@@ -93,4 +93,29 @@ Deferred, out of this phase's scope:
 - `newDiagram`'s tracking window is the same class of leak and is 0013's fix, in the same hunk; duplicating it here would only buy a conflict.
 
 
+### Round 2
+
+Both findings applied, neither disputed.
+
+1. `framesFromLibraryItems` now remaps `groupIds` per item, the way `itemElements` already did in the export direction.
+   The bug was real and the asymmetry is what hid it: the export direction was tested for disjointness and the import direction was not, so two items of one `.excalidrawlib` that shared a group id came back as one group spanning two frames, and dragging one frame's contents would have moved the other's.
+   Two tests arrived with the fix, the import twin of the export one: two items sharing a group id come back with disjoint groups of one each, and the elements of a single item stay grouped together.
+   I checked the first fails without the fix rather than trusting that it would.
+2. `nameLibrary` is gone, and `newLibrary` returns the id alone.
+   The reviewer is right that nothing read the name: all three call sites used the id, so the rename bought nothing and cost both the `docs/conventions/e2e.md` rule and a second place in the suite carrying `x-amz-content-sha256`, which `modules/app/ard.md` 2026-09-19 removed deliberately.
+   A stray is recognisable as `Library (N)` anyway, since nothing but this task writes that kind.
+   What is left is one body-less `DELETE`, so the hash is the empty string one and no body is serialised twice; that was the other half of the finding, and it removes the mismatch that could only have shown up in `e2e-dev` after a merge.
+
+For `document-task`, agreed with the om-reviewer during this round: the 2026-09-18 saver debt entry is widened in this phase, not a later one, in `docs/ARD.md` and in `modules/app/ard.md`.
+The existing entry is edited rather than a second one added, and it should say that the window can orphan a diagram's scene object or a library's two objects, the library's being under `libraries/{id}/` where nothing sweeps them.
+This is the phase that made the window leave two objects behind, so leaving it for phase 3 would put a statement in the debt index that is false about `develop`'s own behaviour, in the one document every task reads before it plans.
+
+Also for the module docs: the app can only be served on `localhost:3000` locally, since the dev scenes bucket's CORS allows only that origin and the deployed dev host.
+On any other port the app answers 200 while every presigned scene GET is blocked, so the editor never paints and specs fail far from the cause.
+
+One failure in this round was not mine and I left it alone.
+`pinning.spec.ts:49` timed out at 43.0s against Playwright's default 30s test budget, then passed in 12.7s on the rerun with no code change, in a suite that ran 9.3m against 14.5m.
+The spec has no headroom by construction: its final assertion carries `awsTimeout` of 30_000 while the whole test budget is also 30s, so any slow moment ends the test rather than the step.
+It belongs to 0011 and is not in this diff, so widening its timeout to make this round green was the one thing not to do; the om-reviewer took it to the om-manager as its own task.
+
 ## Result

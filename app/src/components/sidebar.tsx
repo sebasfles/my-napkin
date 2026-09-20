@@ -471,14 +471,12 @@ function SidebarRail({
 
 function RailSection({
   label,
-  hint,
   testId,
   icon,
   current = false,
   onClick,
 }: {
   label: string;
-  hint?: string;
   testId: string;
   icon: ReactNode;
   current?: boolean;
@@ -504,10 +502,7 @@ function RailSection({
           {icon}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">
-        <span>{label}</span>
-        {hint === undefined ? null : <span className="text-background/70">{hint}</span>}
-      </TooltipContent>
+      <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   );
 }
