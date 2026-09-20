@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-19
+source: 0009_deploy_dev_first_run
 ---
 
 # infra: product
 
-Greenfield: this describes the planned behavior, nothing here is built yet.
+`dev` is applied and answers on its domain; `core` and `prd` are written and planned but not yet applied.
 
 ## Purpose
 
@@ -16,9 +16,9 @@ Gives Sebastian a single environment he can create, inspect and tear down with T
 ### First-time setup
 
 1. Sebastian creates the Terraform state bucket by hand, once, before the first `init`.
-2. Sebastian copies `.env.example` to `.env` and `terraform.tfvars.example` to `terraform.tfvars`, then fills in `app_password` and `session_secret`.
+2. Sebastian copies `.env.example` to `.env` and `terraform.tfvars.example` to `terraform.tfvars`, then fills in `github_app_pem`, `app_password` and `session_secret`.
 3. Sebastian runs `terraform init` and `terraform apply` from his own machine.
-4. Terraform creates the buckets, the table, the Lambda (against a placeholder bootstrap zip), CloudFront, the ACM certificate, the `napkin` Route53 records and the GitHub OIDC deploy role.
+4. Terraform creates the buckets, the table, the Lambda (against a placeholder bootstrap zip), CloudFront, the ACM certificate, the `napkin` Route53 records, the GitHub OIDC deploy role, and the GitHub Actions environment that names all of them for the deploy workflow and admits only that environment's branch.
 
 Errors and empty states: a failed `apply` leaves prior resources untouched; Terraform reports which resource failed and Sebastian re-runs after fixing it.
 
@@ -32,7 +32,7 @@ Errors and empty states: a failed `apply` leaves prior resources untouched; Terr
 
 - `terraform apply` is always run by Sebastian from his machine, never from GitHub Actions.
 - The `sdfles.com` Route53 zone is read, never imported or owned; Terraform only creates the `napkin` records inside it.
-- `terraform.tfvars` holds only `app_password` and `session_secret`; everything else is a literal in `locals.tf`.
+- `terraform.tfvars` holds only `github_app_pem`, `app_password` and `session_secret`; everything else is a literal in `locals.tf`.
 - The target fixed cost is $0/month; the Route53 zone itself is already paid for and out of scope.
 
 ## Out of scope

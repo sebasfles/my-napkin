@@ -1,0 +1,97 @@
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
+data "aws_iam_policy_document" "assume_github" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # The deploy job runs inside the Actions environment named after var.env,
+    # and a job with an environment gets that environment as its subject, not
+    # the branch. GitHub emits two subject shapes: a repository that has ever
+    # been renamed or transferred gets owner and repository ids welded into the
+    # subject, and a future transfer moves this repository into that shape
+    # without warning.
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values = [
+        "repo:${var.github_owner}/${var.github_repository}:environment:${var.env}",
+        "repo:${var.github_owner}@*/${var.github_repository}@*:environment:${var.env}",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "deploy" {
+  name               = "${local.name_prefix}-deploy"
+  assume_role_policy = data.aws_iam_policy_document.assume_github.json
+
+  tags = { Name = "${local.name_prefix}-deploy" }
+}
+
+resource "aws_iam_role_policy" "deploy" {
+  name = "deploy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "UpdateFunction"
+        Effect   = "Allow"
+        Action   = ["lambda:UpdateFunctionCode", "lambda:GetFunction"]
+        Resource = module.server.arn
+      },
+      {
+        Sid      = "ListAssets"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = module.assets_bucket.arn
+      },
+      {
+        Sid      = "SyncAssets"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
+        Resource = "${module.assets_bucket.arn}/*"
+      },
+      {
+        Sid      = "Invalidate"
+        Effect   = "Allow"
+        Action   = ["cloudfront:CreateInvalidation"]
+        Resource = module.cdn.distribution_arn
+      },
+    ]
+  })
+}
+
+module "actions_environment" {
+  source = "../../modules/github/actions_environment"
+
+  repository        = var.github_repository
+  environment       = var.env
+  deployment_branch = var.git_branch
+
+  env_vars = {
+    AWS_ROLE_ARN               = aws_iam_role.deploy.arn
+    LAMBDA_FUNCTION_NAME       = module.server.name
+    ASSETS_BUCKET              = module.assets_bucket.id
+    CLOUDFRONT_DISTRIBUTION_ID = module.cdn.distribution_id
+  }
+
+  env_secrets = {
+    APP_PASSWORD = var.app_password
+  }
+}

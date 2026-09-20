@@ -1,0 +1,151 @@
+---
+phase: 1
+branch: feat/0011_workspace_redesign-phase-1
+updated: 2026-09-19
+---
+
+# Phase 1: foundation
+
+## Scope
+
+- Geist Sans and Geist Mono through `next/font`, applied to every text outside the canvas.
+- Tokens in `globals.css` reworked: spacing, radii, surfaces, borders, focus rings, motion; light and dark.
+- Every existing surface reworked to them: login, sidebar, diagram rows, save indicator, confirmation dialog, empty and error states, theme and locale controls, logout.
+- Three-dot menu on every diagram row with Rename (dialog), Lock / Unlock, Delete (confirmation naming the diagram; a locked diagram asks to unlock first), Info (dialog).
+- Metadata: `lockedAt`, `elementCount`, `sceneBytes` stored on the item; the browser sends the last two on every save; Info shows name, created, last edited, locked since, element count, scene size.
+- Lock: locked diagram opens in view mode (laser, pan, zoom allowed), saver not mounted, lock glyph on the row.
+- shadcn components added through its CLI: dropdown-menu, dialog, tooltip.
+- Unit tests for the new pure logic; Playwright spec for the item menu (rename, lock, delete, info).
+
+## Acceptance
+
+1. Task acceptance 1, 2 and 8 (minus Pin and Move), and 9 for this phase's flows.
+2. Existing flows (login, create, open, rename in place if kept, delete, save) still pass the full local suite.
+3. PR description carries screenshots, light and dark, of login, sidebar, menu and each dialog.
+
+## om-developer notes
+
+### Round 1
+
+Built: the typeface and the token rework, every existing surface reworked to them, the three-dot item menu with Rename, Lock, Info and Delete, the metadata fields, and lock as view mode.
+Rename in place is gone, as `Context & decisions` asks.
+
+Decisions the plan did not already record:
+
+- The typeface is the `geist` npm package, which is `next/font/local` over woff2 files it ships, so the build reaches no font host.
+  `--font-geist-sans` and `--font-geist-mono` are bound to Tailwind's `--font-sans` and `--font-mono` in `@theme inline`, and the class goes on `html`.
+  Nothing scopes the app font out of the canvas because nothing has to: `.excalidraw` sets `font-family: var(--ui-font)` on itself, so the editor's chrome keeps Assistant and the app font never reaches inside.
+  `tests/e2e/typeface.spec.ts` asserts both directions rather than trusting that reading.
+- `PATCH /api/diagrams/[id]` now takes `name`, `locked` (a boolean) and the pair `elementCount` plus `sceneBytes`, parsed by `src/lib/diagram-changes.ts`, a pure function with its own unit tests.
+  The two counters are accepted only together, since half a measurement would store a lie.
+  A body that changes nothing answers 400 instead of writing: every caller has something to change, and the old empty `{}` touch no longer exists.
+  `diagramRepository.touch` became `update(id, changes)`, and only the scene pair moves `updatedAt`, which is what makes a rename or a lock not count as an edit.
+- The provider merges per concern instead of replacing the item: a rename writes `name`, a lock writes `lockedAt`, a save writes `updatedAt` and the two counters.
+  A lock and a save in flight at the same time touch disjoint attributes in DynamoDB, so the stored item is right in either order; merging per concern makes the client's cached copy converge the same way, which replacing the whole item did not.
+- The editor waits for the diagram's record before it mounts anything, and reloads the scene when the lock state changes.
+  Waiting is not a nicety: mounting the canvas before the lock state is known would mount the saver for a locked diagram, and a single report from the editor would then put a scene that must never be written.
+  This serializes the first scene request behind the list request, which the list request was already racing anyway.
+- View mode and the saver's presence follow the live lock state, not the reloaded scene, so clicking Lock stops the saver in the same commit instead of one round trip later.
+- The saver lives in `SceneSaving`, a child that renders nothing and hands the saver to the canvas through a ref.
+  Unmounting it is what flushes and stops it, so Lock keeps the last edit by construction rather than by an extra call, and a locked diagram has no saver in the tree at all.
+- `sceneStats` measures the serialized scene with `TextEncoder`, so the size is bytes and not characters, and it travels in the PATCH that already followed the upload.
+- Tokens: radius 0.5rem, warm paper in light, ink in dark, an ink blue primary, and motion through Tailwind's `--default-transition-duration` and `--default-transition-timing-function` so every `transition-*` utility shares one curve.
+  The chart tokens were retuned to the same family even though nothing renders a chart yet, so no surface keeps an old value.
+- `src/components/ui/dialog.tsx`, `dropdown-menu.tsx` and `tooltip.tsx` are the CLI's output run through Prettier and nothing else, which is the shape the three components already in the tree have.
+  `button.tsx` was left as it was when the CLI offered to overwrite it.
+
+Trade-off accepted: locking reloads the scene while the flush from that same lock may still be in flight, so the reloaded baseline can be one edit stale.
+The next unlock then saves the canvas's true content once, which costs a write and moves `updatedAt`, and never loses anything.
+The alternative was reading the live scene out of a ref during render, which `react-hooks/refs` rejects.
+
+Pending, not done:
+
+- The e2e block of `verify-task` and the phase's screenshots, both of which need `app/.env.local`, which is not in the worktree.
+  Lint, typecheck and the 131 unit tests are green; `verify.log` carries the failure and its reason verbatim.
+
+Deferred, out of this phase's scope:
+
+- A `prefers-reduced-motion` rule for the whole document: it would need `!important` to win, which would reach inside the canvas, so it belongs with a deliberate motion pass rather than here.
+- `docs/modules/app/prd.md` still describes renaming in place; `document-task` corrects it on the clean signal, as `Context & decisions` sets out.
+
+
+### Round 2
+
+All three findings applied.
+
+1. The editor no longer waits for the cached record, so an unknown id reaches `loadScene` again and its 404 sends the user back to `/`, and an id the cached list has not heard of still opens.
+   The lock state now comes from the server on that same call: `GET /urls` answers `locked`, and the editor reads `cachedLock ?? urls.locked`, defaulting to locked while nothing is known.
+   The cached record wins when it exists, which is what makes Lock and Unlock take effect in the open editor without a refetch; the server's answer covers every case the cache cannot.
+   The reload on lock change is gone with it, and with it the stale baseline trade-off the round 1 notes described: the saver now asks for fresh urls the first time it needs an upload it has no signature for.
+2. The write path refuses while `lockedAt` is set, in two places and without an extra read on the happy path.
+   `GET /urls` signs no PUT at all for a locked diagram, so a fresh signature cannot be obtained; `sceneStore.urls(id, write)` takes that as an argument rather than signing one and throwing it away.
+   The scene PATCH carries `attribute_exists(id) AND attribute_not_exists(lockedAt)` as its condition, so DynamoDB refuses it atomically, and the route turns that refusal into 409 by reading the item only on the failure path, which is how it tells a locked diagram from a missing one.
+   A rename and an unlock keep the plain `attribute_exists(id)` condition, or a locked diagram could never be renamed or unlocked again.
+   Closing the PATCH forced the lock itself to be sequenced: the saver gained `settle()`, which flushes and then waits for the upload in flight, and the provider awaits the open diagram's `settle()` before it writes the lock.
+   Without that, Lock would have raced its own flush and answered 409 to the user's last edit, which is the opposite of what the decision asks.
+3. The rename assertion moved off `info-updated`, whose minute resolution made it unfalsifiable, onto the list order, which is sorted by `updatedAt` desc.
+   Two diagrams are created, the older one is renamed, and the order has to hold both in the page and after a reload, so it now fails if a rename moves `updatedAt` in the client cache or in the table.
+
+Added beyond the findings, because finding 2 is about the second tab and nothing proved that end to end: `item-menu.spec.ts` opens the same diagram in a second page, locks it from the first, draws in the second and asserts the save indicator reports the failure.
+
+Residue, for the ARD at `document-task`:
+
+- A presigned PUT handed out before the lock stays valid for its five minutes, so the scene object is still writable inside that window by a tab that already held a signature.
+  The PATCH is refused throughout, so the item's `updatedAt` and counters never move, and the window closes by itself.
+- The same window covers a change made between `settle()` and the lock landing: its PUT can still reach S3 while its PATCH answers 409, and the user sees the save indicator report the failure rather than a silent loss.
+
+### Round 3
+
+The suite found a real bug on its first run against dev: 16 of 35 tests failed, all of them after a dialog had been opened from the item menu, and always with `<html> intercepts pointer events`.
+It was not the tests being picky.
+A probe showed `document.body` left with `pointer-events: none` and no dialog anywhere in the DOM, so after renaming a diagram the whole app was unclickable until a reload, in every browser, not only under Playwright.
+
+The cause is two nested Radix modals.
+The item menu is modal by default, so opening it writes `pointer-events: none` on the body; the dialog opened from it saves that value as the one to restore, and writes it back when it closes.
+Measured, rather than guessed: menu open wrote `none`, Escape restored it, but a dialog opened from the menu closed back to `none`.
+The fix is `modal={false}` on the item menu, which it never needed: it is a small menu in a sidebar, and it locks no scroll.
+With that, the menu writes nothing and the dialog's own save and restore sees a clean value, which the same probe confirmed.
+
+Kept alongside it: the three dialogs are now mounted for the life of the sidebar with `open` driven by state, instead of being mounted and unmounted with the selection.
+That is the pattern the sidebar already used for its delete confirmation before this task, it is what gives the dialogs their exit animation, and unmounting a Radix dialog while it is open is a second, independent way to leak the same lock.
+It was not what caused this failure, and I am saying so rather than claiming two fixes for one bug.
+
+Also done in this round, and it is mess I made rather than product work: the failed runs left 20 `e2e ...` diagrams in the dev table, because the cleanup in `afterEach` needs the same clicks the bug had blocked.
+I deleted them through the app's own UI with a throwaway spec, then removed it.
+The screenshots were retaken afterwards so they show a real list rather than that debris.
+
+Screenshots, light and dark, in `{{workspace}}/screenshots/`, never committed: login, sidebar, item menu, rename dialog, info dialog, delete confirmation, the locked row with the editor in view mode, and the delete dialog that asks to unlock first.
+
+### Documentation
+
+`app` only, on the clean signal.
+`prd.md` drops renaming in place and gains the item menu, lock and Info; `trd.md` corrects the PATCH and `/urls` descriptions and records the typeface; `database.md` carries the new attributes, the narrowed meaning of `updatedAt` and the lock condition; `flows.md` corrects the save sequence and says a locked diagram never enters it; `README.md` corrects one line.
+Three ARD entries: `updatedAt` as an edit only, the lock enforced at both the condition and the signature, and the non-modal item menu with the bug that forced it.
+One debt line and one `docs/ARD.md` index row for the presigned window.
+Nothing in `docs/PRD.md`: folders arrive in phase 2.
+`updatedAt` as an edit only was already in `Context & decisions`, so it is not new; it is in `ard.md` because the module's reader will never open this task folder, and the om-reviewer asked for it by name.
+Nothing was resolved: no debt this phase touched had an entry to close.
+
+## Result
+
+Merged as PR #12 on 2026-09-20, three rounds plus the documentation commit, `b6eeee7` to `94f0c86`.
+Everything in this phase's Scope shipped and every acceptance point holds: the typeface is self-hosted, light and dark are complete, the item menu carries Rename, Lock, Info and Delete, and the metadata fields are written by the browser on every save.
+
+Deviations from the plan, all agreed before they were built:
+
+- The typeface comes from the `geist` package rather than `next/font` reaching a font host, so no build depends on a third party being up.
+- Rename in place was removed rather than kept, so a diagram is renamed in one way only.
+- The lock is enforced by the server at two points, not only in the browser: a condition on `lockedAt` for the scene PATCH and a read-only signature from `/urls`. The plan had only the client side.
+- `touch(id, name)` became `update(id, changes)`, so a rename or a lock no longer moves `updatedAt`.
+
+Debt created, one row in `docs/ARD.md`: a presigned upload handed out before a lock stays valid for the rest of its five minutes, so a tab already holding one can still overwrite the scene object, though its PATCH is refused and no timestamp or counter moves.
+
+What phase 2 must know:
+
+- The item menu is `modal={false}` and the three dialogs are mounted for the life of the sidebar with `open` driven by state. Both are load bearing: a modal menu that opens a dialog leaves `pointer-events: none` on the body and the whole app stops responding until a reload. The e2e suite failed 16 of 35 on it. Any menu or dialog phase 2 adds, on folder rows or for "Move to", follows the same shape, and `ard.md` carries the reason.
+- The dialogs keep their local state until Radix finishes the exit animation, about 200ms, so reopening one on a different item inside that window would show the previous input. Harmless with three dialogs and two clicks; when "Move to" makes a fourth, key the dialog bodies by item id rather than rely on nobody clicking that fast.
+- `GET /api/diagrams` still returns diagrams only. Once folders share the table, every consumer of that list has to filter by kind, `HomeRedirect` included, or `/` will try to open a folder as a diagram.
+- `PATCH` takes one intent per request and answers 400 to a body that changes nothing, 409 when a scene write is refused for a lock. `parentId` and `pinned` join the same parser in `src/lib/diagram-changes.ts`, which is pure and unit tested.
+- A locked diagram is read only, not immovable: Rename and Move stay allowed, Delete asks for the unlock first.
+- The e2e suite runs against the real dev table, so a spec that creates a folder deletes it, and a failing run leaves rows behind. Phase 1's first real run left 20 and they had to be cleaned by hand through the app.
+- `app/.env.local` is a gitignored symlink in the worktree and the suite needs it. It survives the branch switch; nothing in the tree references it.

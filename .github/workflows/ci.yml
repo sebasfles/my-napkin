@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Lint
+        working-directory: app
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: app
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: app
+        run: npx vitest run
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform checks
+        run: |
+          if [ ! -d infra ]; then
+            echo "infra/ is absent, skipping Terraform checks"
+            exit 0
+          fi
+          terraform fmt -check -recursive infra
+          for root in infra/environments/*/; do
+            [ -n "$(find "$root" -maxdepth 1 -name '*.tf' -print -quit)" ] || continue
+            echo "::group::terraform validate $root"
+            terraform -chdir="$root" init -backend=false -input=false
+            terraform -chdir="$root" validate
+            echo "::endgroup::"
+          done
+
+      - name: Lint workflows
+        working-directory: app
+        run: npm run lint:workflows
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

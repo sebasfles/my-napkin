@@ -1,13 +1,13 @@
 ---
-updated: 2026-09-17
-source: setup
+updated: 2026-09-20
+source: 0014_sidebar_shortcut_title
 ---
 
 # Product Requirements Document
 
 ## Product
 
-my-napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.sdfles.com`.
+My Napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.sdfles.com`.
 It gives him a list of named diagrams that persist between sessions and devices, with the same editor as excalidraw.com, behind a single password.
 The priorities are, in order: it works, it costs nothing fixed per month, and it stays trivial to update when Excalidraw ships a new version.
 
@@ -19,9 +19,11 @@ The priorities are, in order: it works, it costs nothing fixed per month, and it
 
 ### Diagrams (module `app`)
 
-The user sees his diagrams in a side list, creates a new one, renames or deletes it, and opens one in the editor.
-Edits save automatically shortly after he stops drawing, including pasted images.
-Reopening a diagram restores it as it was left.
+The user works from a sidebar of folders and diagrams: folders nest to any depth, the sidebar shows one at a time under a breadcrumb back to the top, and a pinned diagram stays one click away in a section above it, wherever it lives.
+A menu on every row renames, locks, pins, moves or deletes, and the sidebar collapses to a rail when the drawing wants the room.
+The diagrams he opens stay open as tabs above the canvas, the one he only glanced at giving way to the next until an edit or a double click keeps it, and both the tabs and the folder he was in come back after a reload.
+He opens what he wants to open: the app starts with nothing on the canvas and an invitation to pick or create, and never chooses a diagram for him.
+Edits save automatically shortly after he stops drawing, pasted images included, and reopening a diagram restores it as it was left.
 Details: [modules/app/prd.md](modules/app/prd.md)
 
 ### Access (module `app`)
@@ -32,7 +34,7 @@ Details: [modules/app/prd.md](modules/app/prd.md)
 
 ### Hosting (modules `infra`, `deploy`)
 
-The site lives on AWS under the user's domain with TLS and is deployed automatically whenever `main` changes.
+The site lives on AWS under the user's domain with TLS and is deployed automatically: `develop` to the dev environment, and `main`, which only the promotion pull request touches, to production.
 The user never touches a server; the only manual operations are applying infrastructure changes and setting the password.
 Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](modules/deploy/prd.md)
 
@@ -43,8 +45,7 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - The editor is the upstream Excalidraw package, unmodified; the product does not diverge from its behavior.
 - The project, its domain and its AWS resources are named `napkin`; the Excalidraw name appears only as a credit in the README.
 - Fixed monthly cost stays at $0 inside the AWS free tier.
-- The interface is available in Spanish and English, following the browser and switchable from the sidebar.
-- Light and dark mode follow the system and can be switched from the sidebar; the editor follows the same theme.
+- The interface follows the browser's language, Spanish or English, and its light or dark preference; both are switchable from the sidebar and the editor follows the theme.
 - A change reaches the user only after it ran on `napkin.dev.sdfles.com` and its end-to-end tests passed there.
 
 ## Not in the product
@@ -52,7 +53,7 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - Live collaboration.
 - Shared or public links.
 - Multiple users or roles.
-- Folders, tags or search over diagrams.
+- Tags or search over diagrams.
 - Mobile-specific UI beyond what the Excalidraw package already gives.
 
 ## Open questions
