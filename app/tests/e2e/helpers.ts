@@ -7,6 +7,7 @@ export const saveFailedText = "Not saved, retrying on the next change";
 
 const awsTimeout = 30_000;
 const createdByPage = new Map<Page, string[]>();
+const foldersByPage = new Map<Page, string[]>();
 
 let sequence = 0;
 
@@ -30,18 +31,30 @@ export async function openApp(page: Page) {
   await login(page);
   await page.goto("/");
   await expect(page).toHaveURL(diagramUrl, { timeout: awsTimeout });
-  await expect(page.getByTestId("diagram-list")).toBeVisible({ timeout: awsTimeout });
+  await expect(page.getByTestId("item-list")).toBeVisible({ timeout: awsTimeout });
   await expect(page.locator(".excalidraw")).toBeVisible();
 }
 
 export const diagramUrl = /\/d\/[0-9a-f-]{36}$/;
 
+export function itemList(page: Page): Locator {
+  return page.getByTestId("item-list");
+}
+
 export function diagramItem(page: Page, name: string): Locator {
-  return page.getByTestId("diagram-item").filter({ hasText: name });
+  return itemList(page).getByTestId("diagram-item").filter({ hasText: name });
+}
+
+export function folderItem(page: Page, name: string): Locator {
+  return itemList(page).getByTestId("folder-item").filter({ hasText: name });
+}
+
+export function pinnedItem(page: Page, name: string): Locator {
+  return page.getByTestId("pinned-list").getByTestId("diagram-item").filter({ hasText: name });
 }
 
 export function activeItem(page: Page): Locator {
-  return page.locator('[data-testid="diagram-item"][data-active="true"]');
+  return itemList(page).locator('[data-testid="diagram-item"][data-active="true"]');
 }
 
 export function saveIndicator(page: Page): Locator {
@@ -49,19 +62,20 @@ export function saveIndicator(page: Page): Locator {
 }
 
 export async function newDiagram(page: Page, label: string): Promise<string> {
-  await expect(page.getByTestId("diagram-list")).toBeVisible({ timeout: awsTimeout });
-  const before = await page.getByTestId("diagram-item").count();
+  await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
+  const before = await itemList(page).getByTestId("diagram-item").count();
   const from = page.url();
 
   await page.getByTestId("diagram-new").click();
-  await expect(page.getByTestId("diagram-item")).toHaveCount(before + 1, { timeout: awsTimeout });
+  await expect(itemList(page).getByTestId("diagram-item")).toHaveCount(before + 1, {
+    timeout: awsTimeout,
+  });
   await page.waitForURL((url) => url.href !== from && diagramUrl.test(url.href), {
     timeout: awsTimeout,
   });
   await expect(page.locator(".excalidraw")).toBeVisible();
 
-  sequence += 1;
-  const name = `e2e ${label} ${Date.now().toString(36)}-${sequence}`;
+  const name = e2eName(label);
   await renameActiveDiagram(page, name);
 
   const created = createdByPage.get(page) ?? [];
@@ -71,8 +85,63 @@ export async function newDiagram(page: Page, label: string): Promise<string> {
   return name;
 }
 
+export function e2eName(label: string): string {
+  sequence += 1;
+  return `e2e ${label} ${Date.now().toString(36)}-${sequence}`;
+}
+
+export async function newFolder(page: Page, label: string): Promise<string> {
+  const name = e2eName(label);
+
+  await page.getByTestId("folder-new").click();
+  const input = page.getByTestId("name-input");
+  await expect(input).toBeVisible();
+  await input.fill(name);
+  await page.getByTestId("name-submit").click();
+
+  await expect(folderItem(page, name)).toBeVisible({ timeout: awsTimeout });
+
+  const folders = foldersByPage.get(page) ?? [];
+  folders.push(name);
+  foldersByPage.set(page, folders);
+
+  return name;
+}
+
+export async function openFolder(page: Page, name: string) {
+  await folderItem(page, name).getByTestId("folder-open").click();
+  await expect(page.getByTestId("crumb-current")).toHaveText(name);
+}
+
+export async function goToRoot(page: Page) {
+  const root = page.getByTestId("crumb-root");
+  if ((await page.getByTestId("crumb-current").count()) > 0) await root.click();
+
+  await expect(page.getByTestId("crumb-current")).toHaveCount(0);
+}
+
+export async function moveItem(page: Page, item: Locator, target: string) {
+  await openItemMenu(page, item);
+  await page.getByTestId("menu-move").click();
+
+  const dialog = page.getByTestId("move-dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId("move-choice").filter({ hasText: target }).click();
+  await page.getByTestId("move-submit").click();
+
+  await expect(dialog).toBeHidden();
+}
+
+export async function setPinned(page: Page, item: Locator, name: string, pinned: boolean) {
+  await openItemMenu(page, item);
+  await page.getByTestId("menu-pin").click();
+
+  if (pinned) await expect(pinnedItem(page, name)).toBeVisible({ timeout: awsTimeout });
+  else await expect(pinnedItem(page, name)).toHaveCount(0, { timeout: awsTimeout });
+}
+
 export async function openItemMenu(page: Page, item: Locator) {
-  await item.getByTestId("diagram-menu").click();
+  await item.getByTestId("item-menu").click();
   await expect(page.getByTestId("menu-rename")).toBeVisible();
 }
 
@@ -80,20 +149,25 @@ async function renameThrough(page: Page, item: Locator, name: string) {
   await openItemMenu(page, item);
   await page.getByTestId("menu-rename").click();
 
-  const input = page.getByTestId("rename-input");
+  const input = page.getByTestId("name-input");
   await expect(input).toBeVisible();
   await input.fill(name);
-  await page.getByTestId("rename-submit").click();
-
-  await expect(diagramItem(page, name)).toBeVisible({ timeout: awsTimeout });
+  await page.getByTestId("name-submit").click();
 }
 
 export async function renameDiagram(page: Page, from: string, to: string) {
   await renameThrough(page, diagramItem(page, from), to);
+  await expect(diagramItem(page, to)).toBeVisible({ timeout: awsTimeout });
 }
 
 export async function renameActiveDiagram(page: Page, name: string) {
   await renameThrough(page, activeItem(page), name);
+  await expect(diagramItem(page, name)).toBeVisible({ timeout: awsTimeout });
+}
+
+export async function renameFolder(page: Page, from: string, to: string) {
+  await renameThrough(page, folderItem(page, from), to);
+  await expect(folderItem(page, to)).toBeVisible({ timeout: awsTimeout });
 }
 
 export async function setDiagramLock(page: Page, name: string, locked: boolean) {
@@ -105,10 +179,7 @@ export async function setDiagramLock(page: Page, name: string, locked: boolean) 
   });
 }
 
-export async function deleteDiagram(page: Page, name: string) {
-  const item = diagramItem(page, name);
-  if ((await item.getAttribute("data-locked")) === "true") await setDiagramLock(page, name, false);
-
+export async function deleteItem(page: Page, item: Locator, name: string) {
   await openItemMenu(page, item);
   await page.getByTestId("menu-delete").click();
 
@@ -117,14 +188,33 @@ export async function deleteDiagram(page: Page, name: string) {
   await expect(dialog).toContainText(name);
 
   await page.getByTestId("delete-confirm").click();
-  await expect(diagramItem(page, name)).toHaveCount(0, { timeout: awsTimeout });
+  await expect(item).toHaveCount(0, { timeout: awsTimeout });
 }
 
-export async function removeDiagramsCreatedHere(page: Page) {
-  const created = createdByPage.get(page) ?? [];
+export async function deleteDiagram(page: Page, name: string) {
+  const item = diagramItem(page, name);
+  if ((await item.getAttribute("data-locked")) === "true") await setDiagramLock(page, name, false);
+
+  await deleteItem(page, item, name);
+}
+
+export async function deleteFolder(page: Page, name: string) {
+  await deleteItem(page, folderItem(page, name), name);
+}
+
+export async function removeItemsCreatedHere(page: Page) {
+  const folders = foldersByPage.get(page) ?? [];
+  const diagrams = createdByPage.get(page) ?? [];
+  foldersByPage.delete(page);
   createdByPage.delete(page);
 
-  for (const name of created) {
+  await goToRoot(page);
+
+  for (const name of folders) {
+    if ((await folderItem(page, name).count()) > 0) await deleteFolder(page, name);
+  }
+
+  for (const name of diagrams) {
     if ((await diagramItem(page, name).count()) > 0) await deleteDiagram(page, name);
   }
 }

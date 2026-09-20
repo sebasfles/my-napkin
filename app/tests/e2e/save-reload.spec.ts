@@ -7,14 +7,14 @@ import {
   openApp,
   pasteImage,
   redPixelsOnCanvas,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   saveIndicator,
   savedText,
 } from "./helpers";
 
 test.describe("save and reload", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("saves a drawing on its own and brings it back after a reload", async ({ page }) => {

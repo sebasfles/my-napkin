@@ -127,3 +127,25 @@ Nothing in `docs/PRD.md`: folders arrive in phase 2.
 Nothing was resolved: no debt this phase touched had an entry to close.
 
 ## Result
+
+Merged as PR #12 on 2026-09-20, three rounds plus the documentation commit, `b6eeee7` to `94f0c86`.
+Everything in this phase's Scope shipped and every acceptance point holds: the typeface is self-hosted, light and dark are complete, the item menu carries Rename, Lock, Info and Delete, and the metadata fields are written by the browser on every save.
+
+Deviations from the plan, all agreed before they were built:
+
+- The typeface comes from the `geist` package rather than `next/font` reaching a font host, so no build depends on a third party being up.
+- Rename in place was removed rather than kept, so a diagram is renamed in one way only.
+- The lock is enforced by the server at two points, not only in the browser: a condition on `lockedAt` for the scene PATCH and a read-only signature from `/urls`. The plan had only the client side.
+- `touch(id, name)` became `update(id, changes)`, so a rename or a lock no longer moves `updatedAt`.
+
+Debt created, one row in `docs/ARD.md`: a presigned upload handed out before a lock stays valid for the rest of its five minutes, so a tab already holding one can still overwrite the scene object, though its PATCH is refused and no timestamp or counter moves.
+
+What phase 2 must know:
+
+- The item menu is `modal={false}` and the three dialogs are mounted for the life of the sidebar with `open` driven by state. Both are load bearing: a modal menu that opens a dialog leaves `pointer-events: none` on the body and the whole app stops responding until a reload. The e2e suite failed 16 of 35 on it. Any menu or dialog phase 2 adds, on folder rows or for "Move to", follows the same shape, and `ard.md` carries the reason.
+- The dialogs keep their local state until Radix finishes the exit animation, about 200ms, so reopening one on a different item inside that window would show the previous input. Harmless with three dialogs and two clicks; when "Move to" makes a fourth, key the dialog bodies by item id rather than rely on nobody clicking that fast.
+- `GET /api/diagrams` still returns diagrams only. Once folders share the table, every consumer of that list has to filter by kind, `HomeRedirect` included, or `/` will try to open a folder as a diagram.
+- `PATCH` takes one intent per request and answers 400 to a body that changes nothing, 409 when a scene write is refused for a lock. `parentId` and `pinned` join the same parser in `src/lib/diagram-changes.ts`, which is pure and unit tested.
+- A locked diagram is read only, not immovable: Rename and Move stay allowed, Delete asks for the unlock first.
+- The e2e suite runs against the real dev table, so a spec that creates a folder deletes it, and a failing run leaves rows behind. Phase 1's first real run left 20 and they had to be cleaned by hand through the app.
+- `app/.env.local` is a gitignored symlink in the worktree and the suite needs it. It survives the branch switch; nothing in the tree references it.

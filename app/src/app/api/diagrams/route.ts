@@ -1,33 +1,41 @@
 import { NextResponse } from "next/server";
-import type { Diagram } from "@/lib/diagrams";
-import { diagramRepository } from "@/lib/dynamo";
+import { isFolder, type Item } from "@/lib/diagrams";
+import { itemRepository } from "@/lib/dynamo";
+import { newItem } from "@/lib/item-changes";
 import { sceneStore } from "@/lib/s3";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const diagrams = await diagramRepository.list();
-  return NextResponse.json({ diagrams }, { headers: { "cache-control": "no-store" } });
+  const items = await itemRepository.list();
+  return NextResponse.json({ items }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
-  const name = nameFrom(await request.json().catch(() => null));
-  if (name === null) {
-    return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 });
+  const parsed = newItem(await request.json().catch(() => null));
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
+  const { name, kind, parentId } = parsed.item;
+
+  if (parentId !== null) {
+    const parent = await itemRepository.get(parentId);
+    if (parent === null || !isFolder(parent)) {
+      return NextResponse.json({ error: "parentId must be an existing folder" }, { status: 400 });
+    }
   }
 
   const now = new Date().toISOString();
-  const diagram: Diagram = { id: crypto.randomUUID(), name, createdAt: now, updatedAt: now };
+  const item: Item = {
+    id: crypto.randomUUID(),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    ...(kind === "folder" ? { kind } : {}),
+    ...(parentId === null ? {} : { parentId }),
+  };
 
-  await sceneStore.createEmpty(diagram.id);
-  await diagramRepository.create(diagram);
+  if (kind === "diagram") await sceneStore.createEmpty(item.id);
+  await itemRepository.create(item);
 
-  return NextResponse.json({ diagram }, { status: 201 });
-}
-
-function nameFrom(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null;
-  const { name } = body as { name?: unknown };
-  if (typeof name !== "string" || name.trim().length === 0) return null;
-  return name.trim();
+  return NextResponse.json({ item }, { status: 201 });
 }

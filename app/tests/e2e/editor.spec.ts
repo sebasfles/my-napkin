@@ -4,21 +4,21 @@ import {
   drawRectangle,
   newDiagram,
   openApp,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   saveIndicator,
   savedText,
 } from "./helpers";
 
 test.describe("editor shell", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("shows the diagram list next to the editor canvas", async ({ page }) => {
     await openApp(page);
 
     await expect(page.getByTestId("sidebar")).toBeVisible();
-    await expect(page.getByTestId("diagram-list")).toBeVisible();
+    await expect(page.getByTestId("item-list")).toBeVisible();
     await expect(activeItem(page)).toHaveCount(1);
     await expect(page.locator("canvas").last()).toBeVisible();
   });

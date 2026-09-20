@@ -8,13 +8,13 @@ import {
   newDiagram,
   openApp,
   openItemMenu,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   renameDiagram,
 } from "./helpers";
 
 test.describe("diagram list", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("opens a diagram on first load, and never leaves the user without one", async ({ page }) => {

@@ -10,36 +10,49 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { createDiagram, deleteDiagram, fetchDiagrams, lockDiagram, renameDiagram } from "@/lib/api";
+import {
+  createDiagram,
+  createFolder,
+  deleteItem,
+  fetchItems,
+  lockDiagram,
+  moveItem,
+  pinDiagram,
+  renameItem,
+} from "@/lib/api";
 import { defaultDiagramName } from "@/lib/diagram-name";
-import { byUpdatedAtDesc, type Diagram } from "@/lib/diagrams";
+import { isDiagram, type Diagram, type Folder, type Item, type ParentId } from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
+import { subtree } from "@/lib/tree";
 
 export interface SaveReport {
   id: string;
   status: SaveStatus;
 }
 
-interface DiagramsValue {
-  diagrams: Diagram[];
+interface WorkspaceValue {
+  items: Item[];
   loading: boolean;
   failed: boolean;
   reload: () => void;
-  create: () => Promise<Diagram>;
+  create: (parentId: ParentId) => Promise<Diagram>;
+  createFolder: (name: string, parentId: ParentId) => Promise<Folder>;
   rename: (id: string, name: string) => Promise<void>;
+  move: (id: string, parentId: ParentId) => Promise<void>;
+  setPinned: (id: string, pinned: boolean) => Promise<void>;
   setLock: (id: string, locked: boolean) => Promise<void>;
   registerSaver: (id: string, settle: () => Promise<void>) => () => void;
-  remove: (id: string) => Promise<void>;
+  remove: (id: string) => Promise<string[]>;
   markSaved: (diagram: Diagram) => void;
   isDeleted: (id: string) => boolean;
   saveStatus: SaveReport | null;
   reportSave: (id: string, status: SaveStatus) => void;
 }
 
-const DiagramsContext = createContext<DiagramsValue | null>(null);
+const WorkspaceContext = createContext<WorkspaceValue | null>(null);
 
-export function DiagramsProvider({ children }: { children: ReactNode }) {
-  const [diagrams, setDiagrams] = useState<Diagram[]>([]);
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<Item[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [attempt, setAttempt] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveReport | null>(null);
@@ -49,10 +62,10 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    fetchDiagrams()
+    fetchItems()
       .then((loaded) => {
         if (!active) return;
-        setDiagrams(loaded);
+        setItems(loaded);
         setState("ready");
       })
       .catch(() => {
@@ -69,20 +82,29 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
     setAttempt((value) => value + 1);
   }, []);
 
-  const create = useCallback(async () => {
-    const name = defaultDiagramName(
-      new Date(),
-      diagrams.map((diagram) => diagram.name),
-    );
-    const created = await createDiagram(name);
-    setDiagrams((current) => [created, ...current].sort(byUpdatedAtDesc));
-    return created;
-  }, [diagrams]);
+  const create = useCallback(
+    async (parentId: ParentId) => {
+      const name = defaultDiagramName(
+        new Date(),
+        items.filter(isDiagram).map((diagram) => diagram.name),
+      );
+      const created = await createDiagram(name, parentId);
+      setItems((current) => [created, ...current]);
 
-  const merge = useCallback((id: string, fields: Partial<Diagram>) => {
-    setDiagrams((current) =>
-      current.map((item) => (item.id === id ? { ...item, ...fields } : item)).sort(byUpdatedAtDesc),
-    );
+      return created;
+    },
+    [items],
+  );
+
+  const addFolder = useCallback(async (name: string, parentId: ParentId) => {
+    const created = await createFolder(name, parentId);
+    setItems((current) => [created, ...current]);
+
+    return created;
+  }, []);
+
+  const merge = useCallback((id: string, fields: Partial<Item>) => {
+    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...fields } : item)));
   }, []);
 
   const reportSave = useCallback((id: string, status: SaveStatus) => {
@@ -91,8 +113,24 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
 
   const rename = useCallback(
     async (id: string, name: string) => {
-      const renamed = await renameDiagram(id, name);
+      const renamed = await renameItem(id, name);
       merge(id, { name: renamed.name });
+    },
+    [merge],
+  );
+
+  const move = useCallback(
+    async (id: string, parentId: ParentId) => {
+      const moved = await moveItem(id, parentId);
+      merge(id, { parentId: moved.parentId });
+    },
+    [merge],
+  );
+
+  const setPinned = useCallback(
+    async (id: string, pinned: boolean) => {
+      const updated = await pinDiagram(id, pinned);
+      merge(id, { pinnedAt: updated.pinnedAt });
     },
     [merge],
   );
@@ -126,29 +164,40 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
     [merge],
   );
 
-  const remove = useCallback(async (id: string) => {
-    deleted.current.add(id);
+  const remove = useCallback(
+    async (id: string) => {
+      const doomed = subtree(items, id).map((item) => item.id);
+      const gone = doomed.length > 0 ? doomed : [id];
 
-    try {
-      await deleteDiagram(id);
-    } catch (error) {
-      deleted.current.delete(id);
-      throw error;
-    }
+      for (const memberId of gone) deleted.current.add(memberId);
 
-    setDiagrams((current) => current.filter((item) => item.id !== id));
-  }, []);
+      try {
+        await deleteItem(id);
+      } catch (error) {
+        for (const memberId of gone) deleted.current.delete(memberId);
+        throw error;
+      }
+
+      setItems((current) => current.filter((item) => !gone.includes(item.id)));
+
+      return gone;
+    },
+    [items],
+  );
 
   const isDeleted = useCallback((id: string) => deleted.current.has(id), []);
 
   const value = useMemo(
     () => ({
-      diagrams,
+      items,
       loading: state === "loading",
       failed: state === "failed",
       reload,
       create,
+      createFolder: addFolder,
       rename,
+      move,
+      setPinned,
       setLock,
       registerSaver,
       remove,
@@ -158,10 +207,12 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
       reportSave,
     }),
     [
+      addFolder,
       create,
-      diagrams,
       isDeleted,
+      items,
       markSaved,
+      move,
       registerSaver,
       reload,
       remove,
@@ -169,15 +220,16 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
       reportSave,
       saveStatus,
       setLock,
+      setPinned,
       state,
     ],
   );
 
-  return <DiagramsContext.Provider value={value}>{children}</DiagramsContext.Provider>;
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
-export function useDiagrams(): DiagramsValue {
-  const value = useContext(DiagramsContext);
-  if (!value) throw new Error("useDiagrams must be used inside DiagramsProvider");
+export function useWorkspace(): WorkspaceValue {
+  const value = useContext(WorkspaceContext);
+  if (!value) throw new Error("useWorkspace must be used inside WorkspaceProvider");
   return value;
 }

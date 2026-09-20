@@ -5,7 +5,7 @@ import {
   newDiagram,
   openApp,
   openItemMenu,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   renameDiagram,
   saveFailedText,
   saveIndicator,
@@ -40,7 +40,7 @@ function watchWrites(page: Page): string[] {
 
 test.describe("diagram item menu", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("renaming a diagram does not count as editing it", async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe("diagram item menu", () => {
     await expect(firstRow, "a rename must not move a diagram to the top").toContainText(newer);
 
     await page.reload();
-    await expect(page.getByTestId("diagram-list")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("item-list")).toBeVisible({ timeout: 30_000 });
     await expect(
       page.getByTestId("diagram-item").first(),
       "and the stored order must agree after a reload",
