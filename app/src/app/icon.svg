@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <style>
+    .plate { fill: #3668b1 }
+    .mark { stroke: #fcfcfa }
+    @media (prefers-color-scheme: dark) {
+      .plate { fill: #77a6ec }
+      .mark { stroke: #10141d }
+    }
+  </style>
+  <rect class="plate" width="32" height="32" rx="7" />
+  <g
+    class="mark"
+    fill="none"
+    stroke-width="2.3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    transform="translate(4 4)"
+  >
+    <path d="M4.6 5.3c0-.6.4-1 1-1.05 4.3-.3 8.6-.3 12.9 0 .6.05 1 .45 1 1.05.15 2.9.17 5.8.05 8.7l-5.6 5.65c-2.7.2-5.5.2-8.3 0-.6-.05-1-.45-1.02-1.05C4.4 14.2 4.4 9.75 4.6 5.3Z" />
+    <path d="M19.55 14c-1.7-.15-3.4-.12-5.1.1-.5.07-.85.42-.9.92-.2 1.55-.22 3.1-.1 4.63" />
+  </g>
+</svg>

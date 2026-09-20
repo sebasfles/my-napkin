@@ -21,33 +21,36 @@ import type { SceneSaver } from "@/lib/scene-save";
 import { resolveTheme } from "@/lib/theme";
 import { useSceneSave } from "@/lib/use-scene-save";
 import { useTabs } from "@/lib/use-tabs";
+import { cn } from "@/lib/utils";
 
 const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
 });
 
+interface LoadedScene {
+  id: string;
+  scene: Scene;
+  urls: SceneAccess;
+}
+
 export function Editor({ diagramId }: { diagramId: string }) {
   const t = useTranslations("editor");
   const router = useRouter();
   const { items, failed: listFailed } = useWorkspace();
-  const [loaded, setLoaded] = useState<{ scene: Scene; urls: SceneAccess } | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  const cached = items.find((item) => item.id === diagramId) ?? null;
-  const cachedLock = cached !== null && isDiagram(cached) ? isLocked(cached) : null;
-  const locked = cachedLock ?? loaded?.urls.locked ?? true;
+  const [loaded, setLoaded] = useState<LoadedScene | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     loadScene(diagramId)
       .then((result) => {
-        if (active) setLoaded(result);
+        if (active) setLoaded({ id: diagramId, ...result });
       })
       .catch((error: unknown) => {
         if (!active) return;
         if (error instanceof NotFoundError) router.replace("/");
-        else setFailed(true);
+        else setFailed(diagramId);
       });
 
     return () => {
@@ -55,18 +58,32 @@ export function Editor({ diagramId }: { diagramId: string }) {
     };
   }, [diagramId, router]);
 
+  const shown = failed === diagramId ? null : loaded;
+  const stale = shown !== null && shown.id !== diagramId;
+
+  const cached = shown === null ? null : (items.find((item) => item.id === shown.id) ?? null);
+  const cachedLock = cached !== null && isDiagram(cached) ? isLocked(cached) : null;
+  const locked = cachedLock ?? shown?.urls.locked ?? true;
+
   return (
     <div className="h-full w-full" data-testid="editor">
-      {loaded ? (
-        <EditorCanvas
-          diagramId={diagramId}
-          scene={loaded.scene}
-          urls={loaded.urls}
-          locked={locked}
-        />
+      {shown ? (
+        <div
+          className={cn("h-full w-full", stale && "pointer-events-none")}
+          data-testid="editor-scene"
+          data-stale={stale}
+        >
+          <EditorCanvas
+            key={shown.id}
+            diagramId={shown.id}
+            scene={shown.scene}
+            urls={shown.urls}
+            locked={locked}
+          />
+        </div>
       ) : (
         <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          {failed || listFailed ? t("loadFailed") : t("loading")}
+          {failed !== null || listFailed ? t("loadFailed") : t("loading")}
         </p>
       )}
     </div>

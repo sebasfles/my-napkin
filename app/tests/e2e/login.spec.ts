@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { sessionCookieName } from "@/lib/session";
-import { diagramUrl, e2ePassword, login } from "./helpers";
+import { e2ePassword, emptyWorkspace, login, openApp } from "./helpers";
 
 const passwordField = (page: Page) => page.getByLabel("Password");
 const submitButton = (page: Page) => page.getByRole("button", { name: "Enter" });
@@ -44,15 +44,13 @@ test.describe("login", () => {
     page,
     context,
   }) => {
-    await login(page);
-    await page.goto("/");
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    const diagram = new URL(page.url()).pathname;
+    await openApp(page);
+    await expect(emptyWorkspace(page)).toBeVisible();
     await context.clearCookies();
 
-    await page.goto(`${diagram}?panel=open`);
+    await page.goto("/?panel=open");
     await expect(page).toHaveURL(/\/login\?next=/);
-    expect(new URL(page.url()).searchParams.get("next")).toBe(`${diagram}?panel=open`);
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/?panel=open");
 
     await signIn(page, e2ePassword());
 
@@ -61,8 +59,8 @@ test.describe("login", () => {
         const landed = new URL(page.url());
         return `${landed.pathname}${landed.search}`;
       })
-      .toBe(`${diagram}?panel=open`);
-    await expect(page.locator(".excalidraw")).toBeVisible();
+      .toBe("/?panel=open");
+    await expect(emptyWorkspace(page)).toBeVisible();
 
     const cookie = (await context.cookies()).find(({ name }) => name === sessionCookieName);
     expect(cookie).toBeDefined();
@@ -76,7 +74,7 @@ test.describe("login", () => {
     expect(cookie!.expires).toBeLessThanOrEqual(thirtyDaysAway);
 
     await page.reload();
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expect(emptyWorkspace(page)).toBeVisible();
   });
 
   test("ignores a next that points off this origin", async ({ page }) => {
@@ -84,15 +82,14 @@ test.describe("login", () => {
 
     await signIn(page, e2ePassword());
 
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
     await expect(page).not.toHaveURL(/evil\.example\.com/);
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expect(page).toHaveURL(/\/$/, { timeout: 30_000 });
+    await expect(emptyWorkspace(page)).toBeVisible();
   });
 
   test("closes the session from the sidebar", async ({ page, context }) => {
-    await login(page);
-    await page.goto("/");
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await openApp(page);
+    await expect(emptyWorkspace(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Log out" }).click();
 
@@ -109,16 +106,14 @@ test.describe("login", () => {
     page,
     context,
   }) => {
-    await login(page);
-    await page.goto("/");
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    const diagram = new URL(page.url()).pathname;
+    await openApp(page);
+    await expect(emptyWorkspace(page)).toBeVisible();
 
     await context.clearCookies();
     await page.getByTestId("diagram-new").click();
 
     await expect(page).toHaveURL(/\/login\?next=/, { timeout: 30_000 });
-    expect(new URL(page.url()).searchParams.get("next")).toBe(diagram);
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/");
     await expect(passwordField(page)).toBeVisible();
   });
 

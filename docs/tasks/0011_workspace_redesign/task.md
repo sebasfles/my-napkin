@@ -5,11 +5,11 @@ type: feature
 branch:
 modules: [app]
 repos: ["."]
-phases: 3
+phases: 4
 depends_on: []
 ticket:
 created: 2026-09-19
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 
 # 0011 Workspace redesign: a beautiful shell with folders, pins and tabs

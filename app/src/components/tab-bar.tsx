@@ -50,21 +50,25 @@ export function TabBar() {
       event.preventDefault();
       event.stopPropagation();
 
+      const active = openDiagramId(window.location.pathname);
+
       if (command.kind === "close") {
-        if (activeId !== null) goTo(close(activeId, activeId));
+        if (active !== null) goTo(close(active, active));
         return;
       }
 
       const target =
         command.kind === "jump"
           ? tabAt(tabs, command.index)
-          : tabBeside(tabs, activeId, command.delta);
-      if (target !== null && target !== activeId) goTo(target);
+          : tabBeside(tabs, active, command.delta);
+      if (target !== null && target !== active) goTo(target);
     };
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [activeId, close, goTo, tabs]);
+  }, [close, goTo, tabs]);
+
+  if (tabs.ids.length === 0) return null;
 
   const openDiagrams = tabs.ids
     .map((id) => items.find((item) => item.id === id))

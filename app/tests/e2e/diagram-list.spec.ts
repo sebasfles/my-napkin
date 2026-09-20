@@ -3,11 +3,12 @@ import {
   activeItem,
   deleteDiagram,
   diagramItem,
-  diagramUrl,
   drawRectangle,
+  emptyWorkspace,
   login,
   newDiagram,
   openApp,
+  openDiagram,
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
@@ -20,34 +21,40 @@ test.describe("diagram list", () => {
     await removeItemsCreatedHere(page);
   });
 
-  test("opens a diagram on first load, and never leaves the user without one", async ({ page }) => {
+  test("opens nothing on first load and creates no diagram of its own", async ({ page }) => {
     await login(page);
     await page.goto("/");
 
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    await expect(page.locator(".excalidraw")).toBeVisible({ timeout: 30_000 });
-    await expect(activeItem(page)).toHaveCount(1);
+    await expect(emptyWorkspace(page)).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator(".excalidraw")).toHaveCount(0);
+    await expect(activeItem(page)).toHaveCount(0);
   });
 
-  test("opens the most recently updated diagram", async ({ page }) => {
+  test("leaves the user on the empty state even when diagrams already exist", async ({ page }) => {
     await openApp(page);
-    await newDiagram(page, "older");
-    const newest = await newDiagram(page, "newest");
+    const existing = await newDiagram(page, "existing");
 
     await page.goto("/");
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    await expect(activeItem(page)).toContainText(newest);
+
+    await expect(emptyWorkspace(page)).toBeVisible({ timeout: 30_000 });
+    await expect(
+      diagramItem(page, existing),
+      "the diagrams are listed, none of them is opened for the user",
+    ).toBeVisible();
+    await expect(activeItem(page)).toHaveCount(0);
   });
 
-  test("sends the user back to a real diagram when the id is unknown", async ({ page }) => {
+  test("sends the user to the empty state when the id in the address is unknown", async ({
+    page,
+  }) => {
     const unknown = "00000000-0000-4000-8000-000000000000";
 
     await login(page);
     await page.goto(`/d/${unknown}`);
 
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
+    await expect(emptyWorkspace(page)).toBeVisible({ timeout: 30_000 });
     await expect(page).not.toHaveURL(new RegExp(unknown));
-    await expect(page.locator(".excalidraw")).toBeVisible();
   });
 
   test("creates a diagram, opens it and lists it first", async ({ page }) => {
@@ -118,7 +125,7 @@ test.describe("diagram list", () => {
     await expect(diagramItem(page, name)).toBeVisible();
   });
 
-  test("deletes the open diagram after the confirmation and opens another one", async ({
+  test("deletes the open diagram after the confirmation and leaves nothing open", async ({
     page,
   }) => {
     await openApp(page);
@@ -127,9 +134,13 @@ test.describe("diagram list", () => {
 
     await deleteDiagram(page, removed);
 
-    await expect(page).toHaveURL(diagramUrl, { timeout: 30_000 });
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expect(emptyWorkspace(page), "the only open tab went with it").toBeVisible({
+      timeout: 30_000,
+    });
     await expect(diagramItem(page, kept)).toBeVisible();
-    await expect(activeItem(page)).toHaveCount(1);
+    await expect(activeItem(page)).toHaveCount(0);
+
+    await openDiagram(page, kept);
+    await expect(page.locator(".excalidraw")).toBeVisible();
   });
 });

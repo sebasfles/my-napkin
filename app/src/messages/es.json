@@ -6,6 +6,10 @@
   "sidebar": {
     "title": "my-napkin",
     "diagrams": "Diagramas",
+    "collapse": "Contraer la barra lateral",
+    "expand": "Desplegar la barra lateral",
+    "libraries": "Bibliotecas",
+    "comingSoon": "Próximamente",
     "pinned": "Fijados",
     "newDiagram": "Nuevo diagrama",
     "newFolder": "Nueva carpeta",
@@ -70,6 +74,9 @@
   },
   "editor": {
     "loading": "Cargando",
+    "emptyTitle": "Nada abierto",
+    "emptyBody": "Elige un diagrama de la barra lateral, o empieza uno nuevo.",
+    "newDiagram": "Nuevo diagrama",
     "loadFailed": "No se pudo cargar este diagrama",
     "createFailed": "No se pudo crear el diagrama",
     "retry": "Reintentar",

@@ -3,6 +3,7 @@ import type { Diagram, Folder, Item } from "@/lib/diagrams";
 import {
   canMoveInto,
   childrenOf,
+  currentFolder,
   folderChoices,
   pathTo,
   pinnedDiagrams,
@@ -197,5 +198,20 @@ describe("folderChoices", () => {
     expect(folderChoices(workspace(), "trips").map((choice) => choice.folder.id)).toEqual([
       "archive",
     ]);
+  });
+});
+
+describe("currentFolder", () => {
+  it("keeps the folder the sidebar is in while it exists", () => {
+    expect(currentFolder(workspace(), "japan")).toBe("japan");
+  });
+
+  it("falls back to the root when the folder is gone", () => {
+    expect(currentFolder(workspace(), "deleted")).toBeNull();
+    expect(currentFolder(workspace(), null)).toBeNull();
+  });
+
+  it("falls back to the root when the id names a diagram", () => {
+    expect(currentFolder(workspace(), "kyoto")).toBeNull();
   });
 });

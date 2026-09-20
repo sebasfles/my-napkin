@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Folder, ParentId } from "@/lib/diagrams";
 
 const visibleCrumbs = 2;
@@ -34,9 +35,9 @@ export function FolderBreadcrumbs({
   const shown = path.slice(hidden.length);
 
   return (
-    <Breadcrumb data-testid="breadcrumbs">
-      <BreadcrumbList className="flex-nowrap gap-1 text-xs">
-        <BreadcrumbItem>
+    <Breadcrumb data-testid="breadcrumbs" className="min-w-0">
+      <BreadcrumbList className="flex-nowrap gap-1 overflow-hidden text-xs">
+        <BreadcrumbItem className="shrink-0">
           {path.length === 0 ? (
             <BreadcrumbPage
               className="text-xs font-medium tracking-wider uppercase"
@@ -50,7 +51,7 @@ export function FolderBreadcrumbs({
                 type="button"
                 data-testid="crumb-root"
                 onClick={() => onNavigate(null)}
-                className="shrink-0 cursor-pointer text-xs font-medium tracking-wider uppercase outline-none focus-visible:underline"
+                className="cursor-pointer text-xs font-medium tracking-wider uppercase outline-none focus-visible:underline"
               >
                 {t("diagrams")}
               </button>
@@ -60,8 +61,8 @@ export function FolderBreadcrumbs({
 
         {hidden.length > 0 ? (
           <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
+            <BreadcrumbSeparator className="shrink-0" />
+            <BreadcrumbItem className="shrink-0">
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -76,7 +77,7 @@ export function FolderBreadcrumbs({
                 <DropdownMenuContent align="start" className="w-48">
                   {hidden.map((folder) => (
                     <DropdownMenuItem key={folder.id} onSelect={() => onNavigate(folder.id)}>
-                      {folder.name}
+                      <span className="truncate">{folder.name}</span>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -87,24 +88,29 @@ export function FolderBreadcrumbs({
 
         {shown.map((folder, index) => (
           <Fragment key={folder.id}>
-            <BreadcrumbSeparator />
+            <BreadcrumbSeparator className="shrink-0" />
             <BreadcrumbItem className="min-w-0">
-              {index === shown.length - 1 ? (
-                <BreadcrumbPage className="truncate font-medium" data-testid="crumb-current">
-                  {folder.name}
-                </BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <button
-                    type="button"
-                    data-testid="crumb"
-                    onClick={() => onNavigate(folder.id)}
-                    className="max-w-24 shrink-0 cursor-pointer truncate outline-none focus-visible:underline"
-                  >
-                    {folder.name}
-                  </button>
-                </BreadcrumbLink>
-              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {index === shown.length - 1 ? (
+                    <BreadcrumbPage className="truncate font-medium" data-testid="crumb-current">
+                      {folder.name}
+                    </BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <button
+                        type="button"
+                        data-testid="crumb"
+                        onClick={() => onNavigate(folder.id)}
+                        className="max-w-24 cursor-pointer truncate outline-none focus-visible:underline"
+                      >
+                        {folder.name}
+                      </button>
+                    </BreadcrumbLink>
+                  )}
+                </TooltipTrigger>
+                <TooltipContent data-testid="crumb-tooltip">{folder.name}</TooltipContent>
+              </Tooltip>
             </BreadcrumbItem>
           </Fragment>
         ))}

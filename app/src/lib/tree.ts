@@ -51,6 +51,10 @@ export function pathTo(items: Item[], folderId: ParentId): Folder[] | null {
   return path;
 }
 
+export function currentFolder(items: Item[], folderId: ParentId): ParentId {
+  return pathTo(items, folderId) === null ? null : folderId;
+}
+
 export function subtree(items: Item[], id: string): Item[] {
   const root = items.find((item) => item.id === id);
   if (root === undefined) return [];

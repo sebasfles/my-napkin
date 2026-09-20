@@ -16,6 +16,7 @@ test.describe("editor shell", () => {
 
   test("shows the diagram list next to the editor canvas", async ({ page }) => {
     await openApp(page);
+    await newDiagram(page, "shell list");
 
     await expect(page.getByTestId("sidebar")).toBeVisible();
     await expect(page.getByTestId("item-list")).toBeVisible();
@@ -44,6 +45,7 @@ test.describe("editor shell", () => {
     test(`leaves the canvas uncovered by the sidebar at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await openApp(page);
+      await newDiagram(page, `shell ${width}`);
 
       const sidebar = await page.getByTestId("sidebar").boundingBox();
       const canvas = await page.locator("canvas").last().boundingBox();

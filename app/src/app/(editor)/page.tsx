@@ -1,5 +1,5 @@
-import { HomeRedirect } from "@/components/home-redirect";
+import { EmptyWorkspace } from "@/components/empty-workspace";
 
 export default function HomePage() {
-  return <HomeRedirect />;
+  return <EmptyWorkspace />;
 }
