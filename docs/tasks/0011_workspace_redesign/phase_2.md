@@ -74,4 +74,21 @@ I swept it through the app's own UI with a throwaway spec and removed the spec.
 This round's own suite left nothing behind: the sweep ran right after a full run that created about twenty diagrams and eight folders, and found only that one.
 Screenshots, light and dark, are in `{{workspace}}/screenshots/`, never committed: a nested folder with its breadcrumbs, the Pinned section, the folder menu, the Move to dialog, the folder delete confirmation and Info with its new rows.
 
+### Round 2
+
+Both findings applied.
+
+1. The save indicator is back behind the `activeId` guard, in one `statusOf(id)` the two lists share rather than the expression repeated twice that let them drift in the first place.
+   I had dropped the guard when I gave the Pinned rows a status, which is exactly the kind of quiet regression the finding describes: `saveStatus` is never cleared, so the row of a diagram nobody is editing went on reporting "Saved" in place of its last-edited time.
+   `diagram-list.spec.ts` now draws in one diagram, opens another, and asserts no `save-indicator` is on the page at all.
+   I checked that it fails for the right reason before restoring the fix: with the guard removed it stops on "the row of a diagram nobody is editing must not claim it just saved", not on a timeout somewhere else.
+2. `subtreeCounts` counts the locked diagrams inside, and the folder confirmation names them in both locales: "1 diagram inside is locked and will be deleted anyway."
+   The button still deletes, and the cascade is unchanged.
+
+Beyond the wording the finding asked for, the confirmation's copy is now three keys instead of one, so the sentences can be ordered by what the user needs first: what the folder holds, then the protection being bypassed, then that it cannot be undone.
+Appending the locked sentence to the existing message put the most important warning after "This cannot be undone.", which read as an afterthought.
+`deleteFolderBody` carries the count, `deleteFolderLocked` the lock, `deleteFolderWarning` the finality, and `DeleteDialog` joins the ones that apply.
+
+The full suite ran again after that copy change; `5-folder-delete-light.png` and `-dark.png` were retaken and now show a folder holding a locked diagram.
+
 ## Result

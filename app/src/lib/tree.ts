@@ -3,6 +3,7 @@ import {
   byUpdatedAtDesc,
   isDiagram,
   isFolder,
+  isLocked,
   parentOf,
   type Diagram,
   type Folder,
@@ -74,14 +75,17 @@ export function subtree(items: Item[], id: string): Item[] {
 export interface SubtreeCounts {
   folders: number;
   diagrams: number;
+  locked: number;
 }
 
 export function subtreeCounts(items: Item[], folderId: string): SubtreeCounts {
   const inside = subtree(items, folderId).filter((item) => item.id !== folderId);
+  const diagrams = inside.filter(isDiagram);
 
   return {
     folders: inside.filter(isFolder).length,
-    diagrams: inside.filter(isDiagram).length,
+    diagrams: diagrams.length,
+    locked: diagrams.filter(isLocked).length,
   };
 }
 

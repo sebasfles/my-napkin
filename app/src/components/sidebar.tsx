@@ -69,6 +69,10 @@ export function Sidebar() {
   const contents = childrenOf(items, here);
   const pinned = pinnedDiagrams(items);
 
+  function statusOf(id: string) {
+    return id === activeId && saveStatus?.id === id ? saveStatus.status : null;
+  }
+
   function show(kind: Exclude<OpenDialog["kind"], "newFolder">, id: string) {
     setDialog({ kind, id });
     setOpen(true);
@@ -124,7 +128,7 @@ export function Sidebar() {
                   <DiagramRow
                     diagram={diagram}
                     active={diagram.id === activeId}
-                    status={saveStatus?.id === diagram.id ? saveStatus.status : null}
+                    status={statusOf(diagram.id)}
                     onRename={() => show("name", diagram.id)}
                     onTogglePin={() => void attempt(() => setPinned(diagram.id, false))}
                     onMove={() => show("move", diagram.id)}
@@ -208,7 +212,7 @@ export function Sidebar() {
                   <DiagramRow
                     diagram={diagram}
                     active={diagram.id === activeId}
-                    status={saveStatus?.id === diagram.id ? saveStatus.status : null}
+                    status={statusOf(diagram.id)}
                     onRename={() => show("name", diagram.id)}
                     onTogglePin={() =>
                       void attempt(() => setPinned(diagram.id, !isPinned(diagram)))

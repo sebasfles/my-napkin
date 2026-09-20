@@ -311,6 +311,19 @@ export function DeleteDialog({
   const name = item?.name ?? "";
   const counts = item && isFolder(item) ? subtreeCounts(items, item.id) : null;
 
+  function body(): string {
+    if (locked) return t("deleteLockedBody", { name });
+    if (counts === null) return t("deleteBody", { name });
+
+    return [
+      t("deleteFolderBody", { name, diagrams: counts.diagrams, folders: counts.folders }),
+      counts.locked > 0 ? t("deleteFolderLocked", { locked: counts.locked }) : null,
+      t("deleteFolderWarning"),
+    ]
+      .filter((sentence) => sentence !== null)
+      .join(" ");
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent data-testid="delete-dialog">
@@ -318,17 +331,7 @@ export function DeleteDialog({
           <AlertDialogTitle>
             {locked ? t("deleteLockedTitle") : counts ? t("deleteFolderTitle") : t("deleteTitle")}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {locked
-              ? t("deleteLockedBody", { name })
-              : counts
-                ? t("deleteFolderBody", {
-                    name,
-                    diagrams: counts.diagrams,
-                    folders: counts.folders,
-                  })
-                : t("deleteBody", { name })}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{body()}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel data-testid="delete-cancel">

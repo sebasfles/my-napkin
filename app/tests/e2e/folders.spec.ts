@@ -12,6 +12,7 @@ import {
   openFolder,
   openItemMenu,
   removeItemsCreatedHere,
+  setDiagramLock,
 } from "./helpers";
 
 const awsTimeout = 30_000;
@@ -129,6 +130,7 @@ test.describe("folders", () => {
     await openFolder(page, folder);
     const inside = await newDiagram(page, "folders doomed inside");
     await newFolder(page, "folders doomed child");
+    await setDiagramLock(page, inside, true);
     await goToRoot(page);
 
     await openItemMenu(page, folderItem(page, folder));
@@ -138,6 +140,9 @@ test.describe("folders", () => {
     await expect(dialog).toContainText(folder);
     await expect(dialog, "the confirmation counts what is inside").toContainText("1 diagram");
     await expect(dialog).toContainText("1 folder");
+    await expect(dialog, "and names the protection the cascade is about to bypass").toContainText(
+      "1 diagram inside is locked and will be deleted anyway.",
+    );
 
     await page.getByTestId("delete-confirm").click();
 

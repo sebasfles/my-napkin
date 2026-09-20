@@ -144,8 +144,17 @@ describe("subtree", () => {
 
 describe("subtreeCounts", () => {
   it("counts everything inside, at any depth, and never the folder itself", () => {
-    expect(subtreeCounts(workspace(), "trips")).toEqual({ folders: 1, diagrams: 2 });
-    expect(subtreeCounts(workspace(), "archive")).toEqual({ folders: 0, diagrams: 0 });
+    expect(subtreeCounts(workspace(), "trips")).toEqual({ folders: 1, diagrams: 2, locked: 0 });
+    expect(subtreeCounts(workspace(), "archive")).toEqual({ folders: 0, diagrams: 0, locked: 0 });
+  });
+
+  it("counts the locked diagrams inside, so a delete can name the protection it bypasses", () => {
+    const items = workspace().map((item) =>
+      item.id === "kyoto" ? { ...item, lockedAt: at(4) } : item,
+    );
+
+    expect(subtreeCounts(items, "trips")).toMatchObject({ diagrams: 2, locked: 1 });
+    expect(subtreeCounts(items, "japan")).toMatchObject({ diagrams: 1, locked: 1 });
   });
 });
 
