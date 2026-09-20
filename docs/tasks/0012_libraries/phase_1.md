@@ -118,4 +118,29 @@ One failure in this round was not mine and I left it alone.
 The spec has no headroom by construction: its final assertion carries `awsTimeout` of 30_000 while the whole test budget is also 30s, so any slow moment ends the test rather than the step.
 It belongs to 0011 and is not in this diff, so widening its timeout to make this round green was the one thing not to do; the om-reviewer took it to the om-manager as its own task.
 
+### Round 3
+
+The rebase onto 0014 came first: `tab-bar.tsx` conflicted because 0014 moved the global keydown listener into `components/shortcuts.tsx` while this branch had edited that same block, and git offered it as an addition against a deletion, the shape where keeping both looks reasonable.
+Keeping both would have installed two capture-phase listeners on the same chords, which compiles, typechecks and usually still passes a spec, so it would have shipped as an unreproducible double navigation.
+Took 0014's deletion, renamed `openDiagramId` to `openItemId` in their new component, and checked afterwards rather than trusting the resolution: exactly one `addEventListener("keydown"` remains in `app/src`.
+Removing the `comingSoon` hint also orphaned `RailSection`'s `hint` prop, whose only caller it was, so the prop went with it.
+
+Then the suite went red twice on specs this phase does not own, and the second red is the one worth recording, because the artifacts proved it rather than suggesting it.
+
+`page.getByTestId("diagram-item").first()` was unscoped in five places across three spec files.
+The pinned section renders above the folder section from the same `DiagramRow`, carrying the same `data-testid`, so the moment anything is pinned those assertions stop asking "the first row of the list" and start asking "the first diagram row anywhere on the page".
+`save-reload.spec.ts` was the one that failed, and the ordering makes the diagnosis airtight: with `workers=1` the files run alphabetically, `pinning` is tenth, and `save-reload` is the only one of the three that runs after it.
+The failure's own resolution line carries `data-pinned="true"` and the snapshot shows the pinned glyph beside the row.
+The row was `e2e pin inside`, created inside a folder by `pinning.spec.ts` and left behind because `removeItemsCreatedHere` looks for diagrams at the root only.
+The assertion that failed was the one right after creating `newest`, before the test opens anything, so "opening a diagram saves nothing" was never exercised and nothing in the save path was implicated.
+
+All five are now scoped to `itemList(page)`, including the two that alphabetical file order happens to protect today, since file order is not a guarantee.
+This is a correction rather than a workaround: the assertions now say what they already meant, and the suite already contained the correct form twice, in `pinning.spec.ts` and `empty-state.spec.ts`.
+`removeItemsCreatedHere` was deliberately not touched; reaching inside folders changes cleanup for every spec and belongs in its own task, and the scoping removes its effect here anyway, since a diagram orphaned inside a folder is not in the root list.
+
+The other red, `item-menu.spec.ts:46`, is not this and I could not prove it.
+Its row was unpinned, at root, default-named and about a second old, which is what a person creating a diagram on dev looks like and is not what `adoptActiveDiagram` leaves behind, since it renames immediately.
+The suite reads and writes the real dev table, so anyone using `napkin.dev.sdfles.com` writes into the list these specs assert on.
+That one is an argument for isolating the table, not something this phase can fix.
+
 ## Result

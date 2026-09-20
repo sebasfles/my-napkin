@@ -2,14 +2,15 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   diagramItem,
   drawRectangle,
+  itemList,
   newDiagram,
   openApp,
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
+  savedText,
   saveFailedText,
   saveIndicator,
-  savedText,
   setDiagramLock,
 } from "./helpers";
 
@@ -48,7 +49,7 @@ test.describe("diagram item menu", () => {
     const older = await newDiagram(page, "menu rename older");
     const newer = await newDiagram(page, "menu rename newer");
 
-    const firstRow = page.getByTestId("diagram-item").first();
+    const firstRow = itemList(page).getByTestId("diagram-item").first();
     await expect(firstRow, "the list is ordered by last edit, newest first").toContainText(newer);
 
     const renamed = `${older} again`;
@@ -59,7 +60,7 @@ test.describe("diagram item menu", () => {
     await page.reload();
     await expect(page.getByTestId("item-list")).toBeVisible({ timeout: 30_000 });
     await expect(
-      page.getByTestId("diagram-item").first(),
+      itemList(page).getByTestId("diagram-item").first(),
       "and the stored order must agree after a reload",
     ).toContainText(newer);
     await expect(diagramItem(page, renamed)).toBeVisible();

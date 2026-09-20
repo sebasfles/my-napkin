@@ -3,13 +3,14 @@ import {
   diagramItem,
   drawRectangle,
   expectSomethingOnTheCanvas,
+  itemList,
   newDiagram,
   openApp,
   pasteImage,
   redPixelsOnCanvas,
   removeItemsCreatedHere,
-  saveIndicator,
   savedText,
+  saveIndicator,
 } from "./helpers";
 
 test.describe("save and reload", () => {
@@ -56,7 +57,7 @@ test.describe("save and reload", () => {
     await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
 
     const newest = await newDiagram(page, "newest");
-    await expect(page.getByTestId("diagram-item").first()).toContainText(newest);
+    await expect(itemList(page).getByTestId("diagram-item").first()).toContainText(newest);
 
     await diagramItem(page, opened).getByRole("link").click();
     await expect(page.locator(".excalidraw")).toBeVisible();
@@ -67,7 +68,7 @@ test.describe("save and reload", () => {
       await page.waitForTimeout(200);
     }
 
-    await expect(page.getByTestId("diagram-item").first()).toContainText(newest);
+    await expect(itemList(page).getByTestId("diagram-item").first()).toContainText(newest);
   });
 
   test("sends the scene straight to S3, never through the app server, signing only the app's own requests", async ({
