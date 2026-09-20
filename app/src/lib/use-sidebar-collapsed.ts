@@ -1,28 +1,27 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { sidebarCollapsedCookie, sidebarCollapsedMaxAge } from "@/lib/sidebar-cookie";
 
-const storageKey = "napkin.sidebar-collapsed";
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
-  window.addEventListener("storage", listener);
 
   return () => {
     listeners.delete(listener);
-    window.removeEventListener("storage", listener);
   };
 }
 
 function stored(): boolean {
-  return window.localStorage.getItem(storageKey) === "true";
+  return document.cookie.split("; ").includes(`${sidebarCollapsedCookie}=true`);
 }
 
-export function useSidebarCollapsed(): [boolean, (collapsed: boolean) => void] {
-  const collapsed = useSyncExternalStore(subscribe, stored, () => false);
+export function useSidebarCollapsed(serverValue: boolean): [boolean, (collapsed: boolean) => void] {
+  const collapsed = useSyncExternalStore(subscribe, stored, () => serverValue);
 
   const setCollapsed = useCallback((next: boolean) => {
-    if (next) window.localStorage.setItem(storageKey, "true");
-    else window.localStorage.removeItem(storageKey);
+    document.cookie = next
+      ? `${sidebarCollapsedCookie}=true; path=/; max-age=${sidebarCollapsedMaxAge}; samesite=lax`
+      : `${sidebarCollapsedCookie}=; path=/; max-age=0; samesite=lax`;
 
     for (const listener of listeners) listener();
   }, []);

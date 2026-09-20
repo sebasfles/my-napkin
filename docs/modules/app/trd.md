@@ -27,7 +27,8 @@ Nothing here is planned.
 | `app/src/lib/` | Pure helpers and hooks: theme, editor language, hydration gate, session tokens, gate paths, env accessors, scene shape and measurement, save state machine, default names, request body parsing, byte sizes, the page title, the two browser chrome colours | now |
 | `app/src/lib/tree.ts` | The tree, pure: a folder's children, the pinned section, the path to a folder, a subtree deepest first, and the one rule that decides a move | now |
 | `app/src/lib/tabs.ts` | The tab list, pure: open as preview, keep, close, reconcile against the table, jump and cycle, and the key chords the app claims | now |
-| `app/src/lib/use-sidebar-folder.ts`, `use-tabs.ts`, `use-sidebar-collapsed.ts` | Where the sidebar is, which diagrams are open and whether the sidebar is a rail, as stores over `localStorage` rather than state seeded by an effect | now |
+| `app/src/lib/use-sidebar-folder.ts`, `use-tabs.ts` | Where the sidebar is and which diagrams are open, as stores over `localStorage` rather than state seeded by an effect | now |
+| `app/src/lib/use-sidebar-collapsed.ts`, `sidebar-cookie.ts` | Whether the sidebar is a rail, the same kind of store over a cookie, so the server renders the width the user left behind | now |
 | `app/src/lib/signed-fetch.ts` | Wraps `fetch` for same-origin calls, setting `x-amz-content-sha256` to the hex SHA-256 of the body | now |
 | `app/src/lib/dynamo.ts`, `s3.ts` | The two repositories, behind the interfaces in `diagrams.ts`; the only files that talk to AWS | now |
 | `app/src/lib/scene-save.ts` | The saver: debounce, one upload at a time, retry, and the ports it needs injected | now |

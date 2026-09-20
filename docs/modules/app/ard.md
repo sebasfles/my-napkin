@@ -471,14 +471,17 @@ source: 0011_workspace_redesign
 - Revisit when: the sidebar stops rendering a skeleton while it loads.
 - Source: 0011_workspace_redesign
 
-## 2026-09-20: the collapsed sidebar is client state, and paints expanded for the first frames
+## 2026-09-20: the collapsed sidebar is a cookie, so the server renders the rail
 
-- Decision: `use-sidebar-collapsed.ts` is a `localStorage` store like the folder and the tabs, with no server-rendered hint, so the first paint after a reload shows the full sidebar before it becomes a rail.
-- Alternatives rejected: the blocking inline script `next-themes` uses to set a class before paint; a cookie the server can read, which is what shadcn's own sidebar does.
-- Reason: the three pieces of per-browser state stay one pattern, and the tab bar already pays the same price with its skeletons.
-  A pre-paint script would give the width two owners, the script's attribute and React's state, for a flash the user sees once per reload.
-- Debt created: a collapsed sidebar flashes open on every reload.
-- Revisit when: the flash is worth a cookie, or the shell is server rendered with the user's chrome state.
+- Decision: `use-sidebar-collapsed.ts` is the same `useSyncExternalStore` shape as the folder and the tabs, over a cookie rather than `localStorage`; `(editor)/layout.tsx` reads it with `next/headers` and hands it to the sidebar as the server snapshot, so the first painted frame is already a rail.
+- Alternatives rejected: `localStorage` like the other two, which is what this phase shipped first; the blocking inline script `next-themes` uses to set a class before paint.
+- Reason: `localStorage` cannot be read before hydration, so the server painted the full 288px and the client corrected it afterwards.
+  Measured on a production build the way the editor blank was measured: 47 to 60ms on this machine warm, 269 to 331ms against the dev server, and 687 to 735ms with the CPU throttled 6x, which is what a phone or a busy laptop looks like.
+  That is the same order as the editor blank this phase exists to remove, on a reload rather than a tab switch, so it was fixed rather than written down.
+  The cookie has a precedent here: the locale is already resolved on the server from `NEXT_LOCALE`, and a pre-paint script would have given the width two owners.
+  The price is that the width no longer syncs live between two open tabs, since a cookie fires no `storage` event; per browser is still what the product promises, and a window's own chrome is arguably better left alone anyway.
+- Debt created: none.
+- Revisit when: a second piece of chrome needs the same treatment, at which point one cookie should carry the shell's layout rather than one per control.
 - Source: 0011_workspace_redesign
 
 ## 2026-09-20: a 401 in the browser still leaves through window.location.assign

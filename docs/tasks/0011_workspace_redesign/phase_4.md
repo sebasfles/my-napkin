@@ -154,4 +154,31 @@ The scene handover is a sequence one could draw, but it is three sentences in `t
 One thing for the om-manager rather than for me: `docs/TRD.md` describes the app's Layout as `src/app/`, `src/proxy.ts`, `src/i18n/`, `src/lib/`, `src/components/ui/`, `src/messages/` and `tests/`, which is now missing `public/` and `scripts/`.
 It is his file and the omission is small, so I left it.
 
+### Round 3
+
+The om-reviewer held the push for two numbers, and one of them turned into a finding, which was the right call.
+
+The collapsed sidebar, measured from the first paint the way the editor blank was, with a sampler installed before the document ran and the width read every frame.
+On a production build on this machine the sidebar paints 288px wide and becomes a rail 47 to 60ms later; against the dev server it is 269 to 331ms; with the CPU throttled six times, which is a phone or a busy laptop, it is 687 to 735ms.
+The warm number alone would have published as debt, as the om-reviewer said, but the throttled one is the same order as the 271ms editor blank this phase exists to remove, and it happens on every reload rather than on a tab switch.
+So it is fixed rather than written down.
+
+The fix is the cookie route the om-reviewer pointed at, and the precedent is real: the locale is already resolved on the server from `NEXT_LOCALE`.
+`use-sidebar-collapsed.ts` keeps the same `useSyncExternalStore` shape and writes a cookie instead of `localStorage`, `(editor)/layout.tsx` reads it with `next/headers` and passes it as the server snapshot, and the first painted frame is the rail in all three measurements, throttled included.
+The cookie name lives in `sidebar-cookie.ts` rather than beside the hook, because a server component cannot import a module that imports React hooks; the build says so plainly, which is how I found it.
+What it costs: two open tabs no longer follow each other live, since a cookie fires no `storage` event.
+Per browser is still what `prd.md` promises, and a window's own chrome is arguably better left alone; it is in the ARD entry either way.
+
+The regression test samples the width from the first frame of a reload and fails if any painted frame is the full width.
+On the version this phase shipped first it reads 288 where it expects under 100.
+
+The lint answer, which needed no work: one warning, zero errors, and it is the `window.location.assign` one.
+It came in with `c847331`, the password gate task, so it has been carried since then.
+It stays invisible because `npm run lint` is `eslint` with no `--max-warnings`, so a warning exits 0 in CI and in `verify.log` alike; `--max-warnings=0` would make the line honest and would fail today on that one file.
+That is a change to the project's lint contract rather than to this phase, so it is the om-manager's to decide, and the warning already has its own entry and debt row from round 1.
+
+Docs touched again, which the rounds normally do not do: the entry written in the documentation commit described the `localStorage` decision and its debt, and that decision no longer exists.
+Leaving it would have shipped an ARD that contradicts the code it explains, so the entry is now the cookie decision with the measurements in it, the `trd.md` row separates the cookie store from the two `localStorage` ones, and the debt row for the flash is out of the index of `docs/ARD.md`.
+Nothing else in the documentation commit changed.
+
 ## Result

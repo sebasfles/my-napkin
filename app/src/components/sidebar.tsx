@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 type OpenDialog = { kind: "name" | "info" | "move" | "delete"; id: string } | { kind: "newFolder" };
 
-export function Sidebar() {
+export function Sidebar({ collapsed: collapsedOnTheServer }: { collapsed: boolean }) {
   const t = useTranslations("sidebar");
   const {
     items,
@@ -44,7 +44,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const [folderId, goTo] = useSidebarFolder();
-  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const [collapsed, setCollapsed] = useSidebarCollapsed(collapsedOnTheServer);
   const { fix } = useTabs();
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
   const [open, setOpen] = useState(false);

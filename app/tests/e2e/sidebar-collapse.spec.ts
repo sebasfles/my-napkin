@@ -87,4 +87,38 @@ test.describe("sidebar collapse", () => {
     await expect(libraries, "and the keyboard reaches it too").toBeFocused();
     await expect(page.getByRole("tooltip")).toContainText("Coming soon");
   });
+
+  test("comes back as a rail without painting itself open first", async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId("sidebar-toggle").click();
+    await expect(sidebar(page)).toHaveAttribute("data-collapsed", "true");
+
+    await page.addInitScript(() => {
+      const widths: number[] = [];
+      (window as unknown as { widths: number[] }).widths = widths;
+
+      const sample = () => {
+        const node = document.querySelector('[data-testid="sidebar"]');
+        if (node !== null) widths.push(Math.round(node.getBoundingClientRect().width));
+        if (performance.now() < 8_000) requestAnimationFrame(sample);
+      };
+
+      requestAnimationFrame(sample);
+    });
+
+    await page.reload();
+    await expect(page.getByTestId("sidebar-rail")).toBeVisible({ timeout: awsTimeout });
+    await page.waitForTimeout(1_000);
+
+    const widest = await page.evaluate(() => {
+      const widths = (window as unknown as { widths: number[] }).widths ?? [];
+      return widths.length === 0 ? -1 : Math.max(...widths);
+    });
+
+    expect(widest, "the sampler saw the sidebar paint at all").toBeGreaterThan(0);
+    expect(
+      widest,
+      "a collapsed sidebar is a rail in the first frame it is painted, never the full width first",
+    ).toBeLessThan(100);
+  });
 });
