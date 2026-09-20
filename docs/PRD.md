@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0007_deploy_workflows
+updated: 2026-09-20
+source: 0011_workspace_redesign
 ---
 
 # Product Requirements Document
@@ -19,9 +19,9 @@ The priorities are, in order: it works, it costs nothing fixed per month, and it
 
 ### Diagrams (module `app`)
 
-The user sees his diagrams in a side list, creates a new one, renames or deletes it, and opens one in the editor.
-Edits save automatically shortly after he stops drawing, including pasted images.
-Reopening a diagram restores it as it was left.
+The user sees his diagrams in a side list and opens one in the editor; a menu on each row renames, locks, pins, moves or deletes it.
+Folders nest to any depth, and the list shows one folder at a time with a breadcrumb back to the top; a pinned diagram also appears in a section above the list, wherever it lives.
+Edits save automatically shortly after he stops drawing, including pasted images, and reopening a diagram restores it as it was left.
 Details: [modules/app/prd.md](modules/app/prd.md)
 
 ### Access (module `app`)
@@ -52,7 +52,7 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - Live collaboration.
 - Shared or public links.
 - Multiple users or roles.
-- Folders, tags or search over diagrams.
+- Tags or search over diagrams.
 - Mobile-specific UI beyond what the Excalidraw package already gives.
 
 ## Open questions

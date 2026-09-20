@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0009_deploy_dev_first_run
+source: 0011_workspace_redesign
 ---
 
 # Architecture and Debt Record
@@ -113,3 +113,5 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | deploy | 2026-09-19 | `e2e-dev` runs on every push to `develop`, so a flaky spec blocks promotion | The suite is long or flaky enough to be worth gating differently |
 | app | 2026-09-19 | The twin assertion at `diagram-list.spec.ts:97` keeps the 15s default, so a change in run order moves the flake rather than removing it | The suite stops running serially in file order |
 | app | 2026-09-20 | A presigned PUT handed out before a lock stays valid for the rest of its five minutes, so a tab holding one can still overwrite a locked diagram's scene object | That window matters enough for a shorter expiry or a bucket policy that reads the lock |
+| app | 2026-09-20 | A folder delete that fails partway leaves the folder half emptied and can orphan scene objects | A cascade is seen to fail partway, or the bucket wants a lifecycle rule |
+| app | 2026-09-20 | A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle | A second writer appears, human or automated |

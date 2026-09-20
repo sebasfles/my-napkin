@@ -253,6 +253,8 @@ source: 0011_workspace_redesign
 - `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.
 - A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash.
 - A presigned PUT handed out before a lock stays valid for the rest of its five minutes, so a tab that already held one can still overwrite the scene object of a locked diagram.
+- A folder delete that fails partway leaves the folder half emptied and can orphan scene objects; nothing reconciles the bucket.
+- A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle.
 
 ## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
 
@@ -289,4 +291,65 @@ source: 0011_workspace_redesign
 - Reason: a modal menu writes `pointer-events: none` on the body; a dialog opened from it saves that value as the one to restore and writes it back when it closes, so the whole app was unclickable until a reload after every rename. The e2e suite failed 16 of 35 on it. A sidebar menu needs no scroll lock, so dropping modal removes the value there is to capture instead of papering over it. Unmounting a Radix dialog while it is open leaks the same style by a second route, which is why the dialogs now stay mounted, as the delete confirmation already did before this task.
 - Debt created: none, but every future menu in this app that can open a dialog has to stay non-modal, and nothing enforces that beyond this entry and the specs that drive the menu.
 - Revisit when: Radix restores the style correctly for nested modals, or a menu here genuinely needs to trap focus and lock scroll.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: one table, one `Item` union, and a list payload named `items`
+
+- Decision: diagrams and folders are one `Item` union in `src/lib/diagrams.ts`, told apart by an optional `kind`, stored in the one table, and `GET /api/diagrams` answers `{ items }` while `POST` and `PATCH` answer `{ item }`.
+  The repository is `itemRepository`, the provider is `WorkspaceProvider`, and the files that now serve both kinds are named for the item, not the diagram.
+- Alternatives rejected: a second DynamoDB table for folders; keeping the `{ diagrams }` payload and the `Diagram` type and letting folders travel inside them.
+- Reason: a second table needs a Terraform change, a second read on every page load and a join in the browser, for a tree that is already fully in memory from one Scan.
+  Keeping the old names was the real risk: the list is read in five places and every one of them now has to choose a kind, so `HomeRedirect` picking `items[0]` would have opened a folder as a diagram.
+  Renaming the payload and the type turned that into a compile error at each call site instead of a rule to remember, which is why the rename was worth a wider diff.
+- Debt created: none.
+- Revisit when: the table stops fitting in one Scan, at which point the tree needs an index and folders may want their own key space.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: a folder delete cascades deepest first, with each scene object paired to its row
+
+- Decision: `DELETE` on a folder reads the table, orders the subtree deepest first with the folder last, and for each member removes the row and then, for a diagram, its scene object.
+  There is no transaction and no batch.
+- Alternatives rejected: deleting every row and then every object, which is what the plan sketched; `TransactWriteItems`, capped at 100 items; deleting the folder row alone and sweeping orphans later.
+- Reason: both orders leave an unreachable object rather than a diagram with no scene, but only deepest first leaves a tree that is still whole when it stops halfway: what remains is a smaller subtree the user can still reach and delete again, where rows first would leave children whose parent is gone and which no screen can show.
+  The transaction limit would cap how much a folder may hold, for a guarantee a single user does not need.
+- Debt created: a cascade that fails partway leaves the folder half emptied and, at worst, scene objects nothing will delete.
+  The user sees a smaller folder and can delete it again; nothing reconciles the bucket.
+- Revisit when: a cascade is seen to fail partway, or the bucket grows enough to want a lifecycle rule over orphans.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: `tree.ts` is the only place that decides a move
+
+- Decision: the tree lives in one pure module used by both sides: the Move dialog builds its choices from `folderChoices`, and `PATCH` validates `parentId` with `canMoveInto`, both over the same list.
+  `pathTo` and `subtree` carry visited sets and terminate on any stored data, cyclic included.
+- Alternatives rejected: validating the move in the route with an ancestor walk of repeated `get` calls, while the dialog filtered its own list; trusting the dialog, since it is the only caller.
+- Reason: the dialog and the API answering different questions is how a UI comes to offer something the server refuses, and here the refusal exists for a reason that outlives the UI: a cycle makes a subtree unreachable and the cascade above non-terminating.
+  One rule read from one list makes them the same answer by construction, and it is unit tested without a browser or a table.
+  The termination guards matter because the code that walks a cycle is the code that has to survive one.
+- Debt created: `PATCH` reads the table, decides, then writes without a condition, so two moves racing each other could in principle build the cycle the rule exists to prevent.
+  One user with one browser does one of these at a time.
+- Revisit when: a second writer appears, human or automated, at which point the write needs a condition on the parent it was validated against.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: where the sidebar is, is a store over `localStorage`, not state seeded by an effect
+
+- Decision: `use-sidebar-folder.ts` is a `useSyncExternalStore` whose snapshot reads `localStorage` and whose server snapshot is the root, with writes notifying subscribers and the `storage` event subscribed for free.
+  The current folder never appears in the URL.
+- Alternatives rejected: `useState` seeded in an effect, which is what was written first; putting the folder in the URL.
+- Reason: seeding state from storage in an effect is a cascading render that the project's lint rules reject, and it renders the root for one frame before correcting itself.
+  A store reads the root on the server, so hydration matches, and the stored folder is there on the first client render.
+  The URL stays `/d/[id]` because the location is a sidebar concern and nothing links into a folder, which `Context & decisions` settled; the consequence worth writing down is that the location is per browser, so two browsers sit in different folders on the same diagram, which is what a sidebar should do.
+- Debt created: none.
+- Revisit when: a folder needs to be linkable, or a second surface needs the same location.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: deleting a folder takes the locked diagrams inside it, and says so
+
+- Decision: the cascade deletes locked diagrams without asking for an unlock, while deleting a locked diagram directly still refuses.
+  The confirmation counts the diagrams and folders inside and, when any diagram is locked, how many.
+- Alternatives rejected: refusing to delete a folder that holds a locked diagram; silently skipping the locked ones and leaving the folder behind.
+- Reason: a lock protects a drawing from being drawn over, which is why rename, move and pin stay allowed on one.
+  Refusing the cascade would send the user hunting through a subtree for an item the dialog will not name, and skipping the locked ones would leave a folder that will not go away.
+  Naming the count is what makes it a decision rather than a surprise, which is the protection the lock is actually owed here.
+- Debt created: none.
+- Revisit when: a second user exists, where one person's lock would have to stop another person's delete.
 - Source: 0011_workspace_redesign

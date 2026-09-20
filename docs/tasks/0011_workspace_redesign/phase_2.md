@@ -102,4 +102,26 @@ Cleanup deletes by tracked name, so renaming a tracked item used to strand it, a
 The new case renames to an unrelated name and would have leaked on every run.
 A throwaway read-only spec after the suite confirmed the dev table holds no `e2e` diagram, no `e2e` folder and no pinned row.
 
+### Documentation
+
+`app`, plus `docs/PRD.md` as the om-reviewer directed and Acceptance 10 asks for this phase's half.
+
+`docs/PRD.md` drops folders from Not in the product, keeps tags and search there, and its Diagrams capability now names folders and pinning.
+`README.md` stops calling the sidebar a diagram list.
+`prd.md` gains "Organise with folders and pins" as a flow of its own, says what a folder delete takes and that it counts the locked diagrams, and adds the two rules a reader would otherwise guess at: a lock does not make a diagram immovable, and the location is per browser with no address for a folder.
+`trd.md` carries `tree.ts` and `use-sidebar-folder.ts` in the structure table, the renamed files, the five endpoints in their new shape, and the paragraph on the one PATCH that reads before it writes.
+`database.md` carries `kind`, `parentId` and `pinnedAt`, the cascade invariant in the shape it was built, the no-ancestor rule, and a second migration line saying again that nothing was rewritten.
+
+`flows.md` earns no new diagram: the cascade is a loop over one pair of participants and says more in three lines of `database.md` than it would as mermaid.
+One sentence there was incomplete once a folder could be deleted, so it now says the savers of every diagram under the folder stop before the cascade starts, which is what the provider does.
+
+Five ARD entries, the four the om-reviewer named plus one: the `Item` union with the `{ items }` payload, the cascade order, `tree.ts` as the single place a move is decided, and the sidebar location as a store over `localStorage`.
+The fifth is that a folder delete takes the locked diagrams inside it and names them, which `Context & decisions` never settled and which a reader of the entry above it, "a locked diagram is refused by the server", would otherwise read as a contradiction.
+Two debt lines and two rows in the `docs/ARD.md` index: a cascade that fails partway, and a move validated by a read and written without a condition.
+Nothing was resolved; no debt this phase touched had an entry to close.
+
+Cut to pay for what went in: `trd.md` loses its `/api/logout` sentence, which `ard.md` already explains and the endpoint table already states; `database.md` loses a duplicated line about what an old item reads as; `prd.md` folds its locale and theme pair into one sentence.
+
+Not touched and worth naming: `docs/TRD.md` still says the five diagram routes are planned, which was already stale before this phase. It is the om-manager's file and the om-reviewer's list did not include it.
+
 ## Result

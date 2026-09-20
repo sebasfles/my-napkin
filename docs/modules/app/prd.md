@@ -15,10 +15,9 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 ## Interface
 
 The user opens `/`, is asked for the password once, and lands on a diagram, with the editor filling the viewport beside a sidebar.
-The sidebar carries the app name, the diagram list, the two controls that change how everything looks, language and theme, and a way to close the session.
+The sidebar carries the app name, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the two controls that change how everything looks, language and theme, and a way to close the session.
 Everything outside the canvas is set in the app's own typeface, with its monospaced companion for dates, sizes and counts; the canvas keeps the editor's own.
-The interface starts in the browser's language, Spanish or English, and in its light or dark preference, and the editor follows both.
-Either choice can be overridden from the sidebar and survives a reload; the theme keeps system as a choice of its own, so the browser's preference can always be handed back.
+The interface starts in the browser's language, Spanish or English, and in its light or dark preference, and the editor follows both; either can be overridden from the sidebar and survives a reload, the theme keeping system as a choice of its own so the browser's preference can always be handed back.
 
 ## User flows
 
@@ -33,22 +32,38 @@ Either choice can be overridden from the sidebar and survives a reload; the them
 
 ### Browse and edit diagrams
 
-1. User sees the diagrams in the sidebar, most recently updated first, each with the time since its last change.
+1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first, each with the time since its last change.
 2. User opens one; its drawing, pasted images included, comes back as it was left.
 3. User draws; changes are saved on their own a second or two after the user stops.
-4. User creates a diagram from the sidebar, which opens right away.
-5. Every diagram carries a menu: rename it, lock it, read what it holds, or delete it.
+4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
+5. Every diagram carries a menu: rename it, pin it, move it, lock it, read what it holds, or delete it.
 6. Renaming happens in a dialog and does not count as editing: the diagram keeps its place in the list.
-7. Info tells the user the name, when it was created, when it was last edited, since when it is locked, how many elements it holds and what its drawing weighs; a diagram not saved since this existed shows a dash for the last two rather than a guess.
+7. Info tells the user the name, the folder it sits in, when it was created, when it was last edited, since when it is pinned and locked, how many elements it holds and what its drawing weighs; a diagram not saved since these existed shows a dash rather than a guess.
 8. Deleting asks for confirmation naming the diagram and cannot be undone.
+
+### Organise with folders and pins
+
+1. User creates a folder from the sidebar, names it in a dialog, and nothing is written if he changes his mind.
+2. User opens a folder and the list becomes its contents; the breadcrumb above names the path from the top and every step of it is a way back.
+   A path too long for the sidebar keeps its ends and hides the middle behind a menu.
+3. Folders nest as deep as the user wants, and a folder's menu renames, moves or deletes it.
+4. User moves a diagram or a folder from its menu, choosing the destination from the whole tree.
+   The tree never offers a folder itself or anything inside it, since that would put a branch somewhere it could never be reached from.
+5. User pins a diagram from its menu and it joins a section above the list, in the order things were pinned, reachable from any folder.
+   A pin is a shortcut, not a move: the diagram stays where it lives and shows in both places.
+6. Deleting a folder asks for confirmation that says how many diagrams and folders are inside, and how many of those diagrams are locked, because it takes all of them; deleting the folder the open diagram was in leaves the user on another diagram.
+7. The folder the user was last looking at is where he finds himself after a reload, and opening a diagram takes the sidebar to the folder that diagram lives in.
 
 ### Lock a diagram
 
 1. User locks a finished diagram from its menu; the row shows a lock and the editor opens it read only.
 2. A locked diagram can still be panned, zoomed and read, and never saves, whatever any browser still has it open.
 3. User unlocks it from the same menu to draw again; deleting asks for the unlock first, so nothing finished is lost by one click.
+4. Renaming, pinning and moving a locked diagram stay allowed: the lock protects the drawing, not where it sits or what it is called.
+   Deleting the folder it is in does take it, which is why that confirmation counts the locked diagrams it holds.
 
-There is no empty state: the user always has a diagram open, and the app creates the first one when none exists.
+There is no empty state at the top: the user always has a diagram open, and the app creates the first one when none exists.
+A folder with nothing in it says so.
 A new diagram is named after the day, `Napkin DDMMYYYY`, and repeats that day get `(2)`, `(3)`.
 The open diagram shows a passive save indicator where its date would be: saved, saving, or not saved.
 A failed save says so and goes through on the next change; the user is warned before leaving with work still unsaved.
@@ -58,6 +73,7 @@ A list that cannot be loaded offers to try again rather than pretending to be em
 
 - Only one user; there is no concept of ownership or sharing per diagram.
 - A locked diagram is refused by the server, not only by the browser that locked it.
+- Where the user is in the tree is remembered per browser, not per diagram, and no address points at a folder.
 - A diagram's saved scene includes any pasted images, so they survive closing and reopening.
 - Static assets are public; no diagram data is public.
 - A valid session lasts 30 days, after which the user must log in again.
