@@ -8,14 +8,16 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { useDiagrams } from "@/components/diagrams-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
-import type { SceneUrls } from "@/lib/diagrams";
+import { isLocked, type SceneUrls } from "@/lib/diagrams";
 import { editorLangCode } from "@/lib/editor";
 import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
+import type { SceneSaver } from "@/lib/scene-save";
 import { resolveTheme } from "@/lib/theme";
 import { useSceneSave } from "@/lib/use-scene-save";
 
@@ -23,13 +25,20 @@ const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Exca
   ssr: false,
 });
 
+type Mode = "editing" | "locked";
+
 export function Editor({ diagramId }: { diagramId: string }) {
   const t = useTranslations("editor");
   const router = useRouter();
+  const { diagrams, failed: listFailed } = useDiagrams();
   const [loaded, setLoaded] = useState<{ scene: Scene; urls: SceneUrls } | null>(null);
   const [failed, setFailed] = useState(false);
 
+  const diagram = diagrams.find((item) => item.id === diagramId) ?? null;
+  const mode: Mode | null = diagram ? (isLocked(diagram) ? "locked" : "editing") : null;
+
   useEffect(() => {
+    if (mode === null) return;
     let active = true;
 
     loadScene(diagramId)
@@ -45,15 +54,20 @@ export function Editor({ diagramId }: { diagramId: string }) {
     return () => {
       active = false;
     };
-  }, [diagramId, router]);
+  }, [diagramId, mode, router]);
 
   return (
     <div className="h-full w-full" data-testid="editor">
-      {loaded ? (
-        <EditorCanvas diagramId={diagramId} scene={loaded.scene} urls={loaded.urls} />
+      {loaded && mode ? (
+        <EditorCanvas
+          diagramId={diagramId}
+          scene={loaded.scene}
+          urls={loaded.urls}
+          locked={mode === "locked"}
+        />
       ) : (
         <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          {failed ? t("loadFailed") : t("loading")}
+          {failed || listFailed ? t("loadFailed") : t("loading")}
         </p>
       )}
     </div>
@@ -64,13 +78,51 @@ function EditorCanvas({
   diagramId,
   scene,
   urls,
+  locked,
 }: {
   diagramId: string;
   scene: Scene;
   urls: SceneUrls;
+  locked: boolean;
 }) {
   const locale = useLocale() as Locale;
   const { theme, systemTheme } = useTheme();
+  const saverRef = useRef<SceneSaver | null>(null);
+
+  const onChange = useCallback(
+    (elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+      saverRef.current?.change(toScene(elements, appState, files));
+    },
+    [],
+  );
+
+  return (
+    <>
+      {locked ? null : (
+        <SceneSaving diagramId={diagramId} scene={scene} urls={urls} saverRef={saverRef} />
+      )}
+      <Canvas
+        theme={resolveTheme(theme, systemTheme)}
+        langCode={editorLangCode(locale)}
+        initialData={scene}
+        viewModeEnabled={locked}
+        onChange={onChange}
+      />
+    </>
+  );
+}
+
+function SceneSaving({
+  diagramId,
+  scene,
+  urls,
+  saverRef,
+}: {
+  diagramId: string;
+  scene: Scene;
+  urls: SceneUrls;
+  saverRef: RefObject<SceneSaver | null>;
+}) {
   const { isDeleted, markSaved, reportSave } = useDiagrams();
 
   const onStatus = useCallback(
@@ -87,19 +139,12 @@ function EditorCanvas({
     isDeleted,
   });
 
-  const onChange = useCallback(
-    (elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
-      saver.change(toScene(elements, appState, files));
-    },
-    [saver],
-  );
+  useEffect(() => {
+    saverRef.current = saver;
+    return () => {
+      saverRef.current = null;
+    };
+  }, [saver, saverRef]);
 
-  return (
-    <Canvas
-      theme={resolveTheme(theme, systemTheme)}
-      langCode={editorLangCode(locale)}
-      initialData={scene}
-      onChange={onChange}
-    />
-  );
+  return null;
 }

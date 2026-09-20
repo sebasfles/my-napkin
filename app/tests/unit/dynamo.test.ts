@@ -100,30 +100,53 @@ describe("diagramRepository.create", () => {
   });
 });
 
-describe("diagramRepository.touch", () => {
-  it("moves updatedAt forward and leaves the name alone", async () => {
+describe("diagramRepository.update", () => {
+  it("renames without moving updatedAt, so a rename is not an edit", async () => {
     dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
 
-    const updated = await diagramRepository.touch("one");
+    const updated = await diagramRepository.update("one", { name: "Sketches" });
 
     const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
-    expect(input.UpdateExpression).toBe("SET updatedAt = :updatedAt");
-    expect(input.ExpressionAttributeNames).toBeUndefined();
-    expect(input.ExpressionAttributeValues?.[":updatedAt"]).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
-    );
+    expect(input.UpdateExpression).toBe("SET #name = :name");
+    expect(input.ExpressionAttributeNames).toEqual({ "#name": "name" });
+    expect(input.ExpressionAttributeValues).toEqual({ ":name": "Sketches" });
     expect(updated?.updatedAt).toBe("2026-09-18T09:00:00.000Z");
   });
 
-  it("renames and moves updatedAt in the same write", async () => {
+  it("moves updatedAt and the scene counters together when the scene was saved", async () => {
     dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
 
-    await diagramRepository.touch("one", "Sketches");
+    await diagramRepository.update("one", { scene: { elementCount: 3, sceneBytes: 1024 } });
 
     const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
-    expect(input.UpdateExpression).toBe("SET updatedAt = :updatedAt, #name = :name");
-    expect(input.ExpressionAttributeNames).toEqual({ "#name": "name" });
-    expect(input.ExpressionAttributeValues?.[":name"]).toBe("Sketches");
+    expect(input.UpdateExpression).toBe(
+      "SET updatedAt = :updatedAt, elementCount = :elementCount, sceneBytes = :sceneBytes",
+    );
+    expect(input.ExpressionAttributeValues?.[":updatedAt"]).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    expect(input.ExpressionAttributeValues?.[":elementCount"]).toBe(3);
+    expect(input.ExpressionAttributeValues?.[":sceneBytes"]).toBe(1024);
+  });
+
+  it("writes lockedAt when locking", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
+
+    await diagramRepository.update("one", { lockedAt: "2026-09-19T10:00:00.000Z" });
+
+    const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
+    expect(input.UpdateExpression).toBe("SET lockedAt = :lockedAt");
+    expect(input.ExpressionAttributeValues).toEqual({ ":lockedAt": "2026-09-19T10:00:00.000Z" });
+  });
+
+  it("removes lockedAt when unlocking, so the attribute does not linger", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-18T09:00:00.000Z") });
+
+    await diagramRepository.update("one", { lockedAt: null });
+
+    const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
+    expect(input.UpdateExpression).toBe("REMOVE lockedAt");
+    expect(input.ExpressionAttributeValues).toBeUndefined();
   });
 
   it("never creates a diagram that is not there", async () => {
@@ -133,7 +156,7 @@ describe("diagramRepository.touch", () => {
         new ConditionalCheckFailedException({ message: "the condition failed", $metadata: {} }),
       );
 
-    await expect(diagramRepository.touch("gone")).resolves.toBeNull();
+    await expect(diagramRepository.update("gone", { name: "Sketches" })).resolves.toBeNull();
     expect(dynamo.commandCalls(UpdateCommand)[0].args[0].input.ConditionExpression).toBe(
       "attribute_exists(id)",
     );
@@ -142,7 +165,9 @@ describe("diagramRepository.touch", () => {
   it("lets any other failure through", async () => {
     dynamo.on(UpdateCommand).rejects(new Error("throughput exceeded"));
 
-    await expect(diagramRepository.touch("one")).rejects.toThrow("throughput exceeded");
+    await expect(diagramRepository.update("one", { name: "Sketches" })).rejects.toThrow(
+      "throughput exceeded",
+    );
   });
 });
 

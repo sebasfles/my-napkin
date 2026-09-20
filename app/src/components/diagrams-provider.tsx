@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { createDiagram, deleteDiagram, fetchDiagrams, renameDiagram } from "@/lib/api";
+import { createDiagram, deleteDiagram, fetchDiagrams, lockDiagram, renameDiagram } from "@/lib/api";
 import { defaultDiagramName } from "@/lib/diagram-name";
 import { byUpdatedAtDesc, type Diagram } from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
@@ -27,6 +27,7 @@ interface DiagramsValue {
   reload: () => void;
   create: () => Promise<Diagram>;
   rename: (id: string, name: string) => Promise<void>;
+  setLock: (id: string, locked: boolean) => Promise<void>;
   remove: (id: string) => Promise<void>;
   markSaved: (diagram: Diagram) => void;
   isDeleted: (id: string) => boolean;
@@ -76,9 +77,9 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
     return created;
   }, [diagrams]);
 
-  const replace = useCallback((diagram: Diagram) => {
+  const merge = useCallback((id: string, fields: Partial<Diagram>) => {
     setDiagrams((current) =>
-      current.map((item) => (item.id === diagram.id ? diagram : item)).sort(byUpdatedAtDesc),
+      current.map((item) => (item.id === id ? { ...item, ...fields } : item)).sort(byUpdatedAtDesc),
     );
   }, []);
 
@@ -88,9 +89,29 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
 
   const rename = useCallback(
     async (id: string, name: string) => {
-      replace(await renameDiagram(id, name));
+      const renamed = await renameDiagram(id, name);
+      merge(id, { name: renamed.name });
     },
-    [replace],
+    [merge],
+  );
+
+  const setLock = useCallback(
+    async (id: string, locked: boolean) => {
+      const updated = await lockDiagram(id, locked);
+      merge(id, { lockedAt: updated.lockedAt });
+    },
+    [merge],
+  );
+
+  const markSaved = useCallback(
+    (diagram: Diagram) => {
+      merge(diagram.id, {
+        updatedAt: diagram.updatedAt,
+        elementCount: diagram.elementCount,
+        sceneBytes: diagram.sceneBytes,
+      });
+    },
+    [merge],
   );
 
   const remove = useCallback(async (id: string) => {
@@ -116,13 +137,26 @@ export function DiagramsProvider({ children }: { children: ReactNode }) {
       reload,
       create,
       rename,
+      setLock,
       remove,
-      markSaved: replace,
+      markSaved,
       isDeleted,
       saveStatus,
       reportSave,
     }),
-    [create, diagrams, isDeleted, reload, remove, rename, replace, reportSave, saveStatus, state],
+    [
+      create,
+      diagrams,
+      isDeleted,
+      markSaved,
+      reload,
+      remove,
+      rename,
+      reportSave,
+      saveStatus,
+      setLock,
+      state,
+    ],
   );
 
   return <DiagramsContext.Provider value={value}>{children}</DiagramsContext.Provider>;

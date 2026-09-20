@@ -7,7 +7,12 @@ import {
   ScanCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { byUpdatedAtDesc, type Diagram, type DiagramRepository } from "@/lib/diagrams";
+import {
+  byUpdatedAtDesc,
+  type Diagram,
+  type DiagramChanges,
+  type DiagramRepository,
+} from "@/lib/diagrams";
 import { diagramsTable } from "@/lib/env";
 
 let documents: DynamoDBDocumentClient | undefined;
@@ -15,6 +20,34 @@ let documents: DynamoDBDocumentClient | undefined;
 function client(): DynamoDBDocumentClient {
   documents ??= DynamoDBDocumentClient.from(new DynamoDBClient({}));
   return documents;
+}
+
+function updateParts(changes: DiagramChanges) {
+  const sets: string[] = [];
+  const removes: string[] = [];
+  const names: Record<string, string> = {};
+  const values: Record<string, unknown> = {};
+
+  if (changes.name !== undefined) {
+    sets.push("#name = :name");
+    names["#name"] = "name";
+    values[":name"] = changes.name;
+  }
+
+  if (changes.lockedAt === null) removes.push("lockedAt");
+  else if (changes.lockedAt !== undefined) {
+    sets.push("lockedAt = :lockedAt");
+    values[":lockedAt"] = changes.lockedAt;
+  }
+
+  if (changes.scene !== undefined) {
+    sets.push("updatedAt = :updatedAt", "elementCount = :elementCount", "sceneBytes = :sceneBytes");
+    values[":updatedAt"] = new Date().toISOString();
+    values[":elementCount"] = changes.scene.elementCount;
+    values[":sceneBytes"] = changes.scene.sceneBytes;
+  }
+
+  return { sets, removes, names, values };
 }
 
 export const diagramRepository: DiagramRepository = {
@@ -50,16 +83,14 @@ export const diagramRepository: DiagramRepository = {
     );
   },
 
-  async touch(id, name) {
-    const values: Record<string, string> = { ":updatedAt": new Date().toISOString() };
-    const names: Record<string, string> = {};
-    let expression = "SET updatedAt = :updatedAt";
-
-    if (name !== undefined) {
-      expression += ", #name = :name";
-      names["#name"] = "name";
-      values[":name"] = name;
-    }
+  async update(id, changes) {
+    const { sets, removes, names, values } = updateParts(changes);
+    const expression = [
+      sets.length > 0 ? `SET ${sets.join(", ")}` : "",
+      removes.length > 0 ? `REMOVE ${removes.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     try {
       const { Attributes } = await client().send(
@@ -68,8 +99,8 @@ export const diagramRepository: DiagramRepository = {
           Key: { id },
           UpdateExpression: expression,
           ConditionExpression: "attribute_exists(id)",
-          ExpressionAttributeValues: values,
-          ExpressionAttributeNames: name === undefined ? undefined : names,
+          ExpressionAttributeValues: Object.keys(values).length > 0 ? values : undefined,
+          ExpressionAttributeNames: Object.keys(names).length > 0 ? names : undefined,
           ReturnValues: "ALL_NEW",
         }),
       );

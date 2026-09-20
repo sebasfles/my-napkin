@@ -3,6 +3,20 @@ export interface Diagram {
   name: string;
   createdAt: string;
   updatedAt: string;
+  lockedAt?: string;
+  elementCount?: number;
+  sceneBytes?: number;
+}
+
+export interface SceneStats {
+  elementCount: number;
+  sceneBytes: number;
+}
+
+export interface DiagramChanges {
+  name?: string;
+  lockedAt?: string | null;
+  scene?: SceneStats;
 }
 
 export interface SceneUrls {
@@ -15,7 +29,7 @@ export interface DiagramRepository {
   list(): Promise<Diagram[]>;
   get(id: string): Promise<Diagram | null>;
   create(diagram: Diagram): Promise<void>;
-  touch(id: string, name?: string): Promise<Diagram | null>;
+  update(id: string, changes: DiagramChanges): Promise<Diagram | null>;
   remove(id: string): Promise<void>;
 }
 
@@ -27,4 +41,8 @@ export interface SceneStore {
 
 export function byUpdatedAtDesc(a: Diagram, b: Diagram): number {
   return b.updatedAt.localeCompare(a.updatedAt);
+}
+
+export function isLocked(diagram: Diagram): boolean {
+  return typeof diagram.lockedAt === "string";
 }

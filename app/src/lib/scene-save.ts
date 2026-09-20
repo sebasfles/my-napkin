@@ -1,6 +1,6 @@
-import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
 import { nextSaveState, type SaveEvent, type SaveStatus } from "@/lib/save-state";
-import { sceneVersion, type Scene } from "@/lib/scene";
+import { sceneStats, sceneVersion, type Scene } from "@/lib/scene";
 
 export interface SceneBaseline {
   serialized: string;
@@ -16,7 +16,7 @@ export interface SceneSaverOptions {
   now?: () => number;
   urls: (id: string) => Promise<SceneUrls>;
   put: (url: string, body: string) => Promise<void>;
-  touch: (id: string) => Promise<Diagram>;
+  save: (id: string, stats: SceneStats) => Promise<Diagram>;
   onStatus: (status: SaveStatus) => void;
   onSaved: (diagram: Diagram) => void;
   deleted?: () => boolean;
@@ -79,7 +79,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
       await options.put(url, serialized);
       if (abandoned) return;
 
-      const diagram = await options.touch(options.diagramId);
+      const diagram = await options.save(options.diagramId, sceneStats(scene, serialized));
 
       baseline = { serialized, version: sceneVersion(scene.elements) };
       if (pending === scene) forget();

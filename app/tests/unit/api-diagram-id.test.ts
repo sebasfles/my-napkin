@@ -5,7 +5,7 @@ const repository = {
   list: vi.fn(),
   get: vi.fn(),
   create: vi.fn(),
-  touch: vi.fn(),
+  update: vi.fn(),
   remove: vi.fn(),
 };
 
@@ -53,22 +53,42 @@ beforeEach(() => {
 });
 
 describe("PATCH /api/diagrams/[id]", () => {
-  it("touches updatedAt alone when the body carries no name", async () => {
-    repository.touch.mockResolvedValue(diagram());
+  it("renames when the body carries a name, trimmed, and changes nothing else", async () => {
+    repository.update.mockResolvedValue(diagram());
 
-    const response = await PATCH(patch("{}"), params);
+    const response = await PATCH(patch(JSON.stringify({ name: "  Sketches " })), params);
 
     expect(response.status).toBe(200);
-    expect(repository.touch).toHaveBeenCalledWith("diagram-1", undefined);
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", { name: "Sketches" });
     await expect(response.json()).resolves.toEqual({ diagram: diagram() });
   });
 
-  it("renames when the body carries a name, trimmed", async () => {
-    repository.touch.mockResolvedValue(diagram());
+  it("records the scene counters the browser measured after an upload", async () => {
+    repository.update.mockResolvedValue(diagram());
 
-    await PATCH(patch(JSON.stringify({ name: "  Sketches " })), params);
+    await PATCH(patch(JSON.stringify({ elementCount: 4, sceneBytes: 2048 })), params);
 
-    expect(repository.touch).toHaveBeenCalledWith("diagram-1", "Sketches");
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", {
+      scene: { elementCount: 4, sceneBytes: 2048 },
+    });
+  });
+
+  it("locks and unlocks through the same route", async () => {
+    repository.update.mockResolvedValue(diagram());
+
+    await PATCH(patch(JSON.stringify({ locked: true })), params);
+    const [, locking] = repository.update.mock.calls[0];
+    expect(typeof locking.lockedAt).toBe("string");
+
+    await PATCH(patch(JSON.stringify({ locked: false })), params);
+    expect(repository.update).toHaveBeenLastCalledWith("diagram-1", { lockedAt: null });
+  });
+
+  it("refuses a body that changes nothing, so no write is wasted", async () => {
+    const response = await PATCH(patch("{}"), params);
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it("refuses a blank or non-string name", async () => {
@@ -76,14 +96,14 @@ describe("PATCH /api/diagrams/[id]", () => {
       const response = await PATCH(patch(JSON.stringify({ name })), params);
 
       expect(response.status).toBe(400);
-      expect(repository.touch).not.toHaveBeenCalled();
+      expect(repository.update).not.toHaveBeenCalled();
     }
   });
 
   it("answers 404 for a diagram that is not there", async () => {
-    repository.touch.mockResolvedValue(null);
+    repository.update.mockResolvedValue(null);
 
-    const response = await PATCH(patch("{}"), params);
+    const response = await PATCH(patch(JSON.stringify({ name: "Sketches" })), params);
 
     expect(response.status).toBe(404);
   });

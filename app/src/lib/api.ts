@@ -1,4 +1,4 @@
-import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
 import { loginPath } from "@/lib/gate";
 import { emptyScene, parseScene, sceneContentType, type Scene } from "@/lib/scene";
 import { signedFetch } from "@/lib/signed-fetch";
@@ -22,21 +22,15 @@ export async function createDiagram(name: string): Promise<Diagram> {
 }
 
 export async function renameDiagram(id: string, name: string): Promise<Diagram> {
-  const { diagram } = await request<{ diagram: Diagram }>(`/api/diagrams/${id}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-  return diagram;
+  return patchDiagram(id, { name });
 }
 
-export async function touchDiagram(id: string): Promise<Diagram> {
-  const { diagram } = await request<{ diagram: Diagram }>(`/api/diagrams/${id}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: "{}",
-  });
-  return diagram;
+export async function saveDiagram(id: string, stats: SceneStats): Promise<Diagram> {
+  return patchDiagram(id, stats);
+}
+
+export async function lockDiagram(id: string, locked: boolean): Promise<Diagram> {
+  return patchDiagram(id, { locked });
 }
 
 export async function deleteDiagram(id: string): Promise<void> {
@@ -68,6 +62,15 @@ export async function putScene(url: string, body: string): Promise<void> {
     body,
   });
   if (!response.ok) throw new Error(`scene upload failed with ${response.status}`);
+}
+
+async function patchDiagram(id: string, changes: object): Promise<Diagram> {
+  const { diagram } = await request<{ diagram: Diagram }>(`/api/diagrams/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(changes),
+  });
+  return diagram;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
