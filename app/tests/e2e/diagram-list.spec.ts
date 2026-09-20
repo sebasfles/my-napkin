@@ -5,6 +5,7 @@ import {
   diagramItem,
   drawRectangle,
   emptyWorkspace,
+  itemList,
   login,
   newDiagram,
   openApp,
@@ -12,8 +13,8 @@ import {
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
-  saveIndicator,
   savedText,
+  saveIndicator,
 } from "./helpers";
 
 test.describe("diagram list", () => {
@@ -63,7 +64,7 @@ test.describe("diagram list", () => {
     const name = await newDiagram(page, "created");
 
     await expect(activeItem(page)).toContainText(name);
-    await expect(page.getByTestId("diagram-item").first()).toContainText(name);
+    await expect(itemList(page).getByTestId("diagram-item").first()).toContainText(name);
     await expect(page.locator(".excalidraw")).toBeVisible();
   });
 

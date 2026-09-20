@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0012_libraries
 ---
 
 # app: database
@@ -12,13 +12,15 @@ The schema lives in `infra` (Terraform), not here; what follows is what the code
 
 | Table | Purpose |
 |---|---|
-| `diagrams` (DynamoDB) | Every item of the workspace, diagrams and folders alike: name, parent, the timestamps that matter (created, edited, pinned, locked), and what the last saved scene weighed |
+| `diagrams` (DynamoDB) | Every item of the workspace, diagrams, folders and libraries alike: name, parent, the timestamps that matter (created, edited, pinned, locked), what the last saved scene weighed, and which libraries a diagram links |
 
 ## Objects owned
 
 | Store | Key | Purpose |
 |---|---|---|
-| S3 scenes bucket | `scenes/{id}.json` | Full scene JSON: elements, appState subset, files |
+| S3 scenes bucket | `scenes/{id}.json` | A diagram's full scene JSON: elements, appState subset, files |
+| S3 scenes bucket | `libraries/{id}/scene.json` | A library's canvas, the same scene shape; its frames are the items |
+| S3 scenes bucket | `libraries/{id}/items.json` | The items derived from those frames, an exact `.excalidrawlib` |
 
 ## Tables referenced
 
@@ -26,8 +28,18 @@ None. This module is the only one that reads or writes the `diagrams` table and 
 
 ## Invariants kept in code
 
-- One table holds two kinds of item, told apart by `kind`: absent means a diagram, `"folder"` means a folder.
-  A folder owns no scene object, so POST writes none for it and `/urls` answers 404, which keeps the next invariant literally true.
+- One table holds three kinds of item, told apart by `kind`: absent or `"diagram"` means a diagram, `"folder"` a folder, `"library"` a library.
+  `isDiagram` asks that question rather than meaning "not a folder", which is what keeps a library out of the folder listing, the pinned section, the Move dialog's choices and a folder's delete cascade.
+  A folder owns no object of either kind, so POST writes none for it and `/urls` answers 404, which keeps the next invariant literally true.
+- A library is global: it carries no `parentId`, no `pinnedAt` and no `lockedAt`, `tree.ts` never sees one, and `PATCH` refuses a move, a pin or a lock on one.
+- A library owns `libraries/{id}/scene.json` from the moment it is created, and `libraries/{id}/items.json` from its first save.
+  The route that creates it runs on the server, which cannot import the editor package, and the items file is the package's own format, so it is written by the browser that first saves the canvas.
+  A missing `items.json` reads as no items, exactly as a missing scene object reads as an empty scene, and `itemCount` says the same thing.
+  DELETE removes the row first and both objects second, never `scenes/{id}.json`.
+- A library's frames are its items: one frame is one item, named by the frame, including a frame that is empty or holds only an image, since the derivation skips images.
+  `itemCount` is therefore the number of frames, and it moves only with a save.
+- `libraryIds` is a diagram's list of linked libraries, written whole by its own PATCH intent, accepted only for a diagram, and it never moves `updatedAt`, since linking is not an edit.
+  Deleting a library leaves dangling ids behind: the panel and the browser skip them and the next write drops them, which is cheaper than a Scan and a patch per diagram on every delete.
 - Every diagram has exactly one scene object at `scenes/{id}.json`.
   POST writes the empty scene first and the item second, so a diagram is never listed without its object; DELETE removes the item first and the object second, so a failure leaves an unreachable object rather than a diagram with no scene.
   A reader still treats a missing object as an empty scene.
@@ -49,7 +61,7 @@ None. This module is the only one that reads or writes the `diagrams` table and 
 - `pinnedAt` belongs to diagrams only, and a pin moves nothing: the item keeps its `parentId` and shows in both places.
 - No presigned PUT is ever issued for an id with no item: `/urls` reads the diagram first and answers 404 when it is gone.
   The browser also stops uploading as soon as the user deletes the diagram, before the request leaves.
-  What survives is a PUT already on the wire when the DELETE lands, which can leave an object no code will delete; accepted, see `ard.md`.
+  What survives is a PUT already on the wire when the DELETE lands, which can leave a diagram's scene object, or a library's two, that no code will delete; accepted, see `ard.md`.
 - The scene JSON always includes `files`, or pasted images are lost on reopen.
 - Soft deleted elements are stripped before every save, so the scene does not grow forever.
 - Scene bodies never pass through the app server, only presigned URLs do.
@@ -63,3 +75,5 @@ None. This module is the only one that reads or writes the `diagrams` table and 
 - 2026-09-20: `lockedAt`, `elementCount` and `sceneBytes` added to the item. DynamoDB is schemaless and every reader treats them as optional, so no migration ran and no item was rewritten.
 - 2026-09-20: `kind`, `parentId` and `pinnedAt` added, and with them folder items in the same table.
   Absent means diagram, root and unpinned, so again nothing was rewritten.
+- 2026-09-20: `kind: "library"` items, `itemCount` on them and `libraryIds` on diagrams, under a new `libraries/` key prefix in the same bucket.
+  No existing item gained or lost a field, so nothing was rewritten and no migration ran.

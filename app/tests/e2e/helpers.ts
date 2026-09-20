@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
+import { payloadHash } from "../../src/lib/signed-fetch";
 
 export const savedText = "Saved";
 export const saveFailedText = "Not saved, retrying on the next change";
@@ -8,6 +9,7 @@ export const saveFailedText = "Not saved, retrying on the next change";
 const awsTimeout = 30_000;
 const createdByPage = new Map<Page, string[]>();
 const foldersByPage = new Map<Page, string[]>();
+const librariesByPage = new Map<Page, string[]>();
 
 let sequence = 0;
 
@@ -172,6 +174,67 @@ export async function openFolder(page: Page, name: string) {
   await expect(page.getByTestId("crumb-current")).toHaveText(name);
 }
 
+export function libraryList(page: Page): Locator {
+  return page.getByTestId("library-list");
+}
+
+// Located by id, never by name: phase 1 cannot rename a library in the UI, so the sidebar keeps the
+// default name it drew while the table carries the e2e one.
+export function libraryItem(page: Page, id: string): Locator {
+  return libraryList(page)
+    .getByTestId("library-item")
+    .filter({ has: page.locator(`a[href="/d/${id}"]`) });
+}
+
+export async function showLibraries(page: Page) {
+  await expandSidebar(page);
+  await page.getByTestId("section-libraries").click();
+  await expect(page.getByTestId("library-section")).toBeVisible({ timeout: awsTimeout });
+}
+
+export async function showDiagrams(page: Page) {
+  await expandSidebar(page);
+  await page.getByTestId("section-diagrams").click();
+  await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
+}
+
+export async function newLibrary(page: Page): Promise<string> {
+  await showLibraries(page);
+  const before = await libraryList(page).getByTestId("library-item").count();
+  const from = page.url();
+
+  await page.getByTestId("library-new").click();
+  await page.waitForURL((url) => url.href !== from && diagramUrl.test(url.href), {
+    timeout: awsTimeout,
+  });
+
+  // Tracked the moment the row exists, as adoptActiveDiagram does, so a failure in the waits below
+  // still leaves it collectable. The id rather than the name, because the cleanup deletes through
+  // the API: phase 1 gives a library no menu to delete it from, and no rename to make its name
+  // unique either, which is why nothing here locates a library by name.
+  const id = page.url().split("/d/")[1];
+  track(librariesByPage, page, id);
+
+  await expect(libraryList(page).getByTestId("library-item")).toHaveCount(before + 1, {
+    timeout: awsTimeout,
+  });
+  await expect(page.locator(".excalidraw")).toBeVisible({ timeout: awsTimeout });
+
+  return id;
+}
+
+// CloudFront's Origin Access Control refuses a mutating request whose body it cannot hash, which is
+// why `modules/app/ard.md` 2026-09-19 took the header out of the suite and made login type into the
+// form. This one call cannot: phase 1 gives a library no delete in the UI, so the cleanup has no
+// other way to remove what it created. It goes through Playwright's request context for the session
+// cookie, carries no body, and borrows the app's own hash rather than computing a second one.
+// Phase 2 moves it onto the row's menu and this goes away.
+async function deleteThroughApi(page: Page, id: string) {
+  return page.request.delete(`/api/diagrams/${id}`, {
+    headers: { "x-amz-content-sha256": await payloadHash(undefined) },
+  });
+}
+
 export async function expandSidebar(page: Page) {
   const sidebar = page.getByTestId("sidebar");
   await expect(sidebar, "the app is not on screen, so nothing here can be cleaned up").toBeVisible({
@@ -290,12 +353,23 @@ export async function deleteFolder(page: Page, name: string) {
 export async function removeItemsCreatedHere(page: Page) {
   const folders = foldersByPage.get(page) ?? [];
   const diagrams = createdByPage.get(page) ?? [];
+  const libraries = librariesByPage.get(page) ?? [];
   foldersByPage.delete(page);
   createdByPage.delete(page);
+  librariesByPage.delete(page);
+
+  for (const id of libraries) {
+    const response = await deleteThroughApi(page, id);
+    if (!response.ok()) {
+      throw new Error(
+        `the library ${id} is still in the table: DELETE answered ${response.status()}`,
+      );
+    }
+  }
 
   if (folders.length === 0 && diagrams.length === 0) return;
 
-  await expandSidebar(page);
+  await showDiagrams(page);
   await goToRoot(page);
   await listReady(page);
 
@@ -349,6 +423,23 @@ async function clickIntoCanvas(page: Page, across: number, down: number) {
     page.locator(".excalidraw-container"),
     "the click never reached the editor, so the keyboard will not reach it either",
   ).toBeFocused();
+}
+
+// The frame tool is not on the main toolbar, so it cannot go through selectTool: it is an item in
+// the editor's extra-tools dropdown, whose content is mounted only while it is open, and whose
+// trigger is addressed by class because its title moves with langCode.
+export async function drawFrame(page: Page, position = 0.3) {
+  await page.locator(".App-toolbar__extra-tools-trigger").click();
+  await page.getByTestId("toolbar-frame").click();
+
+  const box = await canvasBox(page);
+  const startX = box.x + box.width * position;
+  const startY = box.y + box.height * position;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 180, startY + 140, { steps: 12 });
+  await page.mouse.up();
 }
 
 export async function pasteImage(page: Page) {

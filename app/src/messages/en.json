@@ -10,7 +10,6 @@
     "expand": "Expand the sidebar",
     "shortcut": "Alt+B",
     "libraries": "Libraries",
-    "comingSoon": "Coming soon",
     "pinned": "Pinned",
     "newDiagram": "New diagram",
     "newFolder": "New folder",
@@ -67,11 +66,24 @@
     "loadFailed": "The diagrams could not be loaded",
     "actionFailed": "That did not work. Try again.",
     "retry": "Try again",
-    "logout": "Log out"
+    "logout": "Log out",
+    "sections": "Workspace sections"
   },
   "tabs": {
     "label": "Open diagrams",
-    "close": "Close {name}"
+    "close": "Close {name}",
+    "libraryGlyph": "Library"
+  },
+  "library": {
+    "title": "Libraries",
+    "new": "New library",
+    "empty": "No libraries yet",
+    "itemCount": "{count, plural, =0 {No items} one {# item} other {# items}}",
+    "loadFailed": "The libraries could not be loaded",
+    "retry": "Try again",
+    "actionFailed": "That did not work. Try again.",
+    "emptyCanvas": "Every frame you draw here is one library item, and the frame's name names it.",
+    "imageInFrame": "Images are not saved in a library item"
   },
   "editor": {
     "loading": "Loading",

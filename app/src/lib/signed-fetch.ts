@@ -14,7 +14,7 @@ export async function signedFetch(
   return fetch(input, { ...init, headers });
 }
 
-async function payloadHash(body: RequestInit["body"]): Promise<string> {
+export async function payloadHash(body: RequestInit["body"]): Promise<string> {
   if (body === undefined || body === null) return hex(await sha256(""));
   if (typeof body !== "string") {
     throw new Error("signedFetch can only hash a string or absent body");

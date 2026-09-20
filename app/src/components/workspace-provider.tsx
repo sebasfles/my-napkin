@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import {
   createDiagram,
   createFolder,
+  createLibrary,
   deleteItem,
   fetchItems,
   lockDiagram,
@@ -21,7 +22,16 @@ import {
   renameItem,
 } from "@/lib/api";
 import { defaultDiagramName } from "@/lib/diagram-name";
-import { isDiagram, type Diagram, type Folder, type Item, type ParentId } from "@/lib/diagrams";
+import {
+  isDiagram,
+  isLibrary,
+  type Canvas,
+  type Diagram,
+  type Folder,
+  type Item,
+  type Library,
+  type ParentId,
+} from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
 import { subtree } from "@/lib/tree";
 
@@ -37,13 +47,14 @@ interface WorkspaceValue {
   reload: () => void;
   create: (parentId: ParentId) => Promise<Diagram>;
   createFolder: (name: string, parentId: ParentId) => Promise<Folder>;
+  createLibrary: (name: string) => Promise<Library>;
   rename: (id: string, name: string) => Promise<void>;
   move: (id: string, parentId: ParentId) => Promise<void>;
   setPinned: (id: string, pinned: boolean) => Promise<void>;
   setLock: (id: string, locked: boolean) => Promise<void>;
   registerSaver: (id: string, settle: () => Promise<void>) => () => void;
   remove: (id: string) => Promise<string[]>;
-  markSaved: (diagram: Diagram) => void;
+  markSaved: (item: Canvas) => void;
   isDeleted: (id: string) => boolean;
   saveStatus: SaveReport | null;
   reportSave: (id: string, status: SaveStatus) => void;
@@ -103,6 +114,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return created;
   }, []);
 
+  const addLibrary = useCallback(async (name: string) => {
+    const created = await createLibrary(name);
+    setItems((current) => [created, ...current]);
+
+    return created;
+  }, []);
+
   const merge = useCallback((id: string, fields: Partial<Item>) => {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...fields } : item)));
   }, []);
@@ -154,11 +172,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const markSaved = useCallback(
-    (diagram: Diagram) => {
-      merge(diagram.id, {
-        updatedAt: diagram.updatedAt,
-        elementCount: diagram.elementCount,
-        sceneBytes: diagram.sceneBytes,
+    (item: Canvas) => {
+      merge(item.id, {
+        updatedAt: item.updatedAt,
+        elementCount: item.elementCount,
+        sceneBytes: item.sceneBytes,
+        ...(isLibrary(item) ? { itemCount: item.itemCount } : {}),
       });
     },
     [merge],
@@ -195,6 +214,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       reload,
       create,
       createFolder: addFolder,
+      createLibrary: addLibrary,
       rename,
       move,
       setPinned,
@@ -208,6 +228,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }),
     [
       addFolder,
+      addLibrary,
       create,
       isDeleted,
       items,

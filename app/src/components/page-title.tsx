@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useWorkspace } from "@/components/workspace-provider";
-import { isDiagram, openDiagramId } from "@/lib/diagrams";
+import { isCanvas, openItemId } from "@/lib/diagrams";
 import { pageTitle } from "@/lib/page-title";
 
 export function PageTitle() {
@@ -12,9 +12,9 @@ export function PageTitle() {
   const pathname = usePathname();
   const { items } = useWorkspace();
 
-  const openId = openDiagramId(pathname);
+  const openId = openItemId(pathname);
   const open = openId === null ? null : items.find((item) => item.id === openId);
-  const name = open !== undefined && open !== null && isDiagram(open) ? open.name : null;
+  const name = open !== undefined && open !== null && isCanvas(open) ? open.name : null;
   const title = pageTitle(name, t("title"));
 
   useEffect(() => {

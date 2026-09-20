@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Diagram, Folder, Item, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, Folder, Item, Library, SceneUrls } from "@/lib/diagrams";
 
 const repository = {
   list: vi.fn(),
@@ -15,8 +15,14 @@ const scenes = {
   remove: vi.fn(),
 };
 
+const libraries = {
+  urls: vi.fn(),
+  createEmpty: vi.fn(),
+  remove: vi.fn(),
+};
+
 vi.mock("@/lib/dynamo", () => ({ itemRepository: repository }));
-vi.mock("@/lib/s3", () => ({ sceneStore: scenes }));
+vi.mock("@/lib/s3", () => ({ sceneStore: scenes, libraryStore: libraries }));
 
 const { DELETE, PATCH } = await import("@/app/api/diagrams/[id]/route");
 const { GET } = await import("@/app/api/diagrams/[id]/urls/route");
@@ -44,6 +50,17 @@ function folder(id = "folder-1", parentId?: string): Folder {
     createdAt: "2026-09-18T08:00:00.000Z",
     updatedAt: "2026-09-18T08:00:00.000Z",
     ...(parentId === undefined ? {} : { parentId }),
+  };
+}
+
+function library(id = "library-1"): Library {
+  return {
+    id,
+    kind: "library",
+    name: "Shapes",
+    itemCount: 2,
+    createdAt: "2026-09-20T08:00:00.000Z",
+    updatedAt: "2026-09-20T09:00:00.000Z",
   };
 }
 
@@ -89,6 +106,7 @@ describe("PATCH /api/diagrams/[id]", () => {
   });
 
   it("locks and unlocks through the same route", async () => {
+    repository.get.mockResolvedValue(diagram());
     repository.update.mockResolvedValue(diagram());
 
     await PATCH(patch(JSON.stringify({ locked: true })), params);
@@ -319,6 +337,116 @@ describe("GET /api/diagrams/[id]/urls", () => {
     const response = await GET(new Request("http://localhost:3000/x"), params);
 
     expect(response.status).toBe(404);
+    expect(scenes.urls).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/diagrams/[id], libraries", () => {
+  it("writes libraryIds whole, as its own intent, for a diagram", async () => {
+    repository.get.mockResolvedValue(diagram());
+    repository.update.mockResolvedValue(diagram());
+
+    await PATCH(patch(JSON.stringify({ libraryIds: ["library-1", "library-2"] })), params);
+
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", {
+      libraryIds: ["library-1", "library-2"],
+    });
+  });
+
+  it("refuses libraryIds on anything that is not a diagram", async () => {
+    for (const item of [folder(), library()]) {
+      repository.get.mockResolvedValue(item);
+
+      const response = await PATCH(patch(JSON.stringify({ libraryIds: ["library-1"] })), params);
+
+      expect(response.status).toBe(400);
+      expect(repository.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("refuses a lock on a library, which has none", async () => {
+    repository.get.mockResolvedValue(library());
+
+    const response = await PATCH(patch(JSON.stringify({ locked: true })), params);
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("carries itemCount with the counts a library save measured", async () => {
+    repository.update.mockResolvedValue(library());
+
+    const response = await PATCH(
+      patch(JSON.stringify({ elementCount: 9, sceneBytes: 4096, itemCount: 2 })),
+      params,
+    );
+
+    expect(response.status).toBe(200);
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", {
+      library: { elementCount: 9, sceneBytes: 4096, itemCount: 2 },
+    });
+  });
+
+  it("refuses to move a library into a folder", async () => {
+    repository.list.mockResolvedValue([library(), folder()]);
+
+    const response = await PATCH(patch(JSON.stringify({ parentId: "folder-1" })), {
+      params: Promise.resolve({ id: "library-1" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to pin a library", async () => {
+    repository.list.mockResolvedValue([library()]);
+
+    const response = await PATCH(patch(JSON.stringify({ pinned: true })), {
+      params: Promise.resolve({ id: "library-1" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE and /urls for a library", () => {
+  it("removes the item first and both library objects second, never the diagram scene", async () => {
+    const order: string[] = [];
+    repository.get.mockResolvedValue(library());
+    repository.remove.mockImplementation(async () => void order.push("item"));
+    libraries.remove.mockImplementation(async () => void order.push("objects"));
+
+    const response = await DELETE(new Request("http://localhost:3000"), {
+      params: Promise.resolve({ id: "library-1" }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(order).toEqual(["item", "objects"]);
+    expect(libraries.remove).toHaveBeenCalledWith("library-1");
+    expect(scenes.remove).not.toHaveBeenCalled();
+  });
+
+  it("signs both pairs for a library and never reports it as locked", async () => {
+    repository.get.mockResolvedValue(library());
+    libraries.urls.mockResolvedValue({
+      get: "https://scenes/libraries/library-1/scene.json?get",
+      put: "https://scenes/libraries/library-1/scene.json?put",
+      items: {
+        get: "https://scenes/libraries/library-1/items.json?get",
+        put: "https://scenes/libraries/library-1/items.json?put",
+      },
+      expiresAt: "2026-09-20T09:05:00.000Z",
+    });
+
+    const response = await GET(new Request("http://localhost:3000"), {
+      params: Promise.resolve({ id: "library-1" }),
+    });
+    const body = (await response.json()) as { locked: boolean; items?: { put: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.locked).toBe(false);
+    expect(body.items?.put).toContain("items.json");
     expect(scenes.urls).not.toHaveBeenCalled();
   });
 });

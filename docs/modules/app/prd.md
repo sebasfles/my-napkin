@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0014_sidebar_shortcut_title
+source: 0012_libraries
 ---
 
 # app: product
@@ -15,7 +15,8 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 ## Interface
 
 The user opens `/`, is asked for the password once, and lands on his workspace with nothing open: the editor area invites him to pick a diagram or start one, and the app never picks for him.
-The sidebar carries the app's name, My Napkin, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the language and theme controls, and a way to close the session.
+The sidebar carries the app's name, My Napkin, and two sections the user switches between, Diagrams and Libraries: Diagrams holds the pinned ones when there are any and the contents of one folder under a breadcrumb of where that folder sits, Libraries holds every library he has made.
+Below them sit the language and theme controls and a way to close the session.
 It collapses to a narrow rail of icons when the drawing needs the room, and comes back from the same control or from Alt+B, which is how the room is taken and given back without leaving the drawing; both controls name the chord in their tooltip.
 A bar of tabs sits above the canvas, one per diagram the user has open, and it is there only while something is open.
 The browser tab names the diagram he is on before the product, so a window among many is recognisable before it is read, and carries the app's own mark.
@@ -67,6 +68,15 @@ The interface starts in the browser's language, Spanish or English, and in its l
    Nothing the editor binds is taken away.
 5. A tab whose diagram was deleted closes itself, including every tab a deleted folder took with it.
 
+### Build a library
+
+1. User opens the Libraries section from the sidebar, or from its icon on the rail, and sees every library he has made with how many items each holds.
+2. User creates one and it opens as a canvas, in a tab like a diagram and marked as a library.
+3. Every frame he draws on that canvas is one library item, and the frame's name is the item's name.
+   An empty canvas says so, and a frame holding an image says that images are not saved in a library item.
+4. Drawing a frame and pausing saves the canvas, and the library reports one more item; deleting the frame takes the item with it.
+5. Libraries are global: one lives outside the folders, is never pinned, locked or moved, and is reachable from wherever the user is.
+
 ### Lock a diagram
 
 1. User locks a finished diagram from its menu; the row shows a lock and the editor opens it read only.
@@ -84,7 +94,8 @@ A list that cannot be loaded offers to try again rather than pretending to be em
 
 ## Rules
 
-- Only one user; there is no concept of ownership or sharing per diagram.
+- Only one user; there is no concept of ownership or sharing per diagram or library.
+- A library is a canvas, not a list: it is edited in the same editor as a diagram, and its items are whatever its frames are at the last save.
 - A locked diagram is refused by the server, not only by the browser that locked it.
 - Which diagrams are open, where the user is in the tree and whether the sidebar is a rail are remembered per browser; the address names the open diagram and nothing else, so no link points at a folder or at a set of tabs.
 - A diagram's saved scene includes any pasted images, so they survive closing and reopening.

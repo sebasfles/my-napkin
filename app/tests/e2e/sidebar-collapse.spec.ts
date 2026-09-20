@@ -105,23 +105,28 @@ test.describe("sidebar collapse", () => {
     ).toHaveAttribute("data-collapsed", "true", { timeout: awsTimeout });
   });
 
-  test("shows the rail sections, with Libraries announced as coming soon", async ({ page }) => {
+  test("shows the rail sections and opens the one the rail was asked for", async ({ page }) => {
     await openApp(page);
     await page.getByTestId("sidebar-toggle").click();
 
     const libraries = page.getByTestId("rail-libraries");
     await expect(page.getByTestId("rail-diagrams")).toHaveAttribute("aria-current", "page");
-    await expect(libraries).toHaveAttribute("aria-disabled", "true");
-
-    await libraries.hover();
     await expect(
-      page.getByRole("tooltip"),
-      "an unavailable section still says why, which a disabled button could not",
-    ).toContainText("Coming soon");
+      libraries,
+      "Libraries stopped being a placeholder, so the rail no longer refuses it",
+    ).toHaveAttribute("aria-disabled", "false");
 
     await libraries.focus();
     await expect(libraries, "and the keyboard reaches it too").toBeFocused();
-    await expect(page.getByRole("tooltip")).toContainText("Coming soon");
+
+    await libraries.click();
+
+    await expect(sidebar(page)).toHaveAttribute("data-collapsed", "false");
+    await expect(
+      page.getByTestId("library-section"),
+      "the rail expands onto the section it was asked for, not the one it left",
+    ).toBeVisible({ timeout: awsTimeout });
+    await expect(page.getByTestId("section-libraries")).toHaveAttribute("aria-current", "page");
   });
 
   test("comes back as a rail without painting itself open first", async ({ page }) => {
