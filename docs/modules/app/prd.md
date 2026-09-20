@@ -76,6 +76,11 @@ The interface starts in the browser's language, Spanish or English, and in its l
    An empty canvas says so, and a frame holding an image says that images are not saved in a library item.
 4. Drawing a frame and pausing saves the canvas, and the library reports one more item; deleting the frame takes the item with it.
 5. Libraries are global: one lives outside the folders, is never pinned, locked or moved, and is reachable from wherever the user is.
+6. Every library has the same menu as a diagram's row: rename, export, delete behind a confirmation that names it, and link or unlink to whichever diagram is open.
+7. User imports a `.excalidrawlib`, from excalidraw.com or from an export of his own, and gets a new library whose canvas holds one frame per item, laid out in a grid and ready to edit.
+   Exporting one gives back the same file, so a library can leave the app and come back.
+8. Linking is per diagram, not per workspace: a library shows as linked only while the diagram that links it is open, and linking moves nothing, so it never counts as an edit of the drawing.
+9. Deleting a library leaves every diagram alone, including the ones that linked it; what a diagram already took from a library is a copy and stays.
 
 ### Lock a diagram
 

@@ -76,4 +76,20 @@ Deferred, out of this phase's scope:
 - Nothing tells a person which libraries a diagram links except the Libraries section itself; the Info dialog says nothing about them and the editor says nothing until phase 3's panel.
 - `removeItemsCreatedHere` still looks for diagrams at the root only, so a spec that leaves one inside a folder leaks it. Unchanged from phase 1, and still its own task.
 
+### Documentation
+
+Module docs updated: `README.md`, `prd.md`, `trd.md`, `database.md` and `ard.md` of `app`, plus the `Debt index` of `docs/ARD.md`.
+Five ARD entries, two of them debt: the export path proved in Chromium only, and the empty library a failed first write can leave.
+Both have a row in the index; nothing this phase did resolves an existing one, so no row left it.
+
+The fifth entry is the revisit the om-reviewer asked for.
+`modules/app/ard.md` 2026-09-20 "a control that is unavailable is aria-disabled, never disabled" named "Libraries ships, or a second unavailable control appears" as its trigger and both fired this phase, so the rule is narrowed in writing rather than left dangling: it governs a control whose purpose is to explain its own unavailability, and a greyed menu item has nothing to explain.
+The earlier entry is untouched, since `ard.md` is a log.
+
+`docs/PRD.md` is still not written, as in phase 1, and for the same reason: `document-task` reserves it for `setup` and the om-manager.
+`task.md#Scope` asks for a capability line there, and phase 3 is where the capability is whole.
+
+`trd.md` gained `library-io.ts` and lost nothing, `database.md` changed one sentence rather than gaining one, and `prd.md` gained four numbered steps in the flow that already existed.
+Nothing was appended that could have been a correction.
+
 ## Result
