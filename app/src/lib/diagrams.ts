@@ -86,3 +86,7 @@ export function isLocked(diagram: Diagram): boolean {
 export function isPinned(diagram: Diagram): boolean {
   return typeof diagram.pinnedAt === "string";
 }
+
+export function openDiagramId(pathname: string): string | null {
+  return pathname.startsWith("/d/") ? pathname.slice("/d/".length) : null;
+}

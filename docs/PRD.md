@@ -19,9 +19,10 @@ The priorities are, in order: it works, it costs nothing fixed per month, and it
 
 ### Diagrams (module `app`)
 
-The user sees his diagrams in a side list and opens one in the editor; a menu on each row renames, locks, pins, moves or deletes it.
-Folders nest to any depth, and the list shows one folder at a time with a breadcrumb back to the top; a pinned diagram also appears in a section above the list, wherever it lives.
-Edits save automatically shortly after he stops drawing, including pasted images, and reopening a diagram restores it as it was left.
+The user works from a sidebar of folders and diagrams: folders nest to any depth, the sidebar shows one at a time under a breadcrumb back to the top, and a pinned diagram stays one click away in a section above it, wherever it lives.
+A menu on every row renames, locks, pins, moves or deletes.
+The diagrams he opens stay open as tabs above the canvas, the one he only glanced at giving way to the next until an edit or a double click keeps it, and both the tabs and the folder he was in come back after a reload.
+Edits save automatically shortly after he stops drawing, pasted images included, and reopening a diagram restores it as it was left.
 Details: [modules/app/prd.md](modules/app/prd.md)
 
 ### Access (module `app`)
@@ -43,8 +44,7 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - The editor is the upstream Excalidraw package, unmodified; the product does not diverge from its behavior.
 - The project, its domain and its AWS resources are named `napkin`; the Excalidraw name appears only as a credit in the README.
 - Fixed monthly cost stays at $0 inside the AWS free tier.
-- The interface is available in Spanish and English, following the browser and switchable from the sidebar.
-- Light and dark mode follow the system and can be switched from the sidebar; the editor follows the same theme.
+- The interface follows the browser's language, Spanish or English, and its light or dark preference; both are switchable from the sidebar and the editor follows the theme.
 - A change reaches the user only after it ran on `napkin.dev.sdfles.com` and its end-to-end tests passed there.
 
 ## Not in the product

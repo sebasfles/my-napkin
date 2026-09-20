@@ -13,9 +13,10 @@ import { ThemeControl } from "@/components/theme-control";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace-provider";
-import { isDiagram, isLocked, isPinned, parentOf } from "@/lib/diagrams";
+import { isDiagram, isLocked, isPinned, openDiagramId, parentOf } from "@/lib/diagrams";
 import { childrenOf, pathTo, pinnedDiagrams } from "@/lib/tree";
 import { useSidebarFolder } from "@/lib/use-sidebar-folder";
+import { useTabs } from "@/lib/use-tabs";
 
 type OpenDialog = { kind: "name" | "info" | "move" | "delete"; id: string } | { kind: "newFolder" };
 
@@ -39,13 +40,14 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const [folderId, goTo] = useSidebarFolder();
+  const { fix } = useTabs();
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
   const [open, setOpen] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
   const [creating, setCreating] = useState(false);
   const lastOpened = useRef<string | null>(null);
 
-  const activeId = pathname.startsWith("/d/") ? pathname.slice("/d/".length) : null;
+  const activeId = openDiagramId(pathname);
   const ready = !loading && !failed;
   const path = ready ? pathTo(items, folderId) : [];
   const here = path === null ? null : folderId;
@@ -129,6 +131,7 @@ export function Sidebar() {
                     diagram={diagram}
                     active={diagram.id === activeId}
                     status={statusOf(diagram.id)}
+                    onFix={() => fix(diagram.id)}
                     onRename={() => show("name", diagram.id)}
                     onTogglePin={() => void attempt(() => setPinned(diagram.id, false))}
                     onMove={() => show("move", diagram.id)}
@@ -213,6 +216,7 @@ export function Sidebar() {
                     diagram={diagram}
                     active={diagram.id === activeId}
                     status={statusOf(diagram.id)}
+                    onFix={() => fix(diagram.id)}
                     onRename={() => show("name", diagram.id)}
                     onTogglePin={() =>
                       void attempt(() => setPinned(diagram.id, !isPinned(diagram)))
@@ -288,8 +292,7 @@ export function Sidebar() {
           if (!target) return;
 
           void attempt(async () => {
-            const gone = await remove(target.id);
-            if (activeId !== null && gone.includes(activeId)) router.push("/");
+            await remove(target.id);
           });
         }}
       />

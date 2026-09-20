@@ -90,6 +90,19 @@ test.describe("diagram list", () => {
     await expect(activeItem(page)).toContainText(other);
   });
 
+  test("never says a diagram was edited in the future", async ({ page }) => {
+    await openApp(page);
+    const edited = await newDiagram(page, "clock");
+
+    await drawRectangle(page);
+    await newDiagram(page, "clock other");
+
+    await expect(
+      diagramItem(page, edited).getByTestId("updated-at"),
+      "the row of a diagram whose save landed after the row was drawn must not read a future time",
+    ).toHaveText(/ago|now/, { timeout: 30_000 });
+  });
+
   test("leaves the diagram alone when the delete is cancelled", async ({ page }) => {
     await openApp(page);
     const name = await newDiagram(page, "cancel");

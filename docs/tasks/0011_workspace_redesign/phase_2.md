@@ -125,3 +125,28 @@ Cut to pay for what went in: `trd.md` loses its `/api/logout` sentence, which `a
 Not touched and worth naming: `docs/TRD.md` still says the five diagram routes are planned, which was already stale before this phase. It is the om-manager's file and the om-reviewer's list did not include it.
 
 ## Result
+
+Merged as PR #13 on 2026-09-20, three rounds plus the documentation commit, `fe3a4cd` to `25ef74c`.
+Everything in this phase's Scope shipped and its three acceptance points hold: folders nest and are created, renamed, moved and deleted from the sidebar, the Pinned section follows the user into every folder, the breadcrumbs navigate, and the location survives a reload.
+46 e2e against dev, nine cases added for folders, pinning and the save indicator.
+
+Deviations from the plan, each argued in `om-developer notes`:
+
+- The list payload is `{ items }` over an `Item` union and the repository is `itemRepository`, which pulled three renames with it (`WorkspaceProvider`, `item-changes.ts`, `item-row.tsx`). It turns "filter by kind" into a compile error rather than a thing to remember.
+- The cascade deletes deepest first and pairs each diagram's scene object with its own row, rather than all rows and then all objects as the Approach sketched. Same invariant, but a half-failed cascade leaves a smaller subtree that is still reachable.
+- The folder delete confirmation grew a sentence naming how many diagrams inside are locked, ordered before the finality sentence. The cascade still takes them; Acceptance 3 says it should.
+- Info gained Folder and Pinned since, which completes Scope 9 now that both fields exist.
+
+Debt created, two rows in `docs/ARD.md`: a cascade that fails partway leaves the folder half emptied and can orphan scene objects; a move is validated against a read and then written without a condition, so two concurrent writers could build a cycle.
+
+What phase 3 must know:
+
+- `tree.ts` is pure, unit tested and shared by the browser and the route handlers. The tab reducer belongs beside it, in `src/lib/`, with the component thin, as the Approach asks.
+- `use-sidebar-folder.ts` is the pattern for anything persisted per browser: a `useSyncExternalStore` over `localStorage`, reading null on the server so hydration matches, and subscribing to `storage` so a second tab follows. Tabs, the preview tab and the active tab want the same shape, not `useState` seeded by an effect, which the project's lint rules reject.
+- The sidebar already moves to the open diagram's folder on every navigation, except the first observation after a mount, which is what keeps "reload lands in the same folder" true. Tabs restore an active diagram on load and must not break that exception.
+- `WorkspaceProvider.remove` returns every id the cascade took, and the sidebar uses it to leave a deleted diagram. A tab whose diagram was deleted closes itself from the same signal; nothing needs to poll.
+- The Pinned and folder lists both render `data-testid="diagram-item"`, scoped by `pinned-list` and `item-list`. A pinned diagram that is open is active in both rows. Tab specs should scope the same way rather than widening the testids.
+- Every menu is `modal={false}` and all four dialogs are mounted for the life of the sidebar. A fifth dialog or a tab context menu follows the same rule; `ard.md` carries the reason.
+- The e2e cleanup registry deletes by tracked name and now follows a rename. A spec that renames anything it created must go through the helpers, or it leaks rows into the shared dev table.
+- `docs/TRD.md` is phase 3's to fix, delegated by the om-manager: line 25 (the five diagram routes are built and reshaped), the `app` row of the Modules table (a workspace with folders, pins and tabs), and the Workspace files line, which omits `AWS_REGION`.
+- This is the last phase, so its own `Result` has no later PR to travel in: it goes in the PR description instead.

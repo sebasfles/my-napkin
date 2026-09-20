@@ -64,6 +64,10 @@
     "retry": "Reintentar",
     "logout": "Cerrar sesión"
   },
+  "tabs": {
+    "label": "Diagramas abiertos",
+    "close": "Cerrar {name}"
+  },
   "editor": {
     "loading": "Cargando",
     "loadFailed": "No se pudo cargar este diagrama",

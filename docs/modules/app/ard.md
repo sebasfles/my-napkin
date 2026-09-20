@@ -255,6 +255,7 @@ source: 0011_workspace_redesign
 - A presigned PUT handed out before a lock stays valid for the rest of its five minutes, so a tab that already held one can still overwrite the scene object of a locked diagram.
 - A folder delete that fails partway leaves the folder half emptied and can orphan scene objects; nothing reconciles the bucket.
 - A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle.
+- An unknown id in the address is navigated away by two paths at once, the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces before it settles.
 
 ## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
 
@@ -352,4 +353,53 @@ source: 0011_workspace_redesign
   Naming the count is what makes it a decision rather than a surprise, which is the protection the lock is actually owed here.
 - Debt created: none.
 - Revisit when: a second user exists, where one person's lock would have to stop another person's delete.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: the active tab is the URL, not a field of the stored tab state
+
+- Decision: `localStorage` holds `{ ids, previewId }` and nothing more; which diagram is active is read from the pathname, and every function in `tabs.ts` that needs it takes it as an argument and answers where the user should go next.
+- Alternatives rejected: a third field, `activeId`, stored beside the other two, which is what the plan's wording implies; keeping the tab list in React state and syncing the URL to it.
+- Reason: `/d/[id]` already says which diagram is open, and the requirement that the active tab survive a reload is met by the address bar without a second copy.
+  A second copy is a second owner of one fact, and the frame after a reload, before the two agree, is exactly when the bar would highlight the wrong tab.
+  Taking the active id as an argument also keeps the reducer usable from the keyboard, from a close button and from reconciliation without any of them reading state they do not own.
+- Debt created: none.
+- Revisit when: a tab can hold something that is not a diagram, or two tabs can show the same diagram, at which point the URL stops being enough to name one.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: the tab layer is the only navigator when the open diagram disappears
+
+- Decision: deleting an item no longer navigates from the sidebar.
+  The tab bar reconciles the tab list against `items` and, when the diagram in the URL is gone, replaces it with the tab beside it, or with `/` when no tab is left.
+  `closeTab` and `keepTabs` compute that landing the same way: the tab on the right, then the one on the left, then nothing.
+- Alternatives rejected: leaving the sidebar's `router.push("/")` and letting the tab bar only close tabs, which is what `Context & decisions` describes; passing the ids that `remove` returns into the tab state as a signal.
+- Reason: two components navigating on one event is a race, and the one that knows the tab order is the one that can answer where the user belongs.
+  Reconciling against `items` rather than the return of `remove` also covers the cases no caller reports: a folder cascade that took several tabs at once, and a restored tab list whose diagram was deleted from another browser.
+  Sending the user to `/` with tabs still open would have thrown him at the most recently edited diagram instead of the one he was working beside.
+- Debt created: an unknown id in the address is now navigated away by two paths, the editor's 404 branch and this reconciliation, so a stale bookmark can produce two replaces before it settles.
+  Both land on a real diagram and the bogus id never survives in storage.
+- Revisit when: a third place wants to navigate on the workspace changing, or the double replace is ever seen to land somewhere wrong.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: an edit fixes a preview tab through the saver's own status report
+
+- Decision: `SceneSaving` promotes the tab of the diagram it is saving from the same callback that reports the save status, rather than from a separate notion of "the drawing changed".
+- Alternatives rejected: comparing element versions in the tab layer; promoting on the editor's `onChange`, which fires on load and on every pointer move.
+- Reason: the first status report is made only after the saver's opening reconciliation has absorbed the editor's first change, so it means precisely what the rest of the app means by edited: `updatedAt` is about to move.
+  A second definition of changed would drift from that one, and the drift would show as a tab that stayed a preview through work the list already counts as an edit.
+  The consequence to know is that panning or zooming also fixes the tab, because the app already saves and timestamps those; it is consistent rather than invisible.
+  A locked diagram mounts no saver, so it can never promote itself.
+- Debt created: none.
+- Revisit when: the scene stops storing the viewport, at which point a pan would no longer be a save and this would quietly become promotion on element changes only.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: a row's time is clamped to the edit it describes, and refreshed as it ages
+
+- Decision: `UpdatedAtLine` formats against `Math.max(now, updatedAt)` and takes `now` from `useNow({ updateInterval })`.
+- Alternatives rejected: the update interval alone, which is the documented answer; re-reading the clock on every render; formatting against a time the provider supplies per request.
+- Reason: `useNow` with no interval captures the clock once per component instance and never moves it, which produced two different falsehoods.
+  A row whose save landed after it was drawn, which is what happens when the user draws and then leaves before the upload finishes, read "in 3 seconds" and kept saying it.
+  The interval was measured, not assumed: with it in and the clamp out, the regression spec failed forty-nine polls in a row on the same future time, because an interval bounds how long a stale row can lie and does nothing about the direction of the lie.
+  The clamp is also true for the other cause of a future timestamp, a browser clock behind the server that stamped it.
+- Debt created: none.
+- Revisit when: a row needs to show a time it did not cause, where clamping to that row's own event would no longer be the right floor.
 - Source: 0011_workspace_redesign

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0009_deploy_dev_first_run
+updated: 2026-09-20
+source: 0011_workspace_redesign
 ---
 
 # Technical Requirements Document
@@ -19,11 +19,12 @@ The app's shell is built; everything else is the design the code must converge t
 ### app
 
 - Stack: TypeScript, Node 24, Next.js App Router with route handlers, Tailwind with shadcn/ui components, `next-themes` for dark mode, `next-intl` for `es` and `en`, `@excalidraw/excalidraw` from npm, npm as package manager, built with `@opennextjs/aws`.
-- Layout: `src/app/` (pages and `api/` route handlers), `src/proxy.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, session and gate helpers, later dynamo and s3), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
+- Layout: `src/app/` (pages and `api/` route handlers), `src/proxy.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, session and gate helpers, the tree and tab state, dynamo and s3), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
 - Install: `npm ci`
-- Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal`.
-- API spec: none; seven route handlers documented in `modules/app/trd.md`, the two auth ones built and the five diagram ones planned.
-- Data: DynamoDB table for the diagram index, S3 bucket for scene JSON; no ORM, no migrations. Both provisioned by `infra`.
+- Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal` and `AWS_REGION=us-east-1`.
+  The region is local only: an AWS profile carries none unless one was configured, and in AWS the Lambda runtime provides it, which is why Terraform grants four variables and not five.
+- API spec: none; seven route handlers documented in `modules/app/trd.md`, all built, the five diagram ones over items of two kinds since folders arrived.
+- Data: DynamoDB table for the workspace index, diagrams and folders alike, S3 bucket for scene JSON; no ORM, no migrations. Both provisioned by `infra`.
 - Delivery: `dev` at `napkin.dev.sdfles.com` from `develop`, `prd` at `napkin.sdfles.com` from `main`. Built by OpenNext into one Lambda plus static assets, deployed by `deploy`.
 
 ### infra
@@ -67,7 +68,7 @@ Modules belong to the application and may span components.
 
 | Module | Purpose | Components | Docs |
 |---|---|---|---|
-| app | Editor, diagram list, save and load, password auth | app | [README](modules/app/README.md) |
+| app | Editor, a workspace of folders, pins and tabs, save and load, password auth | app | [README](modules/app/README.md) |
 | infra | Every AWS resource the app runs on, and the deploy role | infra | [README](modules/infra/README.md) |
 | deploy | Ship `develop` to dev and `main` to prd, prove dev with the suite, open the promotion PR; CI on PRs | deploy | [README](modules/deploy/README.md) |
 
