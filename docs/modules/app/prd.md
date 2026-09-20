@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0014_sidebar_shortcut_title
 ---
 
 # app: product
@@ -15,10 +15,10 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 ## Interface
 
 The user opens `/`, is asked for the password once, and lands on his workspace with nothing open: the editor area invites him to pick a diagram or start one, and the app never picks for him.
-The sidebar carries the app name, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the language and theme controls, and a way to close the session.
-It collapses to a narrow rail of icons when the drawing needs the room, and comes back from the same control.
+The sidebar carries the app's name, My Napkin, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the language and theme controls, and a way to close the session.
+It collapses to a narrow rail of icons when the drawing needs the room, and comes back from the same control or from Alt+B, which is how the room is taken and given back without leaving the drawing; both controls name the chord in their tooltip.
 A bar of tabs sits above the canvas, one per diagram the user has open, and it is there only while something is open.
-The browser tab names the diagram he is on, so a window among many is recognisable before it is read, and carries the app's own mark.
+The browser tab names the diagram he is on before the product, so a window among many is recognisable before it is read, and carries the app's own mark.
 Everything outside the canvas is set in the app's own typeface, with its monospaced companion for dates, sizes and counts; the canvas keeps the editor's own.
 The interface starts in the browser's language, Spanish or English, and in its light or dark preference, and the editor follows both; either can be overridden from the sidebar and survives a reload, the theme keeping system as a choice of its own so the browser's preference can always be handed back.
 

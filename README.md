@@ -29,7 +29,7 @@ npm ci
 npm run dev
 ```
 
-The editor is then served at `http://localhost:3000`.
+The editor is then served at `http://localhost:3000`, and every command below runs inside `app/`.
 
 | Command                           | What it does                           |
 | --------------------------------- | -------------------------------------- |

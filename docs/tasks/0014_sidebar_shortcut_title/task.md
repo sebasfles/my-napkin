@@ -122,8 +122,9 @@ Decisions this round, beyond `Approach` and `Context & decisions`:
 - One matcher, `shortcutFor`, instead of keeping `tabShortcut` exported beside it.
   Two exported matchers over the same event is how the table stops being one table, which is the reason the table moved in the first place.
   The tab commands keep their shape, wrapped in the `tab` variant.
-- The shortcut shows in the tooltip as a muted second line rather than through a new `Kbd` component.
+- The shortcut shows in the tooltip as a muted span beside the label rather than through a new `Kbd` component.
   `ui/tooltip.tsx` already styles a `data-slot="kbd"` child, but no such component exists in `components/ui/`, and adding one from the shadcn CLI is a wider change than this task asked for.
+  `TooltipContent` is `inline-flex items-center gap-1.5`, so the two spans sit on one line, "Collapse the sidebar  Alt+B" (om-reviewer's correction to this note; the code was always right).
 
 Pending, for the documentation step:
 
@@ -142,3 +143,26 @@ Pending, e2e:
   The full e2e run is owed: the first came back 64 of 65 with the pinned-row collision above, and the re-run was terminated from outside after 8 green specs while three suites shared 7.8 GiB of memory.
   Held for the om-reviewer's `e2e slot free`.
 
+### Rebase and the e2e run
+
+Rebased onto `f7116f6` (0013, PR #16). Front matter of `prd.md`, `trd.md` and `ard.md` took ours; 0013's two ARD entries sit before ours; their `public/static` icons row and its CDN sentence survive beside our `shortcuts.ts` rows; `manifest.ts` carries "My Napkin", "Napkin" and both `/static/` icon paths.
+
+One change to my own spec before the run, folded into the round commit: the Alt+B case claimed "with focus in the canvas" and proved nothing of the sort, since the listener is on `window` and the case would have passed with the click landing nowhere.
+It now clicks `canvas.excalidraw__canvas.interactive` and asserts `.excalidraw-container` is focused before the chord, which is what Acceptance 1 actually says and what 0013's helpers just established as the shape.
+`helpers.ts` is untouched: `clickIntoCanvas` is private there and taking a copy of its two steps was cheaper than widening their API.
+
+Suite green on the rebased tree: lint, typecheck, 218 unit tests, 65 e2e passed in 12.9 minutes, `pinning.spec.ts` included and alone on the dev table this time.
+
+### Documentation
+
+Run on the om-reviewer's `no code findings` with the e2e token still elsewhere, so the green block covers the tree that ships.
+
+- `docs/modules/app/prd.md`: the rail sentence names Alt+B and the tooltips, the sidebar carries "My Napkin", and the browser tab names the diagram before the product.
+- `docs/modules/app/trd.md`: `shortcuts.ts` and the `<Shortcuts />` listener replace the `tabs.ts` plus `tab-bar.tsx` sentence under `Keyboard`, with why a second listener is never the answer; the structure table gains `shortcuts.ts` and follows the two headless components in the `(editor)` layout.
+- `docs/modules/app/ard.md`: two entries, one matcher over the key event, and the chord in the tooltip without a `Kbd`. Neither creates debt, so the `Debt index` of `docs/ARD.md` is unchanged and untouched.
+- `README.md` got back the line saying every command in the table runs inside `app/`, which the rewrite had dropped.
+
+Not recorded by me, on purpose:
+
+- The i18n waiver for the two literals in `manifest.ts`: the om-reviewer let them pass and is recording why, and a manifest route is outside that check's `paths` anyway.
+- The `pinning.spec.ts:49` defect: the om-reviewer is routing it to 0013 rather than leaving it as debt here, so it gets no row in the index from this task.
