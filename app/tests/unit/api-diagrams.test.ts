@@ -15,8 +15,14 @@ const scenes = {
   remove: vi.fn(),
 };
 
+const libraries = {
+  urls: vi.fn(),
+  createEmpty: vi.fn(),
+  remove: vi.fn(),
+};
+
 vi.mock("@/lib/dynamo", () => ({ itemRepository: repository }));
-vi.mock("@/lib/s3", () => ({ sceneStore: scenes }));
+vi.mock("@/lib/s3", () => ({ sceneStore: scenes, libraryStore: libraries }));
 
 const { GET, POST } = await import("@/app/api/diagrams/route");
 
@@ -55,6 +61,7 @@ async function created(body: unknown): Promise<Item> {
 beforeEach(() => {
   vi.clearAllMocks();
   scenes.createEmpty.mockResolvedValue(undefined);
+  libraries.createEmpty.mockResolvedValue(undefined);
   repository.create.mockResolvedValue(undefined);
   repository.get.mockResolvedValue(folder());
 });
@@ -141,5 +148,34 @@ describe("POST /api/diagrams", () => {
       expect(scenes.createEmpty).not.toHaveBeenCalled();
       expect(repository.create).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("POST /api/diagrams, libraries", () => {
+  it("creates a library with its canvas object and no scene object", async () => {
+    const item = await created({ name: "Shapes", kind: "library" });
+
+    expect(item.kind).toBe("library");
+    expect(libraries.createEmpty).toHaveBeenCalledWith(item.id);
+    expect(scenes.createEmpty).not.toHaveBeenCalled();
+    expect(item).toMatchObject({ name: "Shapes", itemCount: 0 });
+    expect("parentId" in item).toBe(false);
+  });
+
+  it("writes the library objects before the item, so none is listed without its canvas", async () => {
+    const order: string[] = [];
+    libraries.createEmpty.mockImplementation(async () => void order.push("objects"));
+    repository.create.mockImplementation(async () => void order.push("item"));
+
+    await created({ name: "Shapes", kind: "library" });
+
+    expect(order).toEqual(["objects", "item"]);
+  });
+
+  it("refuses a library inside a folder, since libraries are global", async () => {
+    const response = await POST(post({ name: "Shapes", kind: "library", parentId: "folder-1" }));
+
+    expect(response.status).toBe(400);
+    expect(repository.create).not.toHaveBeenCalled();
   });
 });

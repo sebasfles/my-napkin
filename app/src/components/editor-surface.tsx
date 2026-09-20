@@ -3,10 +3,10 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Editor } from "@/components/editor";
-import { openDiagramId } from "@/lib/diagrams";
+import { openItemId } from "@/lib/diagrams";
 
 export function EditorSurface({ children }: { children: ReactNode }) {
-  const diagramId = openDiagramId(usePathname());
+  const itemId = openItemId(usePathname());
 
-  return diagramId === null ? <>{children}</> : <Editor diagramId={diagramId} />;
+  return itemId === null ? <>{children}</> : <Editor itemId={itemId} />;
 }

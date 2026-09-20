@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { LibraryBig, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -8,7 +8,7 @@ import { useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace-provider";
-import { isDiagram, openDiagramId, type Diagram } from "@/lib/diagrams";
+import { isCanvas, isLibrary, openItemId, type Canvas } from "@/lib/diagrams";
 import { useTabs } from "@/lib/use-tabs";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ export function TabBar() {
   const { items, loading, failed } = useWorkspace();
   const { tabs, open, fix, close, keep } = useTabs();
 
-  const activeId = openDiagramId(pathname);
+  const activeId = openItemId(pathname);
   const ready = !loading && !failed;
 
   const goTo = useCallback(
@@ -35,7 +35,7 @@ export function TabBar() {
     if (!ready) return;
 
     const next = keep(
-      items.filter(isDiagram).map((diagram) => diagram.id),
+      items.filter(isCanvas).map((item) => item.id),
       activeId,
     );
     if (next !== activeId) router.replace(next === null ? "/" : `/d/${next}`);
@@ -43,9 +43,9 @@ export function TabBar() {
 
   if (tabs.ids.length === 0) return null;
 
-  const openDiagrams = tabs.ids
+  const openCanvases = tabs.ids
     .map((id) => items.find((item) => item.id === id))
-    .filter((item): item is Diagram => item !== undefined && isDiagram(item));
+    .filter((item): item is Canvas => item !== undefined && isCanvas(item));
 
   return (
     <nav
@@ -60,15 +60,15 @@ export function TabBar() {
                 <Skeleton className="h-3 w-24" />
               </li>
             ))
-          : openDiagrams.map((diagram) => (
-              <li key={diagram.id}>
+          : openCanvases.map((item) => (
+              <li key={item.id}>
                 <Tab
-                  diagram={diagram}
-                  active={diagram.id === activeId}
-                  preview={diagram.id === tabs.previewId}
-                  onFix={() => fix(diagram.id)}
+                  item={item}
+                  active={item.id === activeId}
+                  preview={item.id === tabs.previewId}
+                  onFix={() => fix(item.id)}
                   onClose={() => {
-                    const next = close(diagram.id, activeId);
+                    const next = close(item.id, activeId);
                     if (next !== activeId) goTo(next);
                   }}
                 />
@@ -80,25 +80,27 @@ export function TabBar() {
 }
 
 function Tab({
-  diagram,
+  item,
   active,
   preview,
   onFix,
   onClose,
 }: {
-  diagram: Diagram;
+  item: Canvas;
   active: boolean;
   preview: boolean;
   onFix: () => void;
   onClose: () => void;
 }) {
   const t = useTranslations("tabs");
+  const library = isLibrary(item);
 
   return (
     <div
       data-testid="tab"
       data-active={active}
       data-preview={preview}
+      data-library={library}
       className={cn(
         "group relative flex h-full items-center gap-1 border-r border-sidebar-border pr-1 pl-3 transition-colors",
         active ? "bg-background text-foreground" : "text-muted-foreground hover:bg-sidebar-accent",
@@ -107,17 +109,20 @@ function Tab({
       {active ? <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-primary" /> : null}
 
       <Link
-        href={`/d/${diagram.id}`}
+        href={`/d/${item.id}`}
         onDoubleClick={onFix}
-        className="max-w-40 truncate rounded-sm py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="flex max-w-40 items-center gap-1.5 rounded-sm py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <span className={cn("block truncate", preview && "italic")}>{diagram.name}</span>
+        {library ? (
+          <LibraryBig aria-label={t("libraryGlyph")} className="size-3.5 shrink-0" />
+        ) : null}
+        <span className={cn("block truncate", preview && "italic")}>{item.name}</span>
       </Link>
 
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label={t("close", { name: diagram.name })}
+        aria-label={t("close", { name: item.name })}
         data-testid="tab-close"
         className={cn(
           "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",

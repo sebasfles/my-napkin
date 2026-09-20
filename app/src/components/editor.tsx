@@ -10,6 +10,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { LibraryHints, libraryCanvasHint, sameHint } from "@/components/library-hints";
+import type { LibraryCanvasHint } from "@/components/library-hints";
 import { useWorkspace } from "@/components/workspace-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
@@ -19,11 +21,11 @@ import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
 import type { SceneSaver } from "@/lib/scene-save";
 import { resolveTheme } from "@/lib/theme";
-import { useSceneSave } from "@/lib/use-scene-save";
+import { useCanvasSave, writeDiagram, writeLibrary, type WriteCanvas } from "@/lib/use-scene-save";
 import { useTabs } from "@/lib/use-tabs";
 import { cn } from "@/lib/utils";
 
-const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
+const CanvasEditor = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
 });
 
@@ -33,7 +35,7 @@ interface LoadedScene {
   urls: SceneAccess;
 }
 
-export function Editor({ diagramId }: { diagramId: string }) {
+export function Editor({ itemId }: { itemId: string }) {
   const t = useTranslations("editor");
   const router = useRouter();
   const { items, failed: listFailed } = useWorkspace();
@@ -43,23 +45,23 @@ export function Editor({ diagramId }: { diagramId: string }) {
   useEffect(() => {
     let active = true;
 
-    loadScene(diagramId)
+    loadScene(itemId)
       .then((result) => {
-        if (active) setLoaded({ id: diagramId, ...result });
+        if (active) setLoaded({ id: itemId, ...result });
       })
       .catch((error: unknown) => {
         if (!active) return;
         if (error instanceof NotFoundError) router.replace("/");
-        else setFailed(diagramId);
+        else setFailed(itemId);
       });
 
     return () => {
       active = false;
     };
-  }, [diagramId, router]);
+  }, [itemId, router]);
 
-  const shown = failed === diagramId ? null : loaded;
-  const stale = shown !== null && shown.id !== diagramId;
+  const shown = failed === itemId ? null : loaded;
+  const stale = shown !== null && shown.id !== itemId;
 
   const cached = shown === null ? null : (items.find((item) => item.id === shown.id) ?? null);
   const cachedLock = cached !== null && isDiagram(cached) ? isLocked(cached) : null;
@@ -69,13 +71,13 @@ export function Editor({ diagramId }: { diagramId: string }) {
     <div className="h-full w-full" data-testid="editor">
       {shown ? (
         <div
-          className={cn("h-full w-full", stale && "pointer-events-none")}
+          className={cn("relative h-full w-full", stale && "pointer-events-none")}
           data-testid="editor-scene"
           data-stale={stale}
         >
           <EditorCanvas
             key={shown.id}
-            diagramId={shown.id}
+            itemId={shown.id}
             scene={shown.scene}
             urls={shown.urls}
             locked={locked}
@@ -91,12 +93,12 @@ export function Editor({ diagramId }: { diagramId: string }) {
 }
 
 function EditorCanvas({
-  diagramId,
+  itemId,
   scene,
   urls,
   locked,
 }: {
-  diagramId: string;
+  itemId: string;
   scene: Scene;
   urls: SceneUrls;
   locked: boolean;
@@ -104,39 +106,58 @@ function EditorCanvas({
   const locale = useLocale() as Locale;
   const { theme, systemTheme } = useTheme();
   const saverRef = useRef<SceneSaver | null>(null);
+  const library = urls.items !== undefined;
+  const [hint, setHint] = useState<LibraryCanvasHint | null>(() =>
+    library ? libraryCanvasHint(scene) : null,
+  );
 
   const onChange = useCallback(
     (elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
-      saverRef.current?.change(toScene(elements, appState, files));
+      const changed = toScene(elements, appState, files);
+      saverRef.current?.change(changed);
+
+      if (library) {
+        const next = libraryCanvasHint(changed);
+        setHint((current) => (current !== null && sameHint(current, next) ? current : next));
+      }
     },
-    [],
+    [library],
   );
 
   return (
     <>
       {locked ? null : (
-        <SceneSaving diagramId={diagramId} scene={scene} urls={urls} saverRef={saverRef} />
+        <CanvasSaving
+          itemId={itemId}
+          scene={scene}
+          urls={urls}
+          write={library ? writeLibrary : writeDiagram}
+          saverRef={saverRef}
+        />
       )}
-      <Canvas
+      <CanvasEditor
         theme={resolveTheme(theme, systemTheme)}
         langCode={editorLangCode(locale)}
         initialData={scene}
         viewModeEnabled={locked}
         onChange={onChange}
       />
+      {hint === null ? null : <LibraryHints hint={hint} />}
     </>
   );
 }
 
-function SceneSaving({
-  diagramId,
+function CanvasSaving({
+  itemId,
   scene,
   urls,
+  write,
   saverRef,
 }: {
-  diagramId: string;
+  itemId: string;
   scene: Scene;
   urls: SceneUrls;
+  write: WriteCanvas;
   saverRef: RefObject<SceneSaver | null>;
 }) {
   const { isDeleted, markSaved, registerSaver, reportSave } = useWorkspace();
@@ -144,16 +165,17 @@ function SceneSaving({
 
   const onStatus = useCallback(
     (status: SaveStatus) => {
-      fix(diagramId);
-      reportSave(diagramId, status);
+      fix(itemId);
+      reportSave(itemId, status);
     },
-    [diagramId, fix, reportSave],
+    [itemId, fix, reportSave],
   );
 
-  const saver = useSceneSave({
-    diagramId,
+  const saver = useCanvasSave({
+    itemId,
     scene,
     urls,
+    write,
     onStatus,
     onSaved: markSaved,
     isDeleted,
@@ -161,13 +183,13 @@ function SceneSaving({
 
   useEffect(() => {
     saverRef.current = saver;
-    const unregister = registerSaver(diagramId, saver.settle);
+    const unregister = registerSaver(itemId, saver.settle);
 
     return () => {
       saverRef.current = null;
       unregister();
     };
-  }, [diagramId, registerSaver, saver, saverRef]);
+  }, [itemId, registerSaver, saver, saverRef]);
 
   return null;
 }

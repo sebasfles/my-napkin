@@ -1,24 +1,27 @@
-import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
+import type { Canvas, SceneUrls } from "@/lib/diagrams";
 import { nextSaveState, type SaveEvent, type SaveStatus } from "@/lib/save-state";
-import { sceneStats, sceneVersion, type Scene } from "@/lib/scene";
+import { sceneVersion, type Scene } from "@/lib/scene";
 
 export interface SceneBaseline {
   serialized: string;
   version: number;
 }
 
+export interface WritableSceneUrls extends SceneUrls {
+  put: string;
+}
+
 export interface SceneSaverOptions {
-  diagramId: string;
+  itemId: string;
   baseline: SceneBaseline;
   initialUrls?: SceneUrls;
   debounceMs?: number;
   renewUrlMs?: number;
   now?: () => number;
   urls: (id: string) => Promise<SceneUrls>;
-  put: (url: string, body: string) => Promise<void>;
-  save: (id: string, stats: SceneStats) => Promise<Diagram>;
+  write: (id: string, urls: WritableSceneUrls, scene: Scene, serialized: string) => Promise<Canvas>;
   onStatus: (status: SaveStatus) => void;
-  onSaved: (diagram: Diagram) => void;
+  onSaved: (item: Canvas) => void;
   deleted?: () => boolean;
 }
 
@@ -69,12 +72,15 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     inFlight = running;
   }
 
-  async function putUrl(): Promise<string> {
+  async function writableUrls(): Promise<WritableSceneUrls> {
     if (!urls?.put || Date.parse(urls.expiresAt) - now() < renewUrlMs) {
-      urls = await options.urls(options.diagramId);
+      urls = await options.urls(options.itemId);
     }
-    if (!urls.put) throw new Error(`${options.diagramId} is locked, so no upload is signed`);
-    return urls.put;
+
+    const current = urls;
+    if (!current.put) throw new Error(`${options.itemId} is locked, so no upload is signed`);
+
+    return { ...current, put: current.put };
   }
 
   async function upload(): Promise<void> {
@@ -83,17 +89,15 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     const serialized = serializePending(scene);
 
     try {
-      const url = await putUrl();
+      const writable = await writableUrls();
       if (abandoned || deleted()) return;
 
-      await options.put(url, serialized);
+      const item = await options.write(options.itemId, writable, scene, serialized);
       if (abandoned) return;
-
-      const diagram = await options.save(options.diagramId, sceneStats(scene, serialized));
 
       baseline = { serialized, version: sceneVersion(scene.elements) };
       if (pending === scene) forget();
-      options.onSaved(diagram);
+      options.onSaved(item);
       advance("success");
     } catch {
       urls = null;

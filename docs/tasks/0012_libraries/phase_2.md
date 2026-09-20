@@ -8,7 +8,7 @@ updated: 2026-09-20
 
 ## Scope
 
-- The minimal list of phase 1 becomes the browser: each library with its item count, rename, delete with a confirmation naming it, export one, and import a `.excalidrawlib` as a new library canvas with one frame per item laid out in a grid.
+- The minimal list of phase 1 becomes the browser: the item count is already in the row, and rename, delete with a confirmation naming it, export one, and import a `.excalidrawlib` as a new library canvas with one frame per item laid out in a grid arrive around it.
 - Link and unlink a library to the open diagram, writing `libraryIds` on the diagram.
   A link is a reference and moves no `updatedAt`; a diagram that links a deleted library stays intact and the unknown id is skipped.
 - Import and export go through the package's `loadLibraryFromBlob`, `restoreLibraryItems` and `serializeLibraryAsJSON`, reached behind the `next/dynamic` boundary, so the envelope is the package's own.

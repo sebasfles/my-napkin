@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { byteSize, type ByteUnit } from "@/lib/bytes";
 import {
+  isDiagram,
   isFolder,
   isLocked,
   parentOf,
@@ -307,7 +308,7 @@ export function DeleteDialog({
   onConfirm,
 }: DialogProps & { item: Item | null; items: Item[]; onConfirm: () => void }) {
   const t = useTranslations("sidebar");
-  const locked = item !== null && !isFolder(item) && isLocked(item);
+  const locked = item !== null && isDiagram(item) && isLocked(item);
   const name = item?.name ?? "";
   const counts = item && isFolder(item) ? subtreeCounts(items, item.id) : null;
 
