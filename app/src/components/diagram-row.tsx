@@ -84,7 +84,7 @@ export function DiagramRow({
         </Tooltip>
       ) : null}
 
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"

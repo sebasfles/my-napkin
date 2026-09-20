@@ -24,11 +24,21 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
+  const [open, setOpen] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const activeId = pathname.startsWith("/d/") ? pathname.slice("/d/".length) : null;
   const target = dialog ? (diagrams.find((item) => item.id === dialog.id) ?? null) : null;
+
+  function show(kind: OpenDialog["kind"], id: string) {
+    setDialog({ kind, id });
+    setOpen(true);
+  }
+
+  function shows(kind: OpenDialog["kind"]) {
+    return open && dialog?.kind === kind && target !== null;
+  }
 
   async function attempt(action: () => Promise<void>) {
     setActionFailed(false);
@@ -115,9 +125,9 @@ export function Sidebar() {
                       ? saveStatus.status
                       : null
                   }
-                  onRename={() => setDialog({ kind: "rename", id: diagram.id })}
-                  onInfo={() => setDialog({ kind: "info", id: diagram.id })}
-                  onDelete={() => setDialog({ kind: "delete", id: diagram.id })}
+                  onRename={() => show("rename", diagram.id)}
+                  onInfo={() => show("info", diagram.id)}
+                  onDelete={() => show("delete", diagram.id)}
                   onToggleLock={() => void attempt(() => setLock(diagram.id, !isLocked(diagram)))}
                 />
               </li>
@@ -139,34 +149,32 @@ export function Sidebar() {
         <LogoutButton />
       </div>
 
-      {target && dialog?.kind === "rename" ? (
-        <RenameDialog
-          diagram={target}
-          onClose={() => setDialog(null)}
-          onSubmit={(name) => {
-            setDialog(null);
-            if (name !== target.name) void attempt(() => rename(target.id, name));
-          }}
-        />
-      ) : null}
+      <RenameDialog
+        diagram={target}
+        open={shows("rename")}
+        onOpenChange={setOpen}
+        onSubmit={(name) => {
+          setOpen(false);
+          if (target && name !== target.name) void attempt(() => rename(target.id, name));
+        }}
+      />
 
-      {target && dialog?.kind === "info" ? (
-        <InfoDialog diagram={target} onClose={() => setDialog(null)} />
-      ) : null}
+      <InfoDialog diagram={target} open={shows("info")} onOpenChange={setOpen} />
 
-      {target && dialog?.kind === "delete" ? (
-        <DeleteDialog
-          diagram={target}
-          onClose={() => setDialog(null)}
-          onConfirm={() => {
-            setDialog(null);
-            void attempt(async () => {
-              await remove(target.id);
-              if (activeId === target.id) router.push("/");
-            });
-          }}
-        />
-      ) : null}
+      <DeleteDialog
+        diagram={target}
+        open={shows("delete")}
+        onOpenChange={setOpen}
+        onConfirm={() => {
+          setOpen(false);
+          if (!target) return;
+
+          void attempt(async () => {
+            await remove(target.id);
+            if (activeId === target.id) router.push("/");
+          });
+        }}
+      />
     </aside>
   );
 }

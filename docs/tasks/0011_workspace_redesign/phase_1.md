@@ -94,4 +94,26 @@ Residue, for the ARD at `document-task`:
   The PATCH is refused throughout, so the item's `updatedAt` and counters never move, and the window closes by itself.
 - The same window covers a change made between `settle()` and the lock landing: its PUT can still reach S3 while its PATCH answers 409, and the user sees the save indicator report the failure rather than a silent loss.
 
+### Round 3
+
+The suite found a real bug on its first run against dev: 16 of 35 tests failed, all of them after a dialog had been opened from the item menu, and always with `<html> intercepts pointer events`.
+It was not the tests being picky.
+A probe showed `document.body` left with `pointer-events: none` and no dialog anywhere in the DOM, so after renaming a diagram the whole app was unclickable until a reload, in every browser, not only under Playwright.
+
+The cause is two nested Radix modals.
+The item menu is modal by default, so opening it writes `pointer-events: none` on the body; the dialog opened from it saves that value as the one to restore, and writes it back when it closes.
+Measured, rather than guessed: menu open wrote `none`, Escape restored it, but a dialog opened from the menu closed back to `none`.
+The fix is `modal={false}` on the item menu, which it never needed: it is a small menu in a sidebar, and it locks no scroll.
+With that, the menu writes nothing and the dialog's own save and restore sees a clean value, which the same probe confirmed.
+
+Kept alongside it: the three dialogs are now mounted for the life of the sidebar with `open` driven by state, instead of being mounted and unmounted with the selection.
+That is the pattern the sidebar already used for its delete confirmation before this task, it is what gives the dialogs their exit animation, and unmounting a Radix dialog while it is open is a second, independent way to leak the same lock.
+It was not what caused this failure, and I am saying so rather than claiming two fixes for one bug.
+
+Also done in this round, and it is mess I made rather than product work: the failed runs left 20 `e2e ...` diagrams in the dev table, because the cleanup in `afterEach` needs the same clicks the bug had blocked.
+I deleted them through the app's own UI with a throwaway spec, then removed it.
+The screenshots were retaken afterwards so they show a real list rather than that debris.
+
+Screenshots, light and dark, in `{{workspace}}/screenshots/`, never committed: login, sidebar, item menu, rename dialog, info dialog, delete confirmation, the locked row with the editor in view mode, and the delete dialog that asks to unlock first.
+
 ## Result

@@ -26,96 +26,108 @@ import { Input } from "@/components/ui/input";
 import { byteSize, type ByteUnit } from "@/lib/bytes";
 import { isLocked, type Diagram } from "@/lib/diagrams";
 
+interface DialogProps {
+  diagram: Diagram | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
 export function RenameDialog({
   diagram,
+  open,
+  onOpenChange,
   onSubmit,
-  onClose,
-}: {
-  diagram: Diagram;
-  onSubmit: (name: string) => void;
-  onClose: () => void;
-}) {
+}: DialogProps & { onSubmit: (name: string) => void }) {
   const t = useTranslations("sidebar");
-  const [name, setName] = useState(diagram.name);
-  const trimmed = name.trim();
 
   return (
-    <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="rename-dialog">
         <DialogHeader>
           <DialogTitle>{t("renameTitle")}</DialogTitle>
           <DialogDescription>{t("renameBody")}</DialogDescription>
         </DialogHeader>
-
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (trimmed.length > 0) onSubmit(trimmed);
-          }}
-        >
-          <Input
-            autoFocus
-            aria-label={t("renameLabel")}
-            data-testid="rename-input"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" data-testid="rename-cancel">
-                {t("cancel")}
-              </Button>
-            </DialogClose>
-            <Button type="submit" data-testid="rename-submit" disabled={trimmed.length === 0}>
-              {t("renameConfirm")}
-            </Button>
-          </DialogFooter>
-        </form>
+        {diagram ? <RenameForm diagram={diagram} onSubmit={onSubmit} /> : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-export function InfoDialog({ diagram, onClose }: { diagram: Diagram; onClose: () => void }) {
+function RenameForm({ diagram, onSubmit }: { diagram: Diagram; onSubmit: (name: string) => void }) {
+  const t = useTranslations("sidebar");
+  const [name, setName] = useState(diagram.name);
+  const trimmed = name.trim();
+
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (trimmed.length > 0) onSubmit(trimmed);
+      }}
+    >
+      <Input
+        autoFocus
+        aria-label={t("renameLabel")}
+        data-testid="rename-input"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline" data-testid="rename-cancel">
+            {t("cancel")}
+          </Button>
+        </DialogClose>
+        <Button type="submit" data-testid="rename-submit" disabled={trimmed.length === 0}>
+          {t("renameConfirm")}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+export function InfoDialog({ diagram, open, onOpenChange }: DialogProps) {
   const t = useTranslations("sidebar");
 
   return (
-    <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="info-dialog">
         <DialogHeader>
           <DialogTitle>{t("infoTitle")}</DialogTitle>
           <DialogDescription>{t("infoBody")}</DialogDescription>
         </DialogHeader>
 
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <Field label={t("infoName")} testId="info-name" value={diagram.name} />
-          <Field
-            label={t("infoCreated")}
-            testId="info-created"
-            value={<At at={diagram.createdAt} />}
-          />
-          <Field
-            label={t("infoUpdated")}
-            testId="info-updated"
-            value={<At at={diagram.updatedAt} />}
-          />
-          <Field
-            label={t("infoLocked")}
-            testId="info-locked"
-            value={diagram.lockedAt ? <At at={diagram.lockedAt} /> : t("infoUnknown")}
-          />
-          <Field
-            label={t("infoElements")}
-            testId="info-elements"
-            value={<Count of={diagram.elementCount} />}
-          />
-          <Field
-            label={t("infoSize")}
-            testId="info-size"
-            value={<Size bytes={diagram.sceneBytes} />}
-          />
-        </dl>
+        {diagram ? (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+            <Field label={t("infoName")} testId="info-name" value={diagram.name} />
+            <Field
+              label={t("infoCreated")}
+              testId="info-created"
+              value={<At at={diagram.createdAt} />}
+            />
+            <Field
+              label={t("infoUpdated")}
+              testId="info-updated"
+              value={<At at={diagram.updatedAt} />}
+            />
+            <Field
+              label={t("infoLocked")}
+              testId="info-locked"
+              value={diagram.lockedAt ? <At at={diagram.lockedAt} /> : t("infoUnknown")}
+            />
+            <Field
+              label={t("infoElements")}
+              testId="info-elements"
+              value={<Count of={diagram.elementCount} />}
+            />
+            <Field
+              label={t("infoSize")}
+              testId="info-size"
+              value={<Size bytes={diagram.sceneBytes} />}
+            />
+          </dl>
+        ) : null}
 
         <DialogFooter>
           <DialogClose asChild>
@@ -131,25 +143,21 @@ export function InfoDialog({ diagram, onClose }: { diagram: Diagram; onClose: ()
 
 export function DeleteDialog({
   diagram,
+  open,
+  onOpenChange,
   onConfirm,
-  onClose,
-}: {
-  diagram: Diagram;
-  onConfirm: () => void;
-  onClose: () => void;
-}) {
+}: DialogProps & { onConfirm: () => void }) {
   const t = useTranslations("sidebar");
-  const locked = isLocked(diagram);
+  const locked = diagram !== null && isLocked(diagram);
+  const name = diagram?.name ?? "";
 
   return (
-    <AlertDialog open onOpenChange={(open) => (open ? undefined : onClose())}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent data-testid="delete-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle>{locked ? t("deleteLockedTitle") : t("deleteTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            {locked
-              ? t("deleteLockedBody", { name: diagram.name })
-              : t("deleteBody", { name: diagram.name })}
+            {locked ? t("deleteLockedBody", { name }) : t("deleteBody", { name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
