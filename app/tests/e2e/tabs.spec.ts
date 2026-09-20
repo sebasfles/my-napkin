@@ -120,4 +120,81 @@ test.describe("tabs", () => {
     await expect(page).toHaveURL(diagramUrl);
     await expect(activeTab(page)).toContainText(kept);
   });
+
+  test("switching tabs repaints the editor content and nothing else", async ({ page }) => {
+    await openApp(page);
+    const first = await newDiagram(page, "tab repaint first");
+    await fixTab(page, first);
+    const second = await newDiagram(page, "tab repaint second");
+    await fixTab(page, second);
+
+    await page.evaluate(() => {
+      const watched = window as unknown as {
+        shell?: Record<string, Element | null>;
+        frames?: number;
+        blank?: string | null;
+      };
+
+      watched.shell = {
+        sidebar: document.querySelector('[data-testid="sidebar"]'),
+        bar: document.querySelector('[data-testid="tab-bar"]'),
+        editor: document.querySelector('[data-testid="editor"]'),
+      };
+      watched.frames = 0;
+      watched.blank = null;
+
+      const start = performance.now();
+      const sample = () => {
+        watched.frames = (watched.frames ?? 0) + 1;
+
+        if (
+          document.querySelector('[data-testid="editor-scene"]') === null &&
+          watched.blank == null
+        ) {
+          const editor = document.querySelector('[data-testid="editor"]');
+          watched.blank = `at ${Math.round(performance.now() - start)}ms on ${location.pathname}, ${document.querySelectorAll('[data-testid="tab"]').length} tabs, the editor area read "${(editor?.textContent ?? "nothing at all").slice(0, 40)}"`;
+        }
+
+        requestAnimationFrame(sample);
+      };
+
+      requestAnimationFrame(sample);
+    });
+
+    await tab(page, first).getByRole("link").click();
+    await expect(activeTab(page)).toContainText(first);
+    await expect(
+      page.locator('[data-testid="editor-scene"]'),
+      "the scene on screen is the one the active tab names",
+    ).toHaveAttribute("data-stale", "false");
+    await page.waitForTimeout(2_000);
+
+    const shell = await page.evaluate(() => {
+      const watched = window as unknown as {
+        shell: Record<string, Element | null>;
+        frames: number;
+        blank: string | null;
+      };
+
+      const survived = (node: Element | null, selector: string) =>
+        node !== null && node.isConnected && node === document.querySelector(selector);
+
+      return {
+        sidebar: survived(watched.shell.sidebar, '[data-testid="sidebar"]'),
+        bar: survived(watched.shell.bar, '[data-testid="tab-bar"]'),
+        editor: survived(watched.shell.editor, '[data-testid="editor"]'),
+        frames: watched.frames,
+        blank: watched.blank,
+      };
+    });
+
+    expect(shell.frames, "the sampler watched the switch happen").toBeGreaterThan(30);
+    expect(
+      shell.blank,
+      "no painted frame fell back to a placeholder: the drawing on screen is replaced, never blanked",
+    ).toBeNull();
+    expect(shell.sidebar, "the sidebar is the same node it was before the switch").toBe(true);
+    expect(shell.bar, "and so is the tab bar").toBe(true);
+    expect(shell.editor, "and the editor frame around the canvas").toBe(true);
+  });
 });

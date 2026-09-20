@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   diagramItem,
-  diagramUrl,
+  emptyWorkspace,
   e2eName,
   folderItem,
   goToRoot,
@@ -9,6 +9,7 @@ import {
   moveItem,
   newDiagram,
   newFolder,
+  newFolderNamed,
   openApp,
   openFolder,
   openItemMenu,
@@ -179,16 +180,54 @@ test.describe("folders", () => {
     await page.getByTestId("delete-confirm").click();
 
     await expect(folderItem(page, folder)).toHaveCount(0, { timeout: awsTimeout });
-    await expect(page, "the open diagram went with it, so the app opens another one").toHaveURL(
-      diagramUrl,
-      { timeout: awsTimeout },
-    );
-    await expect(page.locator(".excalidraw")).toBeVisible();
+    await expect(
+      emptyWorkspace(page),
+      "the open diagram went with it and it was the only tab",
+    ).toBeVisible({ timeout: awsTimeout });
     await expect(diagramItem(page, kept)).toBeVisible();
 
     await page.reload();
     await expect(itemList(page)).toBeVisible({ timeout: awsTimeout });
     await expect(folderItem(page, folder), "and the table agrees after a reload").toHaveCount(0);
     await expect(diagramItem(page, inside)).toHaveCount(0);
+  });
+
+  test("truncates a long folder name in the breadcrumb instead of covering the buttons", async ({
+    page,
+  }) => {
+    await openApp(page);
+
+    const name = `e2e crumb ${Date.now().toString(36)}`.padEnd(40, "o");
+    expect(name, "the name Sebastian's report is about").toHaveLength(40);
+
+    await newFolderNamed(page, name);
+    await openFolder(page, name);
+
+    const crumb = page.getByTestId("crumb-current");
+    const [crumbBox, folderButton, diagramButton] = await Promise.all([
+      crumb.boundingBox(),
+      page.getByTestId("folder-new").boundingBox(),
+      page.getByTestId("diagram-new").boundingBox(),
+    ]);
+
+    expect(crumbBox).not.toBeNull();
+    expect(folderButton).not.toBeNull();
+    expect(diagramButton).not.toBeNull();
+
+    expect(
+      crumbBox!.x + crumbBox!.width,
+      "the crumbs stop where the create buttons begin",
+    ).toBeLessThanOrEqual(folderButton!.x + 1);
+    expect(folderButton!.x + folderButton!.width).toBeLessThanOrEqual(diagramButton!.x + 1);
+
+    const clipped = await crumb.evaluate(
+      (node) => node.scrollWidth > node.clientWidth + 1 && node.clientWidth > 0,
+    );
+    expect(clipped, "a name this long is shown cut, not shrunk out of the sidebar").toBe(true);
+
+    await crumb.hover();
+    await expect(page.getByRole("tooltip"), "and the whole name is one hover away").toContainText(
+      name,
+    );
   });
 });

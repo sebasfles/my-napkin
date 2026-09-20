@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openApp } from "./helpers";
+import { newDiagram, openApp, removeItemsCreatedHere } from "./helpers";
 
 function fontFamily(page: Page, selector: string): Promise<string> {
   return page.evaluate((target) => {
@@ -10,8 +10,13 @@ function fontFamily(page: Page, selector: string): Promise<string> {
 }
 
 test.describe("typeface", () => {
+  test.afterEach(async ({ page }) => {
+    await removeItemsCreatedHere(page);
+  });
+
   test("the app has its own typeface and the canvas keeps the editor's", async ({ page }) => {
     await openApp(page);
+    await newDiagram(page, "typeface");
 
     const sidebar = await fontFamily(page, '[data-testid="sidebar"]');
     const canvas = await fontFamily(page, ".excalidraw");

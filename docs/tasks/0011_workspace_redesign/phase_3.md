@@ -139,3 +139,25 @@ The second is that a pan or a zoom keeps a preview tab, because the app has alwa
 The third is that the row times in the sidebar were lying, in both directions, and now do not; it is the one fix in this phase that was not in its plan.
 
 ## Result
+
+Merged as PR #14 on 2026-09-20, two rounds plus the documentation commit, `bda689b` to `051f41c`.
+Phase Scope shipped and its three acceptance points hold; task Acceptance 10 completed with `docs/PRD.md` and `docs/TRD.md`.
+211 unit and 52 e2e against dev, six cases added.
+
+Deviations from the plan, both argued in `om-developer notes`:
+
+- The active tab is the address, not a third field in the stored state, so the URL and the highlighted tab cannot disagree after a reload.
+- The tab layer is the only thing that navigates when the open diagram disappears, so the sidebar no longer sends the user to `/` on a delete. This overrode a line in `Context & decisions` that was written before tabs existed.
+
+Unplanned fix that came out of the review: the sidebar's row times were wrong in both directions, reading "in 3 seconds" after a save and then never ageing. `UpdatedAtLine` now refreshes on an interval and clamps to the edit it describes.
+
+Debt created, one row in `docs/ARD.md`: an unknown id in the address is navigated away by two paths, the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces before it settles.
+
+What phase 4 must know:
+
+- `HomeRedirect` is what Scope 3 removes. Today `/` opens the most recently edited diagram or creates one, `keepTabs` answers `null` when the last tab closes and the tab bar pushes `/`, and `docs/PRD.md` and `docs/modules/app/prd.md` both carry the rule "there is no empty state". All four move together, and `diagram-list.spec.ts` asserts the old behaviour in two cases.
+- Anything persisted per browser follows `use-sidebar-folder.ts` and `use-tabs.ts`: a `useSyncExternalStore` whose snapshot is cached by its raw string, so the identity is stable and the two synchronising effects do not loop. A collapsed sidebar wants the same shape, not `useState` seeded by an effect.
+- The shell that must stay mounted across a tab switch is `(editor)/layout.tsx`: `WorkspaceProvider`, `Sidebar`, `TabBar`, then the page. The page is `<Editor key={id}>`, which remounts by design, and the canvas is a `next/dynamic` import with `ssr: false`. Whatever repaints the whole UI is either above that boundary or in a provider that re-renders everything under it.
+- Metadata today is one `generateMetadata` in the root layout reading `next-intl`'s `getTranslations`; a per-page title needs the diagram's name, which lives in the client provider, not on the server.
+- `FolderBreadcrumbs` already collapses to a root crumb, an ellipsis menu and the last two crumbs past depth three, and the crumbs sit in a flex row beside the two create buttons. The overlap Sebastian screenshotted is that row, not the collapsing.
+- The suite runs against the real dev table, and every spec cleans up through the helpers, which now follow a rename. A spec for an empty state has to leave the table as it found it.

@@ -30,12 +30,15 @@ export async function login(page: Page) {
 export async function openApp(page: Page) {
   await login(page);
   await page.goto("/");
-  await expect(page).toHaveURL(diagramUrl, { timeout: awsTimeout });
-  await expect(page.getByTestId("item-list")).toBeVisible({ timeout: awsTimeout });
-  await expect(page.locator(".excalidraw")).toBeVisible();
+  await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
+  await expect(page.getByTestId("item-list-loading")).toHaveCount(0, { timeout: awsTimeout });
 }
 
 export const diagramUrl = /\/d\/[0-9a-f-]{36}$/;
+
+export function emptyWorkspace(page: Page): Locator {
+  return page.getByTestId("empty-workspace");
+}
 
 export function itemList(page: Page): Locator {
   return page.getByTestId("item-list");
@@ -97,6 +100,10 @@ export async function newDiagram(page: Page, label: string): Promise<string> {
   });
   await expect(page.locator(".excalidraw")).toBeVisible();
 
+  return adoptActiveDiagram(page, label);
+}
+
+export async function adoptActiveDiagram(page: Page, label: string): Promise<string> {
   const name = e2eName(label);
   await renameActiveDiagram(page, name);
 
@@ -113,8 +120,10 @@ export function e2eName(label: string): string {
 }
 
 export async function newFolder(page: Page, label: string): Promise<string> {
-  const name = e2eName(label);
+  return newFolderNamed(page, e2eName(label));
+}
 
+export async function newFolderNamed(page: Page, name: string): Promise<string> {
   await page.getByTestId("folder-new").click();
   const input = page.getByTestId("name-input");
   await expect(input).toBeVisible();

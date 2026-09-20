@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { openApp } from "./helpers";
+import { newDiagram, openApp, removeItemsCreatedHere } from "./helpers";
 
 const names = {
   system: "Follow the system theme",
@@ -24,10 +24,15 @@ async function expectLight(page: Page) {
 test.describe("theme", () => {
   test.use({ locale: "en-US", colorScheme: "light" });
 
+  test.afterEach(async ({ page }) => {
+    await removeItemsCreatedHere(page);
+  });
+
   test("offers the three options, follows the OS on system and holds an explicit choice", async ({
     page,
   }) => {
     await openApp(page);
+    await newDiagram(page, "theme");
 
     await expect(option(page, "system")).toBeVisible();
     await expect(option(page, "light")).toBeVisible();
