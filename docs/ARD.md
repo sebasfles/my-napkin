@@ -123,3 +123,5 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | A scene-only PATCH carries no kind condition, so the API would take diagram counts on a library although no UI can send them | A second client writes to this API |
 | app | 2026-09-20 | Derived library element ids are positional, so an insert near the front of a frame renumbers the rest of `items.json` | Something starts diffing `items.json` between saves |
 | app | 2026-09-20 | Keeping the editor package out of the unit suite rests on `library-file.ts` being the only module that reaches it, by convention rather than by a rule | A unit test reaches that module and Vitest dies on the package's CSS |
+| app | 2026-09-20 | The library export is proved in Chromium only: it clicks an anchor that is not in the document and revokes its object URL in the same turn | A second browser is supported, or an export is reported as not saving |
+| app | 2026-09-20 | A library whose row is created and whose first write then fails stays in the list as an empty library | A second flow creates a library with content, or the leftover is seen often |

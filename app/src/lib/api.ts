@@ -54,6 +54,10 @@ export async function pinDiagram(id: string, pinned: boolean): Promise<Diagram> 
   return asDiagram(await patchItem(id, { pinned }));
 }
 
+export async function linkLibraries(id: string, libraryIds: string[]): Promise<Diagram> {
+  return asDiagram(await patchItem(id, { libraryIds }));
+}
+
 export async function saveDiagram(id: string, stats: SceneStats): Promise<Diagram> {
   return asDiagram(await patchItem(id, stats));
 }

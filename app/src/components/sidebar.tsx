@@ -164,7 +164,11 @@ export function Sidebar({ collapsed: collapsedOnTheServer }: { collapsed: boolea
 
           <nav className="flex-1 overflow-y-auto px-3 pb-3">
             {section === "libraries" ? (
-              <LibraryList activeId={activeId} />
+              <LibraryList
+                activeId={activeId}
+                onRename={(id) => show("name", id)}
+                onDelete={(id) => show("delete", id)}
+              />
             ) : (
               <>
                 {pinned.length > 0 ? (

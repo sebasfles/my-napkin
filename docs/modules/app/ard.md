@@ -256,6 +256,8 @@ source: 0012_libraries
 - A folder delete that fails partway leaves the folder half emptied and can orphan scene objects; nothing reconciles the bucket.
 - A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle.
 - An unknown id in the address is navigated away by two paths at once, the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces before it settles.
+- The library export is proved in Chromium only: it clicks an anchor that is not in the document and revokes its object URL in the same turn.
+- A library whose row is created and whose first write then fails stays in the list as an empty library.
 
 ## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
 
@@ -598,4 +600,67 @@ source: 0012_libraries
 - Debt created: none here. The leftover that exposed it is a separate defect, `removeItemsCreatedHere` looking for diagrams at the root only and silently skipping any that live inside a folder, which belongs to its own task and is untouched.
 - Revisit when: a second list of diagram rows appears, at which point scoping by list stops being enough to name one.
 - Note: the leftover is necessary but not sufficient. The same suite passed this spec twice with the same defect present, so something else decides whether the pinned row is on screen at that moment, and it was not found. Scoping makes the question moot rather than answering it.
+- Source: 0012_libraries
+
+## 2026-09-20: an imported library is written through the saver's own port, never copied in
+
+- Decision: importing a `.excalidrawlib` parses it, lays its items out as frames with `framesFromLibraryItems`, and then writes the new library with `writeLibrary`, the same port the saver injects: the canvas, then `items.json` derived from those frames, then the counts.
+  The file that came in is never uploaded.
+- Alternatives rejected: storing the imported file as `items.json` and the frames as the canvas; a second writer beside the saver.
+- Reason: `items.json` has exactly one producer, the derivation, so a library imported from elsewhere is indistinguishable from one drawn here, its item ids are the deterministic frame ids from the first moment, and an export of it is a copy of our own derivation rather than of somebody else's bytes.
+  It also makes the round trip the acceptance asks for a real one instead of a file being handed back unchanged.
+  The file is read before the row is created, so the failure this flow will actually see, a file that is not a library, writes nothing at all.
+- Debt created: the create and the write are two steps with no transaction between them, so a create that succeeds and an S3 write that fails leaves an empty library in the list.
+  It is visible and deletable from its own menu, and no work is lost, since the file is still on disk.
+- Revisit when: a second flow creates a library with content in it, or the empty leftover is seen often enough to want a cleanup.
+- Source: 0012_libraries
+
+## 2026-09-20: the export is a detached anchor click, and Chromium is the only browser that proves it
+
+- Decision: `exportLibrary` fetches `items.json`, wraps it in a blob URL, clicks an `<a download>` that was never added to the document, and revokes the URL immediately after.
+- Alternatives rejected: navigating to the presigned GET; re-signing that GET with a `response-content-disposition`; the File System Access API.
+- Reason: the presigned GET is signed without a disposition, so following it opens the JSON in a tab instead of saving it, and signing a second variant means a route change for a file the browser can already hold.
+  The anchor is the plain way and needs nothing from the server.
+  A library that has never been saved has no `items.json` at all, so an export of one with `itemCount` 0 serializes an empty file rather than reading S3 and guessing whether a missing key answers 403 or 404.
+- Debt created: the export path is proved in Chromium only, since the suite runs Chromium alone.
+  The two hazards are the anchor never being in the document and the object URL being revoked in the same turn as the click; a browser that disagrees about either saves nothing and says nothing.
+- Revisit when: a second browser is supported, or an export is reported as not saving.
+- Source: 0012_libraries
+
+## 2026-09-20: the package's loader already restores, so the import does not restore twice
+
+- Decision: reading a `.excalidrawlib` calls `loadLibraryFromBlob` and nothing else.
+  `restoreLibraryItems` is not called on its result.
+- Alternatives rejected: calling `restoreLibraryItems` after the loader, which is what the phase file's wording asked for.
+- Reason: in 0.18.1 `loadLibraryFromBlob` is `parseLibraryJSON(await parseFileContents(blob), defaultStatus)`, and `parseLibraryJSON` ends in `restoreLibraryItems(data.libraryItems || data.library, defaultStatus)`.
+  Its type says the same thing: it takes the restorer's own `defaultStatus` and returns restored `LibraryItem[]`.
+  A second call would be a no-op that reads as a safeguard, and a safeguard that does nothing is worse than none, because the next reader treats it as load bearing and keeps it.
+- Debt created: none.
+  The claim rests on the package's implementation, which the type signature corroborates.
+- Revisit when: the package's loader stops restoring, which its return type would announce.
+- Source: 0012_libraries
+
+## 2026-09-20: the suite names a library through its own menu and finds it by id
+
+- Decision: `newLibrary` and `importLibrary` rename the library through the row's menu the moment it exists, track `{ id, name }`, and `removeItemsCreatedHere` deletes it through the same menu.
+  Locators find a library by the `href` of its row, never by its name, and assert the name through `library-item-name`.
+- Alternatives rejected: locating by name, as diagrams and folders are; keeping phase 1's `DELETE` through Playwright's request context.
+- Reason: an import names the library after the file it came from, so between the import and the rename two rows can carry one name, which a name locator cannot survive and which no wait fixes.
+  Deleting through the menu also puts the last piece of test code that computed `x-amz-content-sha256` out of the suite, which is what the 2026-09-19 entry on that header already claims is true of this repo; phase 1 had to break that claim because a library had no menu to delete from.
+- Debt created: none.
+  What is left is the pre-existing leak, `removeItemsCreatedHere` looking for diagrams at the root only.
+- Revisit when: a flow creates a library without opening it, at which point the rename has no active row to work from.
+- Source: 0012_libraries
+
+## 2026-09-20: a menu item with nothing to explain is plainly disabled
+
+- Decision: the link item on a library row carries Radix's `disabled` when no diagram is open.
+  The 2026-09-20 entry "a control that is unavailable is aria-disabled, never disabled" is narrowed rather than generalised: it governs a control whose purpose is to explain its own unavailability.
+- Alternatives rejected: generalising that rule to every unavailable control; hiding the item when no diagram is open.
+- Reason: that entry named its own revisit condition as "Libraries ships, or a second unavailable control appears", and both have now happened, so leaving it untouched would leave a rule claiming more than it means.
+  The rail placeholder existed to say "coming soon", so it had to stay hoverable and focusable or it could not do the one thing it was for.
+  A link item has nothing to say that the open tab does not already say, and Radix's `disabled` is `aria-disabled` on a div rather than the HTML attribute, so it is announced as a disabled item instead of disappearing from the keyboard.
+  Hiding it would make the menu change shape between diagrams and libraries, which is worse than a greyed line.
+- Debt created: none.
+- Revisit when: a third unavailable control appears that does have something to explain, at which point the two shapes are worth one component rather than two rules.
 - Source: 0012_libraries

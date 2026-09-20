@@ -67,7 +67,10 @@
     "actionFailed": "That did not work. Try again.",
     "retry": "Try again",
     "logout": "Log out",
-    "sections": "Workspace sections"
+    "sections": "Workspace sections",
+    "renameLibrary": "Rename library",
+    "deleteLibraryTitle": "Delete this library?",
+    "deleteLibraryBody": "{name} and its items are deleted for good. Diagrams keep everything they already inserted from it. This cannot be undone."
   },
   "tabs": {
     "label": "Open diagrams",
@@ -83,7 +86,12 @@
     "retry": "Try again",
     "actionFailed": "That did not work. Try again.",
     "emptyCanvas": "Every frame you draw here is one library item, and the frame's name names it.",
-    "imageInFrame": "Images are not saved in a library item"
+    "imageInFrame": "Images are not saved in a library item",
+    "import": "Import a library file",
+    "export": "Export",
+    "link": "Link to this diagram",
+    "unlink": "Unlink from this diagram",
+    "linkedGlyph": "Linked to the open diagram"
   },
   "editor": {
     "loading": "Loading",

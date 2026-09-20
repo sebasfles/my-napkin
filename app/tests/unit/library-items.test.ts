@@ -250,7 +250,14 @@ describe("framesFromLibraryItems", () => {
         item("Fourth", { id: "d" }),
         item("Fifth", { id: "e" }),
       ],
-      { columns: 2, gap: 10, padding: 5, emptySize: 100 },
+      {
+        columns: 2,
+        gap: 10,
+        padding: 5,
+        emptySize: 100,
+        clearOfTheEditorChromeX: 0,
+        clearOfTheEditorChromeY: 0,
+      },
     );
 
     const frames = elements.filter((one) => one.type === "frame");
@@ -321,6 +328,30 @@ describe("framesFromLibraryItems", () => {
     expect(held).toHaveLength(2);
     expect(held[0].groupIds).toEqual(held[1].groupIds);
     expect(held[0].groupIds).toHaveLength(1);
+  });
+
+  it("leaves no two frames overlapping, so no frame can hold another's elements", () => {
+    const elements = framesFromLibraryItems([
+      item("Wide", { id: "a", width: 600, height: 40 }),
+      item("Tall", { id: "b", width: 40, height: 500 }),
+      item("Small", { id: "c" }),
+      item("Empty"),
+      item("Last", { id: "e" }),
+    ]);
+
+    const frames = elements.filter((one) => one.type === "frame");
+    for (const one of frames) {
+      for (const other of frames) {
+        if (one === other) continue;
+
+        const apart =
+          one.x + one.width <= other.x ||
+          other.x + other.width <= one.x ||
+          one.y + one.height <= other.y ||
+          other.y + other.height <= one.y;
+        expect(apart, `${one.id} overlaps ${other.id}`).toBe(true);
+      }
+    }
   });
 
   it("round trips through the derivation, keeping names and relative geometry", () => {

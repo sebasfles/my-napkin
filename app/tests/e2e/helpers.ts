@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
-import { payloadHash } from "../../src/lib/signed-fetch";
 
 export const savedText = "Saved";
 export const saveFailedText = "Not saved, retrying on the next change";
@@ -9,7 +9,7 @@ export const saveFailedText = "Not saved, retrying on the next change";
 const awsTimeout = 30_000;
 const createdByPage = new Map<Page, string[]>();
 const foldersByPage = new Map<Page, string[]>();
-const librariesByPage = new Map<Page, string[]>();
+const librariesByPage = new Map<Page, E2eLibrary[]>();
 
 let sequence = 0;
 
@@ -174,22 +174,41 @@ export async function openFolder(page: Page, name: string) {
   await expect(page.getByTestId("crumb-current")).toHaveText(name);
 }
 
+export interface E2eLibrary {
+  id: string;
+  name: string;
+}
+
 export function libraryList(page: Page): Locator {
   return page.getByTestId("library-list");
 }
 
-// Located by id, never by name: phase 1 cannot rename a library in the UI, so the sidebar keeps the
-// default name it drew while the table carries the e2e one.
-export function libraryItem(page: Page, id: string): Locator {
+// Located by id, never by name: an import names the library after the file it came from, so two
+// rows carry the same name between the import and the rename that follows it.
+export function libraryItem(page: Page, library: E2eLibrary | string): Locator {
+  const id = typeof library === "string" ? library : library.id;
+
   return libraryList(page)
     .getByTestId("library-item")
     .filter({ has: page.locator(`a[href="/d/${id}"]`) });
+}
+
+export function libraryName(page: Page, library: E2eLibrary): Locator {
+  return libraryItem(page, library).getByTestId("library-item-name");
+}
+
+function activeLibrary(page: Page): Locator {
+  return libraryList(page).locator('[data-testid="library-item"][data-active="true"]');
 }
 
 export async function showLibraries(page: Page) {
   await expandSidebar(page);
   await page.getByTestId("section-libraries").click();
   await expect(page.getByTestId("library-section")).toBeVisible({ timeout: awsTimeout });
+  await expect(
+    page.getByTestId("library-list-loading"),
+    "the libraries are still loading, so anything counted here would be counted against nothing",
+  ).toHaveCount(0, { timeout: awsTimeout });
 }
 
 export async function showDiagrams(page: Page) {
@@ -198,41 +217,101 @@ export async function showDiagrams(page: Page) {
   await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
 }
 
-export async function newLibrary(page: Page): Promise<string> {
+export async function newLibrary(page: Page, label: string): Promise<E2eLibrary> {
   await showLibraries(page);
   const before = await libraryList(page).getByTestId("library-item").count();
   const from = page.url();
 
   await page.getByTestId("library-new").click();
+
+  return adoptNewLibrary(page, label, before, from);
+}
+
+export async function importLibrary(page: Page, file: string, label: string): Promise<E2eLibrary> {
+  await showLibraries(page);
+  const before = await libraryList(page).getByTestId("library-item").count();
+  const from = page.url();
+
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByTestId("library-import").click();
+  await (await chooser).setFiles(file);
+
+  return adoptNewLibrary(page, label, before, from);
+}
+
+export async function exportLibrary(page: Page, library: E2eLibrary): Promise<string> {
+  const download = page.waitForEvent("download");
+
+  await openItemMenu(page, libraryItem(page, library));
+  await page.getByTestId("menu-export").click();
+
+  // Saved under the name the app suggested rather than read from the download's own temporary
+  // path, so what goes back into the import carries the file name a person would have on disk.
+  const file = await download;
+  const path = join(tmpdir(), `${Date.now().toString(36)}-${file.suggestedFilename()}`);
+  await file.saveAs(path);
+
+  return path;
+}
+
+// Tracked the moment the row exists, as adoptActiveDiagram does, so a failure in the waits below
+// still leaves it collectable, and named through the row's own menu, so the cleanup and Sebastian
+// can both tell an e2e library from one of his.
+async function adoptNewLibrary(
+  page: Page,
+  label: string,
+  before: number,
+  from: string,
+): Promise<E2eLibrary> {
   await page.waitForURL((url) => url.href !== from && diagramUrl.test(url.href), {
     timeout: awsTimeout,
   });
 
-  // Tracked the moment the row exists, as adoptActiveDiagram does, so a failure in the waits below
-  // still leaves it collectable. The id rather than the name, because the cleanup deletes through
-  // the API: phase 1 gives a library no menu to delete it from, and no rename to make its name
-  // unique either, which is why nothing here locates a library by name.
   const id = page.url().split("/d/")[1];
-  track(librariesByPage, page, id);
+  const library: E2eLibrary = { id, name: "" };
+  trackLibrary(page, library);
 
   await expect(libraryList(page).getByTestId("library-item")).toHaveCount(before + 1, {
     timeout: awsTimeout,
   });
   await expect(page.locator(".excalidraw")).toBeVisible({ timeout: awsTimeout });
+  await expect(activeLibrary(page)).toHaveCount(1, { timeout: awsTimeout });
 
-  return id;
+  library.name = (await libraryName(page, library).innerText()).trim();
+
+  return renameLibrary(page, library, e2eName(label));
 }
 
-// CloudFront's Origin Access Control refuses a mutating request whose body it cannot hash, which is
-// why `modules/app/ard.md` 2026-09-19 took the header out of the suite and made login type into the
-// form. This one call cannot: phase 1 gives a library no delete in the UI, so the cleanup has no
-// other way to remove what it created. It goes through Playwright's request context for the session
-// cookie, carries no body, and borrows the app's own hash rather than computing a second one.
-// Phase 2 moves it onto the row's menu and this goes away.
-async function deleteThroughApi(page: Page, id: string) {
-  return page.request.delete(`/api/diagrams/${id}`, {
-    headers: { "x-amz-content-sha256": await payloadHash(undefined) },
+export async function renameLibrary(
+  page: Page,
+  library: E2eLibrary,
+  name: string,
+): Promise<E2eLibrary> {
+  await renameThrough(page, libraryItem(page, library), name);
+  await expect(libraryName(page, library)).toHaveText(name, { timeout: awsTimeout });
+
+  library.name = name;
+
+  return library;
+}
+
+export async function linkLibrary(page: Page, library: E2eLibrary, linked: boolean) {
+  await openItemMenu(page, libraryItem(page, library));
+  await page.getByTestId("menu-link").click();
+
+  await expect(libraryItem(page, library)).toHaveAttribute("data-linked", String(linked), {
+    timeout: awsTimeout,
   });
+}
+
+export async function deleteLibrary(page: Page, library: E2eLibrary) {
+  await deleteItem(page, libraryItem(page, library), library.name);
+}
+
+function trackLibrary(page: Page, library: E2eLibrary) {
+  const tracked = librariesByPage.get(page) ?? [];
+  tracked.push(library);
+  librariesByPage.set(page, tracked);
 }
 
 export async function expandSidebar(page: Page) {
@@ -358,12 +437,11 @@ export async function removeItemsCreatedHere(page: Page) {
   createdByPage.delete(page);
   librariesByPage.delete(page);
 
-  for (const id of libraries) {
-    const response = await deleteThroughApi(page, id);
-    if (!response.ok()) {
-      throw new Error(
-        `the library ${id} is still in the table: DELETE answered ${response.status()}`,
-      );
+  if (libraries.length > 0) {
+    await showLibraries(page);
+
+    for (const library of libraries) {
+      if ((await libraryItem(page, library).count()) > 0) await deleteLibrary(page, library);
     }
   }
 

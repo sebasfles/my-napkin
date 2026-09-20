@@ -21,6 +21,8 @@ export interface LibraryLayout {
   gap: number;
   padding: number;
   emptySize: number;
+  clearOfTheEditorChromeX: number;
+  clearOfTheEditorChromeY: number;
 }
 
 export const libraryLayout: LibraryLayout = {
@@ -28,6 +30,8 @@ export const libraryLayout: LibraryLayout = {
   gap: 80,
   padding: 40,
   emptySize: 200,
+  clearOfTheEditorChromeX: 160,
+  clearOfTheEditorChromeY: 140,
 };
 
 export function libraryFrames(elements: SceneElements): LibraryFrame[] {
