@@ -35,4 +35,34 @@
 
 ## om-developer confirmation
 
+2026-09-20, on 865e181 (branch `bugfix/0013_e2e_dev_red`, before any change).
+
+Cause 1, reproduced, and the diagnosis is confirmed rather than assumed.
+`https://napkin.dev.sdfles.com/icon-192.png` and `/icon-512.png` do not answer 200; every other metadata path does (`/favicon.ico`, `/icon.png`, `/icon.svg`, `/apple-icon.png`, `/manifest.webmanifest`), served by the Lambda with `x-cache: Miss from cloudfront`.
+So the failure is exactly the two files of `public/` and nothing else, which is what the CDN serves nothing of.
+Step 3 of the steps above reports 404 for `/icon-192.png`; for the new `/static/icon-192.png` the pre-apply answer is instead 307 to `/login?next=%2Fstatic%2Ficon-192.png`, because the deployed `gate.ts` has no `/static/` prefix and a nested path does not match its `rootFile` regex.
+
+Cause 2, not reproduced locally, mechanism established from the CI log and the source.
+Four runs of `editor.spec.ts -g "keeps a drawn rectangle"` against deployed dev passed, so the failure does not appear on this machine; those runs are also discarded as evidence, since three Playwright suites shared the machine at the time.
+What the CI log of run 35526315218 shows is that `getByTestId("toolbar-rectangle")` resolves 34 times over the 15 s and is never checked, with the page alive.
+The editor is therefore mounted and interactive: nothing was still loading, the input was lost.
+
+The mechanism, from the code rather than from timing:
+
+- `@excalidraw/excalidraw` binds its key handling to `onKeyDown` on the `.excalidraw-container` div (`tabIndex: 0`), not to the document, because `handleKeyboardGlobally` defaults to false and the app does not set it. `r` only reaches the editor when focus is already inside that container, and the canvas click is the only thing that puts it there.
+- `NameDialog` is a Radix `Dialog` with no `modal={false}`, so while it is open or closing the body carries `pointer-events: none` and focus is held by `name-input`, which is `autoFocus`.
+- `sidebar.tsx:291` calls `setOpen(false)` synchronously on submit and fires the rename after it, and `renameThrough` (`helpers.ts:200`) never waits for the dialog to be hidden.
+- `drawRectangle` then fires `page.mouse.click()` at raw coordinates. A blind coordinate click into a body that takes no pointer events hits nothing, focus never enters the container, and the following `r` is dropped. Both inputs are one-shot, so the 15 s assertion that follows can never recover them.
+
+The run's one flaky spec is the same cause reached by a different key, and it is what fixes the shape of the window.
+`save-reload.spec.ts:35`, "keeps a pasted image after a reload", runs `newDiagram` and then `pasteImage`, the same first click after the rename dialog closes, and failed at line 40 with `redPixelsOnCanvas` returning 0.
+Nothing had been pasted: the click was swallowed, focus never entered the container, and `ControlOrMeta+V` went nowhere.
+`pasteImage` retries nothing either, and that spec still passed on its retry.
+
+So the window is a finite race with a real duration, not a fixed ordering that a given machine always loses.
+The runner loses it nearly always through `drawRectangle` and sometimes wins it through `pasteImage`.
+That is the reason the fix has to be an actionability gate on the click rather than any duration: a delay would be tuned against a window that moves.
+Why the two helpers sit differently in that window is not established; `pasteImage` does call `grantPermissions` before its click, which is one more protocol round trip of gap, but nothing here proves that is the cause.
+
+
 ## om-reviewer verification
