@@ -20,6 +20,7 @@ import { toScene, type Scene } from "@/lib/scene";
 import type { SceneSaver } from "@/lib/scene-save";
 import { resolveTheme } from "@/lib/theme";
 import { useSceneSave } from "@/lib/use-scene-save";
+import { useTabs } from "@/lib/use-tabs";
 
 const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
@@ -122,10 +123,14 @@ function SceneSaving({
   saverRef: RefObject<SceneSaver | null>;
 }) {
   const { isDeleted, markSaved, registerSaver, reportSave } = useWorkspace();
+  const { fix } = useTabs();
 
   const onStatus = useCallback(
-    (status: SaveStatus) => reportSave(diagramId, status),
-    [diagramId, reportSave],
+    (status: SaveStatus) => {
+      fix(diagramId);
+      reportSave(diagramId, status);
+    },
+    [diagramId, fix, reportSave],
   );
 
   const saver = useSceneSave({

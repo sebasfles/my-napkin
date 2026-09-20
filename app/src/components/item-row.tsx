@@ -36,6 +36,7 @@ export function DiagramRow({
   diagram,
   active,
   status,
+  onFix,
   onRename,
   onTogglePin,
   onToggleLock,
@@ -46,6 +47,7 @@ export function DiagramRow({
   diagram: Diagram;
   active: boolean;
   status: SaveStatus | null;
+  onFix: () => void;
   onRename: () => void;
   onTogglePin: () => void;
   onToggleLock: () => void;
@@ -74,6 +76,7 @@ export function DiagramRow({
 
       <Link
         href={`/d/${diagram.id}`}
+        onDoubleClick={onFix}
         className="min-w-0 flex-1 rounded-md py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <span className={cn("block truncate text-sm", active && "font-medium")}>

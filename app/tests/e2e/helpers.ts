@@ -53,6 +53,28 @@ export function pinnedItem(page: Page, name: string): Locator {
   return page.getByTestId("pinned-list").getByTestId("diagram-item").filter({ hasText: name });
 }
 
+export function tabs(page: Page): Locator {
+  return page.getByTestId("tab-bar").getByTestId("tab");
+}
+
+export function tab(page: Page, name: string): Locator {
+  return tabs(page).filter({ hasText: name });
+}
+
+export function activeTab(page: Page): Locator {
+  return page.getByTestId("tab-bar").locator('[data-testid="tab"][data-active="true"]');
+}
+
+export async function openDiagram(page: Page, name: string) {
+  await diagramItem(page, name).getByRole("link").click();
+  await expect(activeTab(page)).toContainText(name, { timeout: awsTimeout });
+}
+
+export async function fixTab(page: Page, name: string) {
+  await tab(page, name).getByRole("link").dblclick();
+  await expect(tab(page, name)).toHaveAttribute("data-preview", "false");
+}
+
 export function activeItem(page: Page): Locator {
   return itemList(page).locator('[data-testid="diagram-item"][data-active="true"]');
 }

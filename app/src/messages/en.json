@@ -64,6 +64,10 @@
     "retry": "Try again",
     "logout": "Log out"
   },
+  "tabs": {
+    "label": "Open diagrams",
+    "close": "Close {name}"
+  },
   "editor": {
     "loading": "Loading",
     "loadFailed": "This diagram could not be loaded",
