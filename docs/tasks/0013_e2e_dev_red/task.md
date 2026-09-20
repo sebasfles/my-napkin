@@ -103,4 +103,65 @@ Consolidated 2026-09-20 with the om-manager and Sebastian.
 - The `terraform plan` of both roots shows only the CloudFront behavior.
 - The gate change carries a unit test, and `metadata.spec.ts` passes against a local production build rather than following a redirect to `/login`.
 
+### Adjustment, 2026-09-20, after the cause 2 diagnosis
+
+- Cause 2's mechanism is confirmed and is in the helpers, not the app: Excalidraw binds its keydown to `.excalidraw-container` because `handleKeyboardGlobally` defaults to false, so `r` is downstream of the click that focuses it; `NameDialog` is a modal Radix dialog, so the body takes no pointer events while it closes; `renameThrough` never waited for it to be hidden.
+  Verified independently by the om-reviewer in `node_modules/@excalidraw/excalidraw`, `item-dialogs.tsx:54` and `sidebar.tsx:291`.
+  The stale editor of `editor.tsx` is not implicated and stays untouched.
+- The window is a finite race, not a fixed ordering: the pasted-image spec failed at `save-reload.spec.ts:40` with 0 red pixels and passed on its retry (run 35526315218).
+  The fix must therefore gate on actionability, never on a duration.
+- Scope addition (om-reviewer): `newDiagram` tracks the row it creates only after the rename resolves, so a failure in between leaks a row `removeItemsCreatedHere` can never delete.
+  14 stray rows were found in the dev table, 11 of them default named, evidence from om-0012-reviewer.
+  It is the same lost input path this task is fixing and this task already owns `helpers.ts`, so it is fixed here rather than left to a later branch.
+  The module-level maps keep their shape, since 0012 rebases onto this file.
+
 ## om-developer notes
+
+### Round 1
+
+Two commits, cause 1 then cause 2, verified once at the tip, which is what the pull request ships.
+
+Cause 1, done as `Context & decisions` sets it out: the two PWA icons moved to `app/public/static/`, `manifest.ts` repointed, `/static/` added to `publicPrefixes`, and `/static/*` added to the default of `static_path_patterns` with its description corrected.
+
+- `app/scripts/icons.mjs` moved with the files. It rasterises both PNGs and still wrote them to `public/icon-*.png`, so the next run of the generator would have recreated the bug in silence. This is beyond the decision's file list and is the one place the plan could have been followed exactly and still left the bug live.
+- The pattern list is `["/_next/static/*", "/static/*"]` and nothing else, because `npx open-next build` emits exactly `BUILD_ID`, `favicon.ico`, `static/icon-192.png`, `static/icon-512.png` and `_next/static/*`. The list was built from the build output rather than from the repository, since only the first is what the bucket receives.
+- `favicon.ico` is emitted as a bucket key and is also a Lambda route answering 200 today. It stays on the Lambda and gets no pattern: a pattern would move a working route onto a behavior for no gain, and every pattern is a hand apply in two environments forever.
+- The `gate.ts` change is load bearing rather than bookkeeping, which is not obvious. On the deployed app the CDN behavior intercepts `/static/*` before the proxy sees it, so the gate matters for the local server and for any path that reaches the Lambda. It is also what makes `metadata.spec.ts` a real local proof: without it the icon requests would redirect to `/login` and the spec would follow the redirect to a 200 that means nothing. Pre-apply, dev answers 307 to `/login?next=%2Fstatic%2Ficon-192.png` for that path, not 404.
+- `/static/` in `publicPrefixes` is readable with no session by construction, so nothing private may live under `app/public/static/`. Stated in `docs/modules/infra/trd.md` and in the `app/public/static/` row of `docs/modules/app/trd.md`.
+
+Cause 2 is a defect in the e2e helpers, not in the application. The editor change of 0011 phase 4 is not implicated and the deliberate stale-editor `pointer-events-none` of `editor.tsx` is untouched.
+
+- Mechanism, in `replication.md` in full: the editor binds `onKeyDown` to its own container div and binds nothing to the document, so a key press only reaches it when focus is already inside that container, and the canvas click is what puts it there. `NameDialog` is a modal Radix dialog, so while it closes the body takes no pointer events. `renameThrough` did not wait for it to be hidden, so the following blind coordinate click hit nothing, focus never moved, and the key press was delivered to a listener that does not exist.
+- `drawRectangle` no longer presses a key at all. It selects the tool with a click on the tool's label, which is gated by Playwright's actionability and so cannot land while the closing dialog holds the body, and keeps `toBeChecked` as the proof. The tool's radio input carries `position: absolute; opacity: 0; pointer-events: none` in the editor's stylesheet and can never be clicked directly; the `<label class="ToolIcon">` around it is what a user clicks. Clicking the toolbar is the editor's own intended path, which is why it calls `focusContainer()` when the active element is a tool icon.
+- `pasteImage` keeps the gated canvas click plus an assertion that focus reached `.excalidraw-container`, because there is no toolbar control for paste and that path genuinely depends on focus. The assertion is true rather than assumed: the old blind click plus key press worked on fast machines, which is only possible if a canvas click moves focus into the container.
+- The canvas locator is `canvas.excalidraw__canvas.interactive` instead of `canvas.last()`. With a blind coordinate click DOM order did not matter; with a hit test it decides whether the click can land at all, and `last()` was never a statement about which canvas receives events. `redPixelsOnCanvas` still reads `canvas.excalidraw__canvas:not(.interactive)`, which is correct, since it reads rendered pixels rather than sending events.
+- `renameThrough` awaits `name-dialog` hidden, which closes the window at its source for every caller rather than for the one helper that noticed.
+
+Row leak, taken into this task by the om-reviewer. `adoptActiveDiagram` now tracks the row under its default name before renaming and retracks it after, through the existing `retrack`, so a failure during the rename no longer leaves a row that cleanup can never delete. It covers `newDiagram` and the two direct callers in `empty-state.spec.ts` with no signature change and no change to the module-level maps, so 0012 rebases onto the same shape. It matches the evidence: 11 of the 14 strays found in the dev table were default named, meaning the rename never completed.
+
+Decision, a known residual rather than a gap: the window between the `diagram-new` click and the row becoming active stays uncovered, because the name is not readable until then. Closing it needs a diff of the name set before and after, which is more code and is wrong exactly when it matters, since it assumes nothing else writes to that table while three workspaces share it today.
+
+Pending, not deferred: Sebastian applies dev and prd by hand before the pull request is published, and Acceptance 1 and 2 are proven on the merge run, not here.
+
+Deferred, noticed and deliberately not done:
+
+- `newFolderNamed` tracks its folder only after the create round trip, the same leak shape as the one fixed above. It is a smaller window, the folder carries its final name from the start, and none of the strays found were folders.
+- `src/lib/api.ts:130` raises a pre-existing `@next/next/no-location-assign-relative-destination` lint warning. Untouched by this task and not in a file it had to open.
+- Three workspaces share port 3000 and one 7.6 GiB machine, and `playwright.config.ts` sets `reuseExistingServer: false`, so a second suite fails outright and a third crashes browser pages. It is why one verification block in this task's `verify.log` is a `fail` recording browser crashes rather than assertion failures. It needs owning above this task; it is not a code change here.
+
+### Round 2
+
+Both findings applied.
+
+Finding 1, fixed by making the match exact rather than by changing the handle. `diagramItem`, `folderItem` and `pinnedItem` now filter on `has: getByText(name, { exact: true })` instead of `hasText`, which is a case-insensitive substring.
+
+- Tracking the row id was the other option offered and I did not take it. `createdByPage` and `foldersByPage` hold names, `retrack` moves names, and `deleteDiagram` takes a name, so putting an id into those lists would have made their contents heterogeneous and changed what 0012 rebases onto, to fix one call site.
+- Exact matching fixes the invariant instead: a tracked name resolves to the row it names and to no other. It also closes the same hazard for `e2eName`, where `-1` is a prefix of `-10`, which was never reachable in practice but was the same latent defect the round was pulled up for.
+- No caller relied on substring matching; every one passes a full name.
+
+Finding 2, the infra and deploy targets re-run at this round's tip and logged there, so no reader has to date a block to trust it.
+
+### Round 2 verification note
+
+The suite against deployed dev was re-run at this tip rather than carried over from round 1, because finding 1 changes how every spec resolves a row and the cause 2 proof is worth nothing at a stale commit.
+

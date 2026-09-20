@@ -30,7 +30,8 @@ The sync never passes `--delete`, for the same reason and one more: the role has
 ## When Terraform has to run again
 
 - A change to the runtime, memory, timeout or an environment variable of the function, including rotating `app_password`, which is also the environment's `APP_PASSWORD` secret.
-- A new path served from the assets bucket: the build output carries only `_next/static` and a `BUILD_ID`, and CloudFront answers 403 for a static pattern the bucket does not hold, so a new `public/` file needs its pattern in `static_path_patterns`.
+- A new path served from the assets bucket, which a new file under `app/public/static/` is not: `/static/*` is already a behavior, so those need no apply.
+  Anything outside both `_next/static` and `static` does, and CloudFront answers 403, not a fall through to the server, for a static pattern the bucket does not hold.
 - Any new AWS resource the app starts using.
 
 An apply that replaces the function, the bucket or the distribution rewrites that environment's Actions variables in the same run, because `stacks/app` builds them from those resources.

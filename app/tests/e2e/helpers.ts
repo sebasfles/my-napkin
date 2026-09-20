@@ -52,15 +52,26 @@ export function itemList(page: Page): Locator {
 }
 
 export function diagramItem(page: Page, name: string): Locator {
-  return itemList(page).getByTestId("diagram-item").filter({ hasText: name });
+  return itemList(page)
+    .getByTestId("diagram-item")
+    .filter({ has: exactly(page, name) });
 }
 
 export function folderItem(page: Page, name: string): Locator {
-  return itemList(page).getByTestId("folder-item").filter({ hasText: name });
+  return itemList(page)
+    .getByTestId("folder-item")
+    .filter({ has: exactly(page, name) });
 }
 
 export function pinnedItem(page: Page, name: string): Locator {
-  return page.getByTestId("pinned-list").getByTestId("diagram-item").filter({ hasText: name });
+  return page
+    .getByTestId("pinned-list")
+    .getByTestId("diagram-item")
+    .filter({ has: exactly(page, name) });
+}
+
+function exactly(page: Page, name: string): Locator {
+  return page.getByText(name, { exact: true });
 }
 
 export function tabs(page: Page): Locator {
@@ -111,14 +122,26 @@ export async function newDiagram(page: Page, label: string): Promise<string> {
 }
 
 export async function adoptActiveDiagram(page: Page, label: string): Promise<string> {
+  const created = await activeDiagramName(page);
+  track(createdByPage, page, created);
+
   const name = e2eName(label);
   await renameActiveDiagram(page, name);
-
-  const created = createdByPage.get(page) ?? [];
-  created.push(name);
-  createdByPage.set(page, created);
+  retrack(createdByPage, page, created, name);
 
   return name;
+}
+
+async function activeDiagramName(page: Page): Promise<string> {
+  const label = await activeItem(page).getByRole("link").locator("span").first().innerText();
+
+  return label.trim();
+}
+
+function track(registry: Map<Page, string[]>, page: Page, name: string) {
+  const names = registry.get(page) ?? [];
+  names.push(name);
+  registry.set(page, names);
 }
 
 export function e2eName(label: string): string {
@@ -139,9 +162,7 @@ export async function newFolderNamed(page: Page, name: string): Promise<string> 
 
   await expect(folderItem(page, name)).toBeVisible({ timeout: awsTimeout });
 
-  const folders = foldersByPage.get(page) ?? [];
-  folders.push(name);
-  foldersByPage.set(page, folders);
+  track(foldersByPage, page, name);
 
   return name;
 }
@@ -205,6 +226,8 @@ async function renameThrough(page: Page, item: Locator, name: string) {
   await expect(input).toBeVisible();
   await input.fill(name);
   await page.getByTestId("name-submit").click();
+
+  await expect(page.getByTestId("name-dialog")).toBeHidden();
 }
 
 function retrack(registry: Map<Page, string[]>, page: Page, from: string, to: string) {
@@ -286,16 +309,12 @@ export async function removeItemsCreatedHere(page: Page) {
 }
 
 export async function drawRectangle(page: Page, position = 0.3) {
-  const canvas = page.locator("canvas").last();
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("the editor canvas has no layout box");
+  const box = await canvasBox(page);
+
+  await selectTool(page, "rectangle");
 
   const startX = box.x + box.width * position;
   const startY = box.y + box.height * position;
-
-  await page.mouse.click(startX, startY);
-  await page.keyboard.press("r");
-  await expect(page.getByTestId("toolbar-rectangle")).toBeChecked();
 
   await page.mouse.move(startX, startY);
   await page.mouse.down();
@@ -303,14 +322,40 @@ export async function drawRectangle(page: Page, position = 0.3) {
   await page.mouse.up();
 }
 
-export async function pasteImage(page: Page) {
-  const image = readFileSync(join(process.cwd(), "tests/e2e/fixtures/red.png")).toString("base64");
-  const canvas = page.locator("canvas").last();
-  const box = await canvas.boundingBox();
+function editorCanvas(page: Page): Locator {
+  return page.locator("canvas.excalidraw__canvas.interactive");
+}
+
+async function canvasBox(page: Page) {
+  const box = await editorCanvas(page).boundingBox();
   if (!box) throw new Error("the editor canvas has no layout box");
 
+  return box;
+}
+
+async function selectTool(page: Page, tool: string) {
+  const control = page.getByTestId(`toolbar-${tool}`);
+
+  await page.locator("label.ToolIcon").filter({ has: control }).click();
+  await expect(control).toBeChecked();
+}
+
+async function clickIntoCanvas(page: Page, across: number, down: number) {
+  const canvas = editorCanvas(page);
+  const box = await canvasBox(page);
+
+  await canvas.click({ position: { x: box.width * across, y: box.height * down } });
+  await expect(
+    page.locator(".excalidraw-container"),
+    "the click never reached the editor, so the keyboard will not reach it either",
+  ).toBeFocused();
+}
+
+export async function pasteImage(page: Page) {
+  const image = readFileSync(join(process.cwd(), "tests/e2e/fixtures/red.png")).toString("base64");
+
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await clickIntoCanvas(page, 0.5, 0.5);
 
   await page.evaluate(async (base64) => {
     const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
@@ -324,10 +369,7 @@ export async function expectSomethingOnTheCanvas(page: Page) {
   const shapeProperties = page.locator(".excalidraw .App-menu__left");
 
   await expect(async () => {
-    const box = await page.locator("canvas").last().boundingBox();
-    if (!box) throw new Error("the editor canvas has no layout box");
-
-    await page.mouse.click(box.x + box.width * 0.9, box.y + box.height * 0.5);
+    await clickIntoCanvas(page, 0.9, 0.5);
     await page.keyboard.press("Control+a");
 
     await expect(shapeProperties).toBeVisible({ timeout: 1_000 });

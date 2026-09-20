@@ -14,6 +14,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/robots.txt")).toBe(true);
   });
 
+  it("lets the manifest's icons through, which the CDN serves from the bucket", () => {
+    expect(isPublicPath("/static/icon-192.png")).toBe(true);
+    expect(isPublicPath("/static/icon-512.png")).toBe(true);
+    expect(isPublicPath("/static/nested/anything.png")).toBe(true);
+  });
+
   it("protects everything else", () => {
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/d/anything")).toBe(false);
@@ -27,6 +33,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/loginx")).toBe(false);
     expect(isPublicPath("/api/login/secret")).toBe(false);
     expect(isPublicPath("/_nextish/thing")).toBe(false);
+    expect(isPublicPath("/staticish/thing")).toBe(false);
+    expect(isPublicPath("/d/static/thing.png")).toBe(false);
     expect(isPublicPath("/d/anything.png")).toBe(false);
   });
 });

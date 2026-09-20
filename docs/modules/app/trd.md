@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0013_e2e_dev_red
 ---
 
 # app: technical
@@ -18,7 +18,7 @@ Nothing here is planned.
 | `app/src/app/(editor)/d/[id]/page.tsx` | One diagram, and it renders nothing on purpose: see below | now |
 | `app/src/app/icon.svg`, `icon.png`, `apple-icon.png`, `favicon.ico` | The app's mark as the browser asks for it, the SVG carrying its own light and dark variants | now |
 | `app/src/app/manifest.ts`, `robots.ts` | The web manifest and a `Disallow: /` for a site that is private | now |
-| `app/public/icon-192.png`, `icon-512.png` | The manifest's icons, which have to be plain files for it to name them | now |
+| `app/public/static/icon-192.png`, `icon-512.png` | The manifest's icons, which have to be plain files for it to name them. `public/static/` is the one public folder the CDN serves, so nothing private ever goes in it | now |
 | `app/scripts/icons.mjs` | Rasterises every icon above from `icon.svg`, by hand, through the Chromium that Playwright installs | now |
 | `app/src/app/globals.css` | Tailwind and the theme tokens (CSS variables, light and dark) | now |
 | `app/src/components/` | Editor surface and wrapper, empty workspace, sidebar, tab bar, breadcrumbs, the diagram and folder rows with their menus, the name, move, info and delete dialogs, workspace provider, the app's mark, the document title, theme control and locale toggle, login form, logout button | now |
