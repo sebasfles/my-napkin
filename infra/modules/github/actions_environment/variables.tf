@@ -8,6 +8,11 @@ variable "environment" {
   type        = string
 }
 
+variable "deployment_branch" {
+  description = "The only branch whose jobs may reference the environment. A job from any other branch, or from a fork, fails before it runs, so an OIDC role that trusts this environment is reachable from this branch alone."
+  type        = string
+}
+
 variable "env_vars" {
   description = "Plain variables of the environment, readable by anyone who can read the repository"
   type        = map(string)

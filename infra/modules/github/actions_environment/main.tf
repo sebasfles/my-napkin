@@ -1,6 +1,17 @@
 resource "github_repository_environment" "this" {
   repository  = var.repository
   environment = var.environment
+
+  deployment_branch_policy {
+    protected_branches     = false
+    custom_branch_policies = true
+  }
+}
+
+resource "github_repository_environment_deployment_policy" "this" {
+  repository     = var.repository
+  environment    = github_repository_environment.this.environment
+  branch_pattern = var.deployment_branch
 }
 
 resource "github_actions_environment_variable" "this" {

@@ -285,7 +285,7 @@ describe("createSceneSaver", () => {
 
   it("starts no upload once stopped, not even the retry a failed upload would have made", async () => {
     const { saver, put } = setup();
-    let fail = (_reason: Error) => {};
+    let fail: (reason: Error) => void = () => {};
     put.mockImplementationOnce(
       () =>
         new Promise<void>((_resolve, reject) => {
@@ -319,7 +319,7 @@ describe("createSceneSaver", () => {
 
   it("uploads nothing for a diagram deleted while its presigned url was being fetched", async () => {
     let gone = false;
-    let release = (_urls: SceneUrls) => {};
+    let release: (urls: SceneUrls) => void = () => {};
     const requestUrls = vi.fn<(id: string) => Promise<SceneUrls>>().mockImplementation(
       () =>
         new Promise<SceneUrls>((resolve) => {
@@ -355,8 +355,8 @@ describe("createSceneSaver", () => {
   });
 
   it("drops an upload that was already in flight when the diagram was abandoned", async () => {
-    const { saver, put, touch, requestUrls } = setup();
-    let release = (_urls: SceneUrls) => {};
+    const { put, touch, requestUrls } = setup();
+    let release: (urls: SceneUrls) => void = () => {};
     requestUrls.mockImplementationOnce(
       () =>
         new Promise<SceneUrls>((resolve) => {

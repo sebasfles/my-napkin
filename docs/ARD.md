@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0007_deploy_workflows
+source: 0009_deploy_dev_first_run
 ---
 
 # Architecture and Debt Record
@@ -48,9 +48,9 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 
 ## 2026-09-17: Terraform for infrastructure, GitHub Actions with OIDC for code, applied and deployed separately
 
-- Decision: Terraform creates every resource and is applied by hand from Sebastian's machine with the `personal` profile; the deploy workflow assumes an IAM role by OIDC on pushes to `main` and only updates the Lambda code, syncs assets and invalidates CloudFront. State lives in an S3 bucket created by hand, never in the repo.
+- Decision: Terraform creates every resource and is applied by hand from Sebastian's machine with the `personal` profile; the deploy workflow assumes an IAM role by OIDC on pushes to `develop` and `main` and only updates the Lambda code, syncs assets and invalidates CloudFront. State lives in an S3 bucket created by hand, never in the repo.
 - Alternatives rejected: applying Terraform from Actions (the state carries the Lambda environment, including the password, in plain text); long-lived access keys as repository secrets; CDK or Serverless Framework.
-- Reason: the repo is public; nothing that can leak may be committed or granted to a workflow, and the trust policy limits the role to `main` of this repo so forks cannot assume it.
+- Reason: the repo is public; nothing that can leak may be committed or granted to a workflow, and each deploy role trusts only the Actions environment of its name, which admits only its branch of this repo, so forks cannot assume it.
 - Debt created: after the first apply, four Actions variables (role ARN, function name, assets bucket, distribution id) were copied by hand from Terraform outputs.
 - Resolved by: 0007_deploy_workflows, which gives `dev` and `prd` the same GitHub App as `core` and writes those four variables, and the `APP_PASSWORD` secret, from the resources they name.
 - Revisit when: never. The split between the two tools stands; what changed is that the values now cross it as Terraform's own output instead of by hand.

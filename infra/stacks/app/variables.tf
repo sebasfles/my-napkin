@@ -24,7 +24,7 @@ variable "github_repository" {
 }
 
 variable "git_branch" {
-  description = "Branch whose workflow runs may assume the deploy role"
+  description = "The only branch whose workflow runs may enter this environment's Actions environment, and through it assume the deploy role"
   type        = string
 }
 

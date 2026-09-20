@@ -13,7 +13,7 @@ Without it, every code deploy would show as drift on the next `plan`, and the ne
 
 The workflows never hold an AWS key.
 They assume the environment's deploy role over OIDC, and that role can do four things and nothing else: update the function's code, read it, sync the assets bucket, and invalidate the distribution.
-Its trust policy is pinned to one branch of `sebasfles/my-napkin`, so a fork cannot assume it.
+Its trust policy is pinned to the Actions environment the deploy job runs in, and that environment admits only its branch of `sebasfles/my-napkin`, so a job on any other branch, or from a fork, cannot assume it.
 
 ## What a deploy does
 
