@@ -235,11 +235,15 @@ function SaveStatusLine({ status }: { status: SaveStatus }) {
 
 function UpdatedAtLine({ updatedAt }: { updatedAt: string }) {
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 30_000 });
+  const edited = new Date(updatedAt);
 
   return (
-    <span className="block truncate font-mono text-xs text-muted-foreground">
-      {format.relativeTime(new Date(updatedAt), now)}
+    <span
+      className="block truncate font-mono text-xs text-muted-foreground"
+      data-testid="updated-at"
+    >
+      {format.relativeTime(edited, Math.max(now.getTime(), edited.getTime()))}
     </span>
   );
 }

@@ -80,4 +80,25 @@ Deferred, out of this phase's scope:
 Screenshots, light and dark, are in `{{workspace}}/screenshots/`, never committed: `7-tab-bar-light.png` and `7-tab-bar-dark.png`, three tabs with the active one fixed, a second fixed tab and a preview tab in italic.
 They were taken with a throwaway spec that created, renamed and then deleted its three diagrams through the app's own UI; the spec is gone and the dev table holds nothing of it.
 
+### Round 2
+
+The finding applied, and it was two defects as you read it, with one more turn to it than either of us wrote down.
+
+I reproduced both before touching the component, since the row I had deferred was not the one that shows the lie.
+A row whose time line is mounted *after* its save reads correctly: `UpdatedAtLine` and `SaveStatusLine` are different components in the same slot, so the line remounts when the indicator hands the row back, and `useNow` seeds from that moment.
+The rows in the screenshots were the other case: draw, then leave before the save lands.
+The line remounts on the navigation, the `PATCH` answers two or three seconds later, `markSaved` writes an `updatedAt` past a `now` that will never move again, and the row settles on "in 3 seconds" for the rest of the session.
+A probe spec printed "in 3 seconds" and then the same string five seconds later, which is both defects in one reading.
+
+`useNow({ updateInterval: 30_000 })` fixes the one you named second: the row ages now, instead of saying "4 hours ago" all evening.
+It does not fix the first, and I checked rather than assumed: with the interval in and the clamp out, the regression spec failed 49 polls in a row on "in 3 seconds", because the interval bounds how long the falsehood lasts, it does not stop the row claiming the future in the meantime.
+So the line also formats against `Math.max(now, updatedAt)`.
+A row describing an edit cannot honestly sit before the edit it describes, and clamping to that floor is true for the real cause here and for the other one that produces it, a browser clock a second or two behind the server that stamped `updatedAt`.
+Together: the clamp makes the future impossible, the interval makes the past keep moving.
+
+The regression is `diagram-list.spec.ts`, "never says a diagram was edited in the future": it draws, creates the next diagram without waiting for the save, and asserts the row's own time line, which now carries `data-testid="updated-at"` because asserting on the whole row would have matched the diagram's name instead.
+It fails on the unfixed component for the reason it names, and I ran it that way before restoring the fix.
+
+`7-tab-bar-light.png` and `7-tab-bar-dark.png` were retaken: the three rows that read "in 3 seconds" now read "now".
+
 ## Result
