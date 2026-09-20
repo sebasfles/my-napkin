@@ -75,4 +75,8 @@ Round 1 at `1cc4d5f` verified the same way; the dev run was repeated at this tip
 - Cause 1: not yet observable, by design, and the Observed section's second bullet still reproduces.
   Probed by the om-reviewer against dev at review time: `/icon-192.png` answers 404, `/static/icon-192.png` answers 307 to `/login` because the deployed gate predates this branch, `/manifest.webmanifest` and `/icon.png` answer 200 from the Lambda, which is the wildcard rejection holding.
   The new keys reach the assets bucket on the merge deploy and the CloudFront behavior on Sebastian's apply, so Expected is provable only after both, per Acceptance 2 as adjusted in `Context & decisions`.
+- Applies, 2026-09-20, by Sebastian, dev then prd, each `0 added, 1 changed, 0 destroyed` against the distribution alone.
+  Probed by the om-reviewer after each: `/static/icon-192.png` moved from 307 to `/login` to 403 on dev, which is the proof the path no longer reaches the Lambda and is served by the S3 behavior with the key still absent.
+  `/_next/static/nonexistent.js` answers the same 403 on the behavior that already existed, so 403 here is a missing key and not a misconfiguration.
+  prd answers 403 on the same path, so the behavior is live in both environments; its other paths answer 503 `not deployed`, which is the placeholder of `docs/modules/infra/ard.md` and predates this task, since `main` carries no `app/`, no `infra/` and no workflows and production has never been deployed.
 - The steps as written remain executable; no correction to preconditions or steps was needed.
