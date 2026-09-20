@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0010_e2e_login_payload_hash
+source: 0011_workspace_redesign
 ---
 
 # app: architecture decisions
@@ -252,6 +252,7 @@ source: 0010_e2e_login_payload_hash
 - A stored scene keeps the shape it was written in; the editor normalizes it on read, never on disk.
 - `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.
 - A third-party webhook cannot POST through the OAC-protected Function URL, since only this app's own browser code can compute the payload hash.
+- A presigned PUT handed out before a lock stays valid for the rest of its five minutes, so a tab that already held one can still overwrite the scene object of a locked diagram.
 
 ## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
 
@@ -262,3 +263,30 @@ source: 0010_e2e_login_payload_hash
 - Debt created: the twin at line 97 still carries the default, so if execution order ever changes and that test becomes the cold one, the flake moves there rather than disappearing.
 - Revisit when: the suite stops running serially in file order, or a second cold editor paint appears.
 - Source: 0007_deploy_workflows
+
+## 2026-09-20: `updatedAt` moves only when the scene was uploaded
+
+- Decision: `diagramRepository.touch` became `update(id, changes)`, and `PATCH /api/diagrams/[id]` takes one intent at a time: a name, a lock flag, or the pair `elementCount` and `sceneBytes`. Only that pair moves `updatedAt`, and a body that changes nothing answers 400 rather than writing.
+- Alternatives rejected: keeping a `touch` that always moved `updatedAt` and letting the browser skip it on a rename; a separate `renamedAt` so both timestamps could live side by side.
+- Reason: the sidebar is ordered by `updatedAt` and Info shows it as "last edited", so a rename that moved it both reordered the list and told the user something untrue. With one meaning, the order and the label are the same fact, and the two counters can only be written by the request that uploaded the bytes they describe.
+- Debt created: none.
+- Revisit when: a second kind of write needs its own timestamp, at which point the item grows a field rather than overloading this one.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: a locked diagram is refused by the server, in both places a write can start
+
+- Decision: the scene PATCH carries `attribute_exists(id) AND attribute_not_exists(lockedAt)`, so DynamoDB refuses it atomically and the route answers 409; `/urls` signs no upload at all while `lockedAt` is set, and `sceneStore.urls(id, write)` takes that as an argument rather than signing a URL to throw away. A rename and an unlock keep the plain condition, or a locked diagram could never be unlocked. Locking waits for the open editor's saver to settle before it writes the lock.
+- Alternatives rejected: enforcing the lock in the browser only, which was the first implementation; reading the item before every save to check the flag, which costs a read on every save and still races; refusing the write at `/urls` alone and leaving the PATCH open.
+- Reason: the lock exists to protect a finished diagram from being drawn over, and the list is fetched once per page load, so a second tab or a second device open since before the lock is exactly the case that needs stopping. The condition costs nothing on the happy path, and the extra read happens only when a write was already refused, which is what lets the route tell a locked diagram from a missing one. Sequencing the saver first is what keeps Lock from answering 409 to the user's own last edit.
+- Debt created: a presigned PUT handed out before the lock stays valid for the rest of its five minutes, so a tab that already holds one can still overwrite the scene object, though its PATCH is refused and the item's timestamps and counters never move.
+- Revisit when: that window matters, which needs either a shorter expiry or a bucket policy that reads the lock; neither is worth it while one person uses the app.
+- Source: 0011_workspace_redesign
+
+## 2026-09-20: the item menu is not modal, because a dialog opened from a modal menu kills the page
+
+- Decision: the diagram row's `DropdownMenu` takes `modal={false}`, and the three dialogs it opens are mounted for the life of the sidebar with `open` driven by state rather than mounted and unmounted with the selection.
+- Alternatives rejected: leaving the menu modal and clearing `document.body.style.pointerEvents` by hand after each dialog closed; opening the dialog on a timer after the menu had finished closing.
+- Reason: a modal menu writes `pointer-events: none` on the body; a dialog opened from it saves that value as the one to restore and writes it back when it closes, so the whole app was unclickable until a reload after every rename. The e2e suite failed 16 of 35 on it. A sidebar menu needs no scroll lock, so dropping modal removes the value there is to capture instead of papering over it. Unmounting a Radix dialog while it is open leaks the same style by a second route, which is why the dialogs now stay mounted, as the delete confirmation already did before this task.
+- Debt created: none, but every future menu in this app that can open a dialog has to stay non-modal, and nothing enforces that beyond this entry and the specs that drive the menu.
+- Revisit when: Radix restores the style correctly for nested modals, or a menu here genuinely needs to trap focus and lock scroll.
+- Source: 0011_workspace_redesign

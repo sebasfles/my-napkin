@@ -1,5 +1,6 @@
 import type { AppState, BinaryFiles } from "@excalidraw/excalidraw/types";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type { SceneStats } from "@/lib/diagrams";
 
 export const sceneContentType = "application/json";
 
@@ -43,6 +44,13 @@ export function toScene(
 
 export function sceneVersion(elements: readonly { version: number }[]): number {
   return elements.reduce((total, element) => total + element.version, 0);
+}
+
+export function sceneStats(scene: Scene, serialized: string): SceneStats {
+  return {
+    elementCount: scene.elements.length,
+    sceneBytes: new TextEncoder().encode(serialized).length,
+  };
 }
 
 export function parseScene(body: unknown): Scene {

@@ -23,20 +23,22 @@ function key(id: string): string {
 }
 
 export const sceneStore: SceneStore = {
-  async urls(id) {
+  async urls(id, write) {
     const [get, put] = await Promise.all([
       getSignedUrl(client(), new GetObjectCommand({ Bucket: scenesBucket(), Key: key(id) }), {
         expiresIn,
       }),
-      getSignedUrl(
-        client(),
-        new PutObjectCommand({
-          Bucket: scenesBucket(),
-          Key: key(id),
-          ContentType: sceneContentType,
-        }),
-        { expiresIn, signableHeaders: new Set(["content-type"]) },
-      ),
+      write
+        ? getSignedUrl(
+            client(),
+            new PutObjectCommand({
+              Bucket: scenesBucket(),
+              Key: key(id),
+              ContentType: sceneContentType,
+            }),
+            { expiresIn, signableHeaders: new Set(["content-type"]) },
+          )
+        : undefined,
     ]);
 
     return { get, put, expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() };

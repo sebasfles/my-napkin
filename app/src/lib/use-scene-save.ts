@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { putScene, fetchSceneUrls, touchDiagram } from "@/lib/api";
+import { putScene, fetchSceneUrls, saveDiagram } from "@/lib/api";
 import type { Diagram, SceneUrls } from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
 import { createSceneSaver, type SceneSaver } from "@/lib/scene-save";
@@ -35,7 +35,7 @@ export function useSceneSave({
         initialUrls: urls,
         urls: fetchSceneUrls,
         put: putScene,
-        touch: touchDiagram,
+        save: saveDiagram,
         onStatus,
         onSaved,
         deleted: () => isDeleted(diagramId),

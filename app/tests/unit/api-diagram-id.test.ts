@@ -5,7 +5,7 @@ const repository = {
   list: vi.fn(),
   get: vi.fn(),
   create: vi.fn(),
-  touch: vi.fn(),
+  update: vi.fn(),
   remove: vi.fn(),
 };
 
@@ -22,6 +22,10 @@ const { DELETE, PATCH } = await import("@/app/api/diagrams/[id]/route");
 const { GET } = await import("@/app/api/diagrams/[id]/urls/route");
 
 const params = { params: Promise.resolve({ id: "diagram-1" }) };
+
+function locked(): Diagram {
+  return { ...diagram(), lockedAt: "2026-09-19T10:00:00.000Z" };
+}
 
 function diagram(): Diagram {
   return {
@@ -53,22 +57,42 @@ beforeEach(() => {
 });
 
 describe("PATCH /api/diagrams/[id]", () => {
-  it("touches updatedAt alone when the body carries no name", async () => {
-    repository.touch.mockResolvedValue(diagram());
+  it("renames when the body carries a name, trimmed, and changes nothing else", async () => {
+    repository.update.mockResolvedValue(diagram());
 
-    const response = await PATCH(patch("{}"), params);
+    const response = await PATCH(patch(JSON.stringify({ name: "  Sketches " })), params);
 
     expect(response.status).toBe(200);
-    expect(repository.touch).toHaveBeenCalledWith("diagram-1", undefined);
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", { name: "Sketches" });
     await expect(response.json()).resolves.toEqual({ diagram: diagram() });
   });
 
-  it("renames when the body carries a name, trimmed", async () => {
-    repository.touch.mockResolvedValue(diagram());
+  it("records the scene counters the browser measured after an upload", async () => {
+    repository.update.mockResolvedValue(diagram());
 
-    await PATCH(patch(JSON.stringify({ name: "  Sketches " })), params);
+    await PATCH(patch(JSON.stringify({ elementCount: 4, sceneBytes: 2048 })), params);
 
-    expect(repository.touch).toHaveBeenCalledWith("diagram-1", "Sketches");
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", {
+      scene: { elementCount: 4, sceneBytes: 2048 },
+    });
+  });
+
+  it("locks and unlocks through the same route", async () => {
+    repository.update.mockResolvedValue(diagram());
+
+    await PATCH(patch(JSON.stringify({ locked: true })), params);
+    const [, locking] = repository.update.mock.calls[0];
+    expect(typeof locking.lockedAt).toBe("string");
+
+    await PATCH(patch(JSON.stringify({ locked: false })), params);
+    expect(repository.update).toHaveBeenLastCalledWith("diagram-1", { lockedAt: null });
+  });
+
+  it("refuses a body that changes nothing, so no write is wasted", async () => {
+    const response = await PATCH(patch("{}"), params);
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it("refuses a blank or non-string name", async () => {
@@ -76,16 +100,36 @@ describe("PATCH /api/diagrams/[id]", () => {
       const response = await PATCH(patch(JSON.stringify({ name })), params);
 
       expect(response.status).toBe(400);
-      expect(repository.touch).not.toHaveBeenCalled();
+      expect(repository.update).not.toHaveBeenCalled();
     }
   });
 
   it("answers 404 for a diagram that is not there", async () => {
-    repository.touch.mockResolvedValue(null);
+    repository.update.mockResolvedValue(null);
+    repository.get.mockResolvedValue(null);
 
-    const response = await PATCH(patch("{}"), params);
+    const response = await PATCH(patch(JSON.stringify({ name: "Sketches" })), params);
 
     expect(response.status).toBe(404);
+  });
+
+  it("answers 409 when the write was refused because the diagram is locked", async () => {
+    repository.update.mockResolvedValue(null);
+    repository.get.mockResolvedValue(locked());
+
+    const response = await PATCH(patch(JSON.stringify({ elementCount: 1, sceneBytes: 2 })), params);
+
+    expect(response.status).toBe(409);
+  });
+
+  it("still renames and unlocks a locked diagram", async () => {
+    repository.update.mockResolvedValue(locked());
+
+    await PATCH(patch(JSON.stringify({ name: "Sketches" })), params);
+    await PATCH(patch(JSON.stringify({ locked: false })), params);
+
+    expect(repository.update).toHaveBeenNthCalledWith(1, "diagram-1", { name: "Sketches" });
+    expect(repository.update).toHaveBeenNthCalledWith(2, "diagram-1", { lockedAt: null });
   });
 });
 
@@ -116,7 +160,21 @@ describe("GET /api/diagrams/[id]/urls", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    await expect(response.json()).resolves.toEqual(urls());
+    expect(scenes.urls).toHaveBeenCalledWith("diagram-1", true);
+    await expect(response.json()).resolves.toEqual({ ...urls(), locked: false });
+  });
+
+  it("signs no upload for a locked diagram, so a second tab cannot write over it", async () => {
+    repository.get.mockResolvedValue(locked());
+    const { put, ...readOnly } = urls();
+    scenes.urls.mockResolvedValue(readOnly);
+
+    const response = await GET(new Request("http://localhost:3000/x"), params);
+
+    expect(response.status).toBe(200);
+    expect(scenes.urls).toHaveBeenCalledWith("diagram-1", false);
+    await expect(response.json()).resolves.toEqual({ ...readOnly, locked: true });
+    expect(put).toBeTruthy();
   });
 
   it("signs nothing for a diagram that is not there, so no orphan scene can be written", async () => {

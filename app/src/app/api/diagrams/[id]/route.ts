@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { diagramChanges } from "@/lib/diagram-changes";
 import { diagramRepository } from "@/lib/dynamo";
 import { sceneStore } from "@/lib/s3";
 
@@ -8,22 +9,18 @@ interface RouteContext {
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
-  const body = await request.json().catch(() => null);
-  const name = typeof body === "object" && body !== null ? (body as { name?: unknown }).name : null;
+  const parsed = diagramChanges(await request.json().catch(() => null), new Date());
 
-  if (name !== undefined && name !== null) {
-    if (typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 });
-    }
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
+  const diagram = await diagramRepository.update(id, parsed.changes);
+  if (diagram) return NextResponse.json({ diagram });
+
+  if (parsed.changes.scene !== undefined && (await diagramRepository.get(id))) {
+    return NextResponse.json({ error: "diagram is locked" }, { status: 409 });
   }
 
-  const diagram = await diagramRepository.touch(
-    id,
-    typeof name === "string" ? name.trim() : undefined,
-  );
-  if (!diagram) return NextResponse.json({ error: "diagram not found" }, { status: 404 });
-
-  return NextResponse.json({ diagram });
+  return NextResponse.json({ error: "diagram not found" }, { status: 404 });
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {

@@ -1,6 +1,6 @@
-import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
 import { nextSaveState, type SaveEvent, type SaveStatus } from "@/lib/save-state";
-import { sceneVersion, type Scene } from "@/lib/scene";
+import { sceneStats, sceneVersion, type Scene } from "@/lib/scene";
 
 export interface SceneBaseline {
   serialized: string;
@@ -16,7 +16,7 @@ export interface SceneSaverOptions {
   now?: () => number;
   urls: (id: string) => Promise<SceneUrls>;
   put: (url: string, body: string) => Promise<void>;
-  touch: (id: string) => Promise<Diagram>;
+  save: (id: string, stats: SceneStats) => Promise<Diagram>;
   onStatus: (status: SaveStatus) => void;
   onSaved: (diagram: Diagram) => void;
   deleted?: () => boolean;
@@ -25,6 +25,7 @@ export interface SceneSaverOptions {
 export interface SceneSaver {
   change(scene: Scene): void;
   flush(): void;
+  settle(): Promise<void>;
   dirty(): boolean;
   resume(): void;
   stop(): void;
@@ -44,6 +45,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   let pendingSerialized: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let changed = false;
+  let inFlight: Promise<void> | null = null;
   let stopped = false;
   let abandoned = false;
   let reconciled = false;
@@ -57,13 +59,21 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     const transition = nextSaveState(status, event);
     status = transition.status;
     if (!stopped) options.onStatus(status);
-    if (transition.upload && !stopped) void upload();
+    if (transition.upload && !stopped) start();
+  }
+
+  function start(): void {
+    const running = upload().finally(() => {
+      if (inFlight === running) inFlight = null;
+    });
+    inFlight = running;
   }
 
   async function putUrl(): Promise<string> {
-    if (!urls || Date.parse(urls.expiresAt) - now() < renewUrlMs) {
+    if (!urls?.put || Date.parse(urls.expiresAt) - now() < renewUrlMs) {
       urls = await options.urls(options.diagramId);
     }
+    if (!urls.put) throw new Error(`${options.diagramId} is locked, so no upload is signed`);
     return urls.put;
   }
 
@@ -79,7 +89,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
       await options.put(url, serialized);
       if (abandoned) return;
 
-      const diagram = await options.touch(options.diagramId);
+      const diagram = await options.save(options.diagramId, sceneStats(scene, serialized));
 
       baseline = { serialized, version: sceneVersion(scene.elements) };
       if (pending === scene) forget();
@@ -143,6 +153,12 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
     flush() {
       cancelTimer();
       fire();
+    },
+
+    async settle() {
+      cancelTimer();
+      fire();
+      while (inFlight) await inFlight;
     },
 
     dirty() {

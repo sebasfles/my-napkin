@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-18
-source: 0004_diagram_persistence
+updated: 2026-09-20
+source: 0011_workspace_redesign
 ---
 
 # app: flows
@@ -55,8 +55,8 @@ sequenceDiagram
   end
   E->>S3: PUT scene JSON (elements, appState subset, files)
   S3-->>E: 200 OK
-  E->>P: PATCH to touch updatedAt
-  P-->>E: 200 OK, the list reorders
+  E->>P: PATCH with the element count and the byte size just uploaded
+  P-->>E: 200 OK, updatedAt moves and the list reorders
 ```
 
 One upload runs at a time, and the editor never loses a change made during one.
@@ -65,7 +65,7 @@ One upload runs at a time, and the editor never loses a change made during one.
 stateDiagram-v2
   [*] --> idle
   idle --> saving: change, after the debounce
-  saving --> idle: uploaded and updatedAt touched
+  saving --> idle: uploaded, measured and recorded
   saving --> queued: another change arrives mid upload
   saving --> failed: upload or touch failed
   queued --> saving: the upload ended, send the newer scene
@@ -74,3 +74,4 @@ stateDiagram-v2
 
 Opening a diagram never saves it: the editor's first report after a mount becomes the baseline when it changes no element.
 Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back.
+A locked diagram never enters this flow at all: the editor mounts no saver, `/urls` signs no upload, and the PATCH is refused by a condition on the item, so a browser that locked nothing is stopped too.

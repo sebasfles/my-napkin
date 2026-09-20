@@ -7,7 +7,9 @@ import {
   login,
   newDiagram,
   openApp,
+  openItemMenu,
   removeDiagramsCreatedHere,
+  renameDiagram,
 } from "./helpers";
 
 test.describe("diagram list", () => {
@@ -55,17 +57,13 @@ test.describe("diagram list", () => {
     await expect(page.locator(".excalidraw")).toBeVisible();
   });
 
-  test("renames a diagram from the list", async ({ page }) => {
+  test("renames a diagram from its menu", async ({ page }) => {
     await openApp(page);
     const name = await newDiagram(page, "rename");
     const renamed = `${name} renamed`;
 
-    await activeItem(page).getByTestId("diagram-rename").click();
-    const input = page.getByTestId("diagram-rename-input");
-    await input.fill(renamed);
-    await input.press("Enter");
+    await renameDiagram(page, name, renamed);
 
-    await expect(diagramItem(page, renamed)).toBeVisible({ timeout: 30_000 });
     await page.reload();
     await expect(diagramItem(page, renamed)).toBeVisible({ timeout: 30_000 });
   });
@@ -74,7 +72,8 @@ test.describe("diagram list", () => {
     await openApp(page);
     const name = await newDiagram(page, "cancel");
 
-    await diagramItem(page, name).getByTestId("diagram-delete").click();
+    await openItemMenu(page, diagramItem(page, name));
+    await page.getByTestId("menu-delete").click();
     const dialog = page.getByTestId("delete-dialog");
     await expect(dialog).toContainText(name);
 

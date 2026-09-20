@@ -1,12 +1,12 @@
 ---
-updated: 2026-09-18
-source: 0004_diagram_persistence
+updated: 2026-09-20
+source: 0011_workspace_redesign
 ---
 
 # app
 
 Next.js application that serves the editor: a diagram list, an embedded Excalidraw canvas, password login, and the API routes that back both.
-The shell, the password gate, the diagram list and persistence all exist today, in Spanish and English and in light and dark mode.
+The shell, the password gate, the diagram list with a menu on every diagram, locking and persistence all exist today, in Spanish and English and in light and dark mode.
 Runs as a single Lambda behind CloudFront, built with OpenNext.
 
 ## Boundaries

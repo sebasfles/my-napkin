@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isLocked } from "@/lib/diagrams";
 import { diagramRepository } from "@/lib/dynamo";
 import { sceneStore } from "@/lib/s3";
 
@@ -10,7 +11,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const diagram = await diagramRepository.get(id);
   if (!diagram) return NextResponse.json({ error: "diagram not found" }, { status: 404 });
 
-  return NextResponse.json(await sceneStore.urls(id), {
-    headers: { "cache-control": "no-store" },
-  });
+  const locked = isLocked(diagram);
+  const urls = await sceneStore.urls(id, !locked);
+
+  return NextResponse.json(
+    { ...urls, locked },
+    {
+      headers: { "cache-control": "no-store" },
+    },
+  );
 }

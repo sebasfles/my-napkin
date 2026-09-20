@@ -1,6 +1,6 @@
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
 import { createSceneSaver, type SceneSaverOptions } from "@/lib/scene-save";
 import type { Scene } from "@/lib/scene";
@@ -36,7 +36,9 @@ function setup(overrides: Partial<SceneSaverOptions> = {}) {
   const statuses: SaveStatus[] = [];
   const saved: Diagram[] = [];
   const put = vi.fn<(url: string, body: string) => Promise<void>>().mockResolvedValue(undefined);
-  const touch = vi.fn<(id: string) => Promise<Diagram>>().mockResolvedValue(diagram());
+  const save = vi
+    .fn<(id: string, stats: SceneStats) => Promise<Diagram>>()
+    .mockResolvedValue(diagram());
   const requestUrls = vi.fn<(id: string) => Promise<SceneUrls>>().mockResolvedValue(urls(300_000));
 
   const saver = createSceneSaver({
@@ -46,23 +48,23 @@ function setup(overrides: Partial<SceneSaverOptions> = {}) {
     now: () => now,
     urls: requestUrls,
     put,
-    touch,
+    save,
     onStatus: (status) => statuses.push(status),
     onSaved: (item) => saved.push(item),
     ...overrides,
   });
 
-  return { saver, statuses, saved, put, touch, requestUrls };
+  return { saver, statuses, saved, put, save, requestUrls };
 }
 
 function createExpiringSaver({
   requestUrls,
   put,
-  touch,
+  save,
 }: {
   requestUrls: SceneSaverOptions["urls"];
   put: SceneSaverOptions["put"];
-  touch: SceneSaverOptions["touch"];
+  save: SceneSaverOptions["save"];
 }) {
   return createSceneSaver({
     diagramId: "diagram-1",
@@ -71,7 +73,7 @@ function createExpiringSaver({
     now: () => now,
     urls: requestUrls,
     put,
-    touch,
+    save,
     onStatus: () => {},
     onSaved: () => {},
   });
@@ -115,22 +117,78 @@ describe("createSceneSaver", () => {
   });
 
   it("touches updatedAt only after the upload lands, and reports the diagram", async () => {
-    const { saver, put, touch, saved, statuses } = setup();
+    const { saver, put, save, saved, statuses } = setup();
     const order: string[] = [];
     put.mockImplementation(async () => {
       order.push("put");
     });
-    touch.mockImplementation(async () => {
-      order.push("touch");
+    save.mockImplementation(async () => {
+      order.push("save");
       return diagram();
     });
 
     saver.change(scene(2));
     await vi.advanceTimersByTimeAsync(1_500);
 
-    expect(order).toEqual(["put", "touch"]);
+    expect(order).toEqual(["put", "save"]);
     expect(saved).toEqual([diagram()]);
     expect(statuses).toEqual(["saving", "idle"]);
+  });
+
+  it("measures the uploaded scene in the same PATCH, never in a request of its own", async () => {
+    const { saver, put, save } = setup();
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    const [, body] = put.mock.calls[0];
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith("diagram-1", {
+      elementCount: 1,
+      sceneBytes: new TextEncoder().encode(body).length,
+    });
+  });
+
+  it("settles: the caller can wait until nothing is pending and nothing is in flight", async () => {
+    const { saver, put, save } = setup();
+    let release = () => {};
+    put.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    saver.change(scene(2));
+    const settled = vi.fn();
+    void saver.settle().then(settled);
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(settled).not.toHaveBeenCalled();
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(settled).toHaveBeenCalled();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saver.dirty()).toBe(false);
+  });
+
+  it("asks for fresh urls when the ones it holds carry no upload, and gives up if none comes", async () => {
+    const { saver, put, requestUrls } = setup({
+      initialUrls: { get: "https://scenes/get", expiresAt: new Date(now + 300_000).toISOString() },
+    });
+    requestUrls.mockResolvedValue({
+      get: "https://scenes/get",
+      expiresAt: new Date(now + 300_000).toISOString(),
+    });
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(requestUrls).toHaveBeenCalledWith("diagram-1");
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("holds a change made during an upload and sends it when that upload finishes", async () => {
@@ -307,14 +365,14 @@ describe("createSceneSaver", () => {
 
   it("uploads nothing for a diagram deleted while the debounce was still running", async () => {
     let gone = false;
-    const { saver, put, touch } = setup({ deleted: () => gone });
+    const { saver, put, save } = setup({ deleted: () => gone });
 
     saver.change(scene(2));
     gone = true;
     await vi.advanceTimersByTimeAsync(1_500);
 
     expect(put).not.toHaveBeenCalled();
-    expect(touch).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("uploads nothing for a diagram deleted while its presigned url was being fetched", async () => {
@@ -344,18 +402,18 @@ describe("createSceneSaver", () => {
   });
 
   it("uploads nothing at all once abandoned, so a deleted diagram cannot come back", async () => {
-    const { saver, put, touch } = setup();
+    const { saver, put, save } = setup();
 
     saver.change(scene(2));
     saver.abandon();
     await vi.advanceTimersByTimeAsync(1_500);
 
     expect(put).not.toHaveBeenCalled();
-    expect(touch).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("drops an upload that was already in flight when the diagram was abandoned", async () => {
-    const { put, touch, requestUrls } = setup();
+    const { put, save, requestUrls } = setup();
     let release: (urls: SceneUrls) => void = () => {};
     requestUrls.mockImplementationOnce(
       () =>
@@ -364,7 +422,7 @@ describe("createSceneSaver", () => {
         }),
     );
 
-    const expiring = createExpiringSaver({ requestUrls, put, touch });
+    const expiring = createExpiringSaver({ requestUrls, put, save });
     expiring.change(scene(2));
     expiring.flush();
 
@@ -391,7 +449,7 @@ describe("createSceneSaver", () => {
 
   it("still refuses to upload after resume while the diagram is deleted", async () => {
     let gone = false;
-    const { saver, put, touch } = setup({ deleted: () => gone });
+    const { saver, put, save } = setup({ deleted: () => gone });
 
     gone = true;
     saver.abandon();
@@ -401,7 +459,7 @@ describe("createSceneSaver", () => {
     await vi.advanceTimersByTimeAsync(1_500);
 
     expect(put).not.toHaveBeenCalled();
-    expect(touch).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("stops reporting once stopped, but still finishes the save it started", async () => {

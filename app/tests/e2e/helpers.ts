@@ -71,19 +71,46 @@ export async function newDiagram(page: Page, label: string): Promise<string> {
   return name;
 }
 
-export async function renameActiveDiagram(page: Page, name: string) {
-  await activeItem(page).getByTestId("diagram-rename").click();
+export async function openItemMenu(page: Page, item: Locator) {
+  await item.getByTestId("diagram-menu").click();
+  await expect(page.getByTestId("menu-rename")).toBeVisible();
+}
 
-  const input = page.getByTestId("diagram-rename-input");
+async function renameThrough(page: Page, item: Locator, name: string) {
+  await openItemMenu(page, item);
+  await page.getByTestId("menu-rename").click();
+
+  const input = page.getByTestId("rename-input");
   await expect(input).toBeVisible();
   await input.fill(name);
-  await input.press("Enter");
+  await page.getByTestId("rename-submit").click();
 
   await expect(diagramItem(page, name)).toBeVisible({ timeout: awsTimeout });
 }
 
+export async function renameDiagram(page: Page, from: string, to: string) {
+  await renameThrough(page, diagramItem(page, from), to);
+}
+
+export async function renameActiveDiagram(page: Page, name: string) {
+  await renameThrough(page, activeItem(page), name);
+}
+
+export async function setDiagramLock(page: Page, name: string, locked: boolean) {
+  await openItemMenu(page, diagramItem(page, name));
+  await page.getByTestId("menu-lock").click();
+
+  await expect(diagramItem(page, name)).toHaveAttribute("data-locked", String(locked), {
+    timeout: awsTimeout,
+  });
+}
+
 export async function deleteDiagram(page: Page, name: string) {
-  await diagramItem(page, name).getByTestId("diagram-delete").click();
+  const item = diagramItem(page, name);
+  if ((await item.getAttribute("data-locked")) === "true") await setDiagramLock(page, name, false);
+
+  await openItemMenu(page, item);
+  await page.getByTestId("menu-delete").click();
 
   const dialog = page.getByTestId("delete-dialog");
   await expect(dialog).toBeVisible();

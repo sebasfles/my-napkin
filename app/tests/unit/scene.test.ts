@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { AppState } from "@excalidraw/excalidraw/types";
-import { emptyScene, parseScene, sceneVersion, toScene } from "@/lib/scene";
+import { emptyScene, parseScene, sceneStats, sceneVersion, toScene } from "@/lib/scene";
 
 function element(id: string, extra: Record<string, unknown> = {}): OrderedExcalidrawElement {
   return { id, version: 1, type: "rectangle", ...extra } as unknown as OrderedExcalidrawElement;
@@ -95,5 +95,24 @@ describe("sceneVersion", () => {
       sceneVersion(before),
     );
     expect(sceneVersion([])).toBe(0);
+  });
+});
+
+describe("sceneStats", () => {
+  it("counts the elements and measures the bytes that go to S3", () => {
+    const scene = { elements: [element("a", {}), element("b", {})], appState: {}, files: {} };
+    const serialized = JSON.stringify(scene);
+
+    expect(sceneStats(scene, serialized)).toEqual({
+      elementCount: 2,
+      sceneBytes: serialized.length,
+    });
+  });
+
+  it("measures bytes, not characters, so an accented name is not undercounted", () => {
+    const scene = { elements: [], appState: {}, files: {} };
+    const serialized = '{"note":"diseño"}';
+
+    expect(sceneStats(scene, serialized).sceneBytes).toBe(serialized.length + 1);
   });
 });
