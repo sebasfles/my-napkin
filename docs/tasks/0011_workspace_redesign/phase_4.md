@@ -101,4 +101,23 @@ The last one is an asset sheet rather than a screenshot of a browser tab: Playwr
 They were taken with a throwaway spec that created and then deleted everything it made.
 
 
+### Round 2
+
+Both findings applied, and applying them turned up the rest of the hole, which is now closed too.
+
+`listReady` is the one wait the four callers share: `folder-section` on screen and no loading skeleton left.
+It waits on the skeleton rather than on `item-list`, as you said: an empty folder and the new empty workspace render a paragraph instead of that list, so waiting for the list would hang exactly where there is nothing to clean.
+The skeleton is in the server-rendered HTML, which is what makes it a real wait after a `goto` or a reload rather than an assertion that passes before React has done anything.
+`goToRoot` now waits before it decides whether to click the root crumb, `newDiagram` before it reads `before`, `openApp` calls it instead of spelling the two expectations out, and `removeItemsCreatedHere` calls it after `goToRoot` so the loop counts against a list that has rendered.
+
+The proof is a spec that ends inside a folder right after a navigation, which is the shape that leaked twice in this task.
+With the fix it passes and the table is empty afterwards; with the two waits taken back out it passes just the same and leaves `e2e repro mua1irgn` behind, which is the defect exactly as you described it: green, and lying.
+
+What the fix then exposed, on the first full run: three cases called cleanup from a page with no sidebar at all, the two metadata ones that end on `/login` and the rail one that ends collapsed.
+They used to pass because every count answered 0 and the loop skipped; with the counting made honest they hung for thirty seconds on a sidebar that was never coming.
+So `removeItemsCreatedHere` returns before it looks at the page when it has nothing tracked, which is the truthful answer for a spec that created nothing, and calls `expandSidebar` when it does have something, because this phase made "the sidebar is a rail" a state a spec can legitimately end in.
+A spec that ends on `/login` holding real items now fails loudly, with "the app is not on screen, so nothing here can be cleaned up" rather than a bare timeout: it cannot clean from there and should say so.
+
+Nothing else changed; the diff of this round is `tests/e2e/helpers.ts` alone.
+
 ## Result

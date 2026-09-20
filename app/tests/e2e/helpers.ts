@@ -30,8 +30,15 @@ export async function login(page: Page) {
 export async function openApp(page: Page) {
   await login(page);
   await page.goto("/");
+  await listReady(page);
+}
+
+export async function listReady(page: Page) {
   await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
-  await expect(page.getByTestId("item-list-loading")).toHaveCount(0, { timeout: awsTimeout });
+  await expect(
+    page.getByTestId("item-list-loading"),
+    "the sidebar is still loading, so anything counted here would be counted against nothing",
+  ).toHaveCount(0, { timeout: awsTimeout });
 }
 
 export const diagramUrl = /\/d\/[0-9a-f-]{36}$/;
@@ -87,7 +94,7 @@ export function saveIndicator(page: Page): Locator {
 }
 
 export async function newDiagram(page: Page, label: string): Promise<string> {
-  await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
+  await listReady(page);
   const before = await itemList(page).getByTestId("diagram-item").count();
   const from = page.url();
 
@@ -144,7 +151,21 @@ export async function openFolder(page: Page, name: string) {
   await expect(page.getByTestId("crumb-current")).toHaveText(name);
 }
 
+export async function expandSidebar(page: Page) {
+  const sidebar = page.getByTestId("sidebar");
+  await expect(sidebar, "the app is not on screen, so nothing here can be cleaned up").toBeVisible({
+    timeout: awsTimeout,
+  });
+
+  if ((await sidebar.getAttribute("data-collapsed")) !== "true") return;
+
+  await page.getByTestId("sidebar-toggle").click();
+  await expect(sidebar).toHaveAttribute("data-collapsed", "false");
+}
+
 export async function goToRoot(page: Page) {
+  await listReady(page);
+
   const root = page.getByTestId("crumb-root");
   if ((await page.getByTestId("crumb-current").count()) > 0) await root.click();
 
@@ -249,7 +270,11 @@ export async function removeItemsCreatedHere(page: Page) {
   foldersByPage.delete(page);
   createdByPage.delete(page);
 
+  if (folders.length === 0 && diagrams.length === 0) return;
+
+  await expandSidebar(page);
   await goToRoot(page);
+  await listReady(page);
 
   for (const name of folders) {
     if ((await folderItem(page, name).count()) > 0) await deleteFolder(page, name);
