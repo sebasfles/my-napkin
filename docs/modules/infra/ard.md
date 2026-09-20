@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0007_deploy_workflows
+source: 0009_deploy_dev_first_run
 ---
 
 # infra: architecture and debt
@@ -25,9 +25,10 @@ source: 0007_deploy_workflows
 
 ## 2026-09-17: GitHub OIDC over long-lived AWS access keys for deploys
 
-- Decision: GitHub Actions authenticates to AWS through an OIDC provider and a deploy role trusting `repo:sebasfles/my-napkin:ref:refs/heads/main` (both sub shapes), never stored access keys.
+- Decision: GitHub Actions authenticates to AWS through an OIDC provider and one deploy role per environment, never stored access keys.
+  Each role trusts the subject of the Actions environment of the same name, `repo:sebasfles/my-napkin:environment:{env}` in both sub shapes; the 2026-09-19 entry below says why the environment and not the branch.
 - Alternatives rejected: static IAM access keys as repository secrets.
-- Reason: no long-lived credential to leak from a public repo; a fork cannot assume the role because the trust policy is pinned to the exact repo and branch.
+- Reason: no long-lived credential to leak from a public repo; a fork cannot assume the role because the trust policy is pinned to the exact repo and environment, and the environment admits only its branch.
 - Debt created: none.
 - Revisit when: never.
 - Source: setup
@@ -92,3 +93,15 @@ source: 0007_deploy_workflows
 - Debt created: the App's private key now lives in the `terraform.tfvars` of all three roots, so rotating it means editing three files. `prd` also gets an `APP_PASSWORD` secret that nothing reads, since no suite runs against prd; it is already in prd's state through the Lambda's environment, so it adds no exposure.
 - Revisit when: a secret manager holds the App key for every root, or a third environment makes the copies worth removing.
 - Source: 0007_deploy_workflows
+
+## 2026-09-19: the deploy role trusts the Actions environment, and the environment admits one branch
+
+- Decision: the trust policy in `stacks/app/github_actions.tf` matches `token.actions.githubusercontent.com:sub` against `repo:{owner}/{repo}:environment:{env}`, in the plain and the id-welded shape, with `{env}` the same `var.env` that names the Actions environment.
+  `modules/github/actions_environment` sets the environment's deployment branch policy to custom branch policies with exactly one pattern, `var.git_branch`: `develop` for `dev`, `main` for `prd`.
+- Alternatives rejected: keeping the `ref:refs/heads/{branch}` subject and dropping `environment:` from the reusable deploy job, which would lose the per-environment `vars.*` and the `APP_PASSWORD` secret 0007 put there; trusting both subject shapes, which would let a job with no environment assume the role from the branch alone and double what has to be reasoned about; `protected_branches = true` on the environment, which reads branch protection rules and says nothing about rulesets, which is what this repository uses.
+- Reason: a job that references an environment gets that environment as its OIDC subject, not its branch.
+  The first run of `deploy-dev.yml` after 0007 (run 35474120357) failed at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` because the trust policy applied by 0003 still matched the branch shape.
+  Binding the subject to the environment moves the branch restriction onto the environment itself, and 0007 had left that policy unset, so any branch could reference `dev` or `prd`; both halves are needed for a run from another branch, or from a fork, to stay unable to assume either role.
+- Debt created: none.
+- Revisit when: GitHub changes the subject a job with an environment gets, or a third environment appears.
+- Source: 0009_deploy_dev_first_run

@@ -32,7 +32,7 @@ All three roots talk to GitHub as the same GitHub App, because a personal access
 `core` manages the rulesets with it; `dev` and `prd` manage their Actions environment with it.
 
 1. Create a private GitHub App owned by `sebasfles`, no webhook.
-2. Repository permissions: Administration read and write (the rulesets and the environments), Environments read and write, Secrets read and write (`APP_PASSWORD`), Variables read and write (the four deploy variables), Metadata read.
+2. Repository permissions: Administration read and write (the rulesets, the Actions workflow permissions, the environments and their branch policies), Environments read and write, Secrets read and write (`APP_PASSWORD`), Variables read and write (the four deploy variables), Metadata read.
    This is the set the `dev` and `prd` applies of 0007 ran with; Administration and Metadata alone are enough for `core`'s rulesets but not for an Actions environment.
 3. Install it on `sebasfles/my-napkin` only.
 4. Generate a private key and keep the `.pem`.
@@ -70,6 +70,7 @@ Applying `dev` or `prd` creates the Actions environment of the same name and fil
 | `cloudfront_distribution_id` | `CLOUDFRONT_DISTRIBUTION_ID` |
 
 It also writes `app_password` as the environment's `APP_PASSWORD` secret, which is what the end-to-end suite logs in with on `dev`.
+The environment admits jobs from its branch only, `develop` for `dev` and `main` for `prd`; that policy, and not the deploy role's trust policy, is what pins a deploy to its branch, because a job inside an environment presents the environment as its OIDC subject.
 Each of the five lands with the id `my-napkin:{env}:{NAME}`.
 The same `terraform.tfvars` therefore drives the login form, the server function's environment and the suite's password at once, and they cannot drift apart.
 `prd` gets that secret too, for symmetry; nothing reads it, because no suite ever runs against prd.

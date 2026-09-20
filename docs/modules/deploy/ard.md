@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0007_deploy_workflows
+source: 0009_deploy_dev_first_run
 ---
 
 # deploy: architecture decisions and debt
@@ -9,7 +9,8 @@ source: 0007_deploy_workflows
 
 - Decision: `deploy.yml` assumes an IAM role through GitHub's OIDC provider via `role-to-assume`; no AWS access keys are stored as secrets.
 - Alternatives rejected: long-lived AWS access keys stored as repository secrets.
-- Reason: no static credential to leak from a public repo; the role's trust policy is scoped to `repo:sebasfles/my-napkin:ref:refs/heads/main`, so a fork cannot assume it and gets no OIDC token.
+- Reason: no static credential to leak from a public repo; the role's trust policy is scoped to the Actions environment the deploy job runs in, `repo:sebasfles/my-napkin:environment:{env}`, and that environment admits only its branch, so a fork cannot assume it and gets no OIDC token.
+  Corrected by 0009: the subject was written as `ref:refs/heads/main` until then, which is not what a job with an environment carries.
 - Debt created: none.
 - Revisit when: never, unless GitHub OIDC itself is deprecated.
 - Source: setup
@@ -19,7 +20,7 @@ source: 0007_deploy_workflows
 - Decision: `sebasfles/my-napkin` is a public GitHub repository.
 - Alternatives rejected: private repo.
 - Reason: public repos get unlimited GitHub Actions minutes, and fixed monthly cost is the stated priority ($0/month target).
-- Debt created: none, offset by the OIDC trust policy scoping deploy access to pushes on `main` of the origin repo only.
+- Debt created: none, offset by the deploy roles trusting only the `dev` and `prd` Actions environments, which admit only `develop` and `main` of the origin repo.
 - Revisit when: the project needs to keep source or history private.
 - Source: setup
 
@@ -125,3 +126,13 @@ source: 0007_deploy_workflows
 - Debt created: none. The ordering is kept; only the gate on failure is lifted.
 - Revisit when: never expected.
 - Source: 0007_deploy_workflows
+
+## 2026-09-19: the repository lets `GITHUB_TOKEN` create pull requests, set from `core`
+
+- Decision: `infra/environments/core/github.tf` declares `github_workflow_repository_permissions` with `can_approve_pull_request_reviews = true` and `default_workflow_permissions = "read"`, which is the repository setting "Allow GitHub Actions to create and approve pull requests".
+- Alternatives rejected: flipping the setting by hand in the repository's Actions settings, which is undeclared and drifts, the same reason the rulesets are Terraform's; a PAT or a GitHub App token for `promotion-pr`, rejected by 0007 and still not needed.
+- Reason: the first run of `deploy-dev.yml` failed at `gh pr create` with "GitHub Actions is not permitted to create or approve pull requests"; the setting defaults to off, and the provider exposes it, so the fix stays in Terraform like every other GitHub setting of this repository.
+- Debt created: none.
+  The token may now open and approve pull requests, but no workflow here approves anything, both rulesets require a pull request with checks, and the `main` ruleset requires `e2e-dev`.
+- Revisit when: a workflow needs to approve a pull request, which is a security review and not a configuration change.
+- Source: 0009_deploy_dev_first_run

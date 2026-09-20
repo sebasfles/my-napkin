@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0007_deploy_workflows
+source: 0009_deploy_dev_first_run
 ---
 
 # infra: product
@@ -18,7 +18,7 @@ Gives Sebastian a single environment he can create, inspect and tear down with T
 1. Sebastian creates the Terraform state bucket by hand, once, before the first `init`.
 2. Sebastian copies `.env.example` to `.env` and `terraform.tfvars.example` to `terraform.tfvars`, then fills in `github_app_pem`, `app_password` and `session_secret`.
 3. Sebastian runs `terraform init` and `terraform apply` from his own machine.
-4. Terraform creates the buckets, the table, the Lambda (against a placeholder bootstrap zip), CloudFront, the ACM certificate, the `napkin` Route53 records, the GitHub OIDC deploy role, and the GitHub Actions environment that names all of them for the deploy workflow.
+4. Terraform creates the buckets, the table, the Lambda (against a placeholder bootstrap zip), CloudFront, the ACM certificate, the `napkin` Route53 records, the GitHub OIDC deploy role, and the GitHub Actions environment that names all of them for the deploy workflow and admits only that environment's branch.
 
 Errors and empty states: a failed `apply` leaves prior resources untouched; Terraform reports which resource failed and Sebastian re-runs after fixing it.
 

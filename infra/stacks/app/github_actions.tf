@@ -18,15 +18,18 @@ data "aws_iam_policy_document" "assume_github" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # GitHub emits two subject shapes: a repository that has ever been renamed
-    # or transferred gets owner and repository ids welded into the subject, and
-    # a future transfer moves this repository into that shape without warning.
+    # The deploy job runs inside the Actions environment named after var.env,
+    # and a job with an environment gets that environment as its subject, not
+    # the branch. GitHub emits two subject shapes: a repository that has ever
+    # been renamed or transferred gets owner and repository ids welded into the
+    # subject, and a future transfer moves this repository into that shape
+    # without warning.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_owner}/${var.github_repository}:ref:refs/heads/${var.git_branch}",
-        "repo:${var.github_owner}@*/${var.github_repository}@*:ref:refs/heads/${var.git_branch}",
+        "repo:${var.github_owner}/${var.github_repository}:environment:${var.env}",
+        "repo:${var.github_owner}@*/${var.github_repository}@*:environment:${var.env}",
       ]
     }
   }
@@ -77,8 +80,9 @@ resource "aws_iam_role_policy" "deploy" {
 module "actions_environment" {
   source = "../../modules/github/actions_environment"
 
-  repository  = var.github_repository
-  environment = var.env
+  repository        = var.github_repository
+  environment       = var.env
+  deployment_branch = var.git_branch
 
   env_vars = {
     AWS_ROLE_ARN               = aws_iam_role.deploy.arn

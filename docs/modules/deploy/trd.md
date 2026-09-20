@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-19
-source: 0007_deploy_workflows
+source: 0009_deploy_dev_first_run
 ---
 
 # deploy: technical
@@ -35,6 +35,8 @@ A change that compiles and breaks the editor reaches `develop` green, and `e2e-d
 `reusable-deploy.yml` (workflow_call, input `environment`, runner `ubuntu-latest`): checkout, `setup-node` 24, `npm ci` in `app/`, `npx open-next build` (`@opennextjs/aws`), `aws-actions/configure-aws-credentials` with the environment's `role-to-assume` over OIDC, zip `.open-next/server-functions/default` and `aws lambda update-function-code`, `aws lambda wait function-updated-v2`, `aws s3 sync .open-next/assets` to the assets bucket, `aws cloudfront create-invalidation`.
 Estimated 3 to 5 minutes.
 Its job carries `environment: ${{ inputs.environment }}`, which is what makes `vars.*` and the environment's secret resolve, and `id-token: write`, granted by the calling job.
+That `environment:` is also what the deploy role trusts: a job that names an environment gets `repo:sebasfles/my-napkin:environment:{env}` as its OIDC subject, not the branch, and each role's trust policy matches exactly that, so a job without the environment gets no credentials.
+The branch restriction lives on the environment itself: its deployment branch policy admits only `develop` for `dev` and `main` for `prd`, so a job on any other branch, or from a fork, fails before it starts and never holds a token the role would accept.
 Four details of it are load bearing:
 
 - The zip is built from inside `.open-next/server-functions/default`, so `index.mjs` sits at the zip root. A nested folder breaks the handler.
@@ -47,6 +49,7 @@ Four details of it are load bearing:
 `e2e-dev` runs `npx playwright install --with-deps chromium` and `npx playwright test --workers=1` with `BASE_URL=https://napkin.dev.sdfles.com` and `APP_PASSWORD` from the `dev` environment secret.
 `promotion-pr` opens `develop -> main` with `gh pr create` when no such pull request is open, with a body carrying the compare link and the subjects of the commits not yet in `main`; when one is open it does nothing, because its head is `develop` and it already carries them.
 That job needs `fetch-depth: 0` and an explicit fetch of `main` to list those commits, and it is the only one granted `pull-requests: write`.
+`GITHUB_TOKEN` can open the pull request only because the repository's Actions workflow permissions allow it, which `infra`'s `core` root sets; the default forbids it.
 It runs under `if: ${{ !cancelled() }}`, so the pull request is opened whatever the suite's result and carries the red check rather than hiding the change.
 
 The `e2e-dev` job is the required check of the `main` ruleset, which is why its job id is exactly `e2e-dev`.
@@ -64,7 +67,8 @@ GitHub still drops an older pending run when a newer one queues, so the run in f
 - `infra`: reads, per environment, the Lambda function name, assets bucket, distribution id and deploy role ARN from the Actions variables Terraform writes.
 - AWS OIDC provider and the two deploy IAM roles, created by `infra`.
 - The branch rulesets, created by `infra`, which name `ci` and `e2e-dev` as required checks.
-- The two Actions environments, created by `infra`, which hold every value the deploy reads.
+- The two Actions environments, created by `infra`, which hold every value the deploy reads and admit only their branch.
+- The repository's Actions workflow permissions, set by `infra`'s `core` root, which let `GITHUB_TOKEN` open the promotion pull request.
 
 ## Depended on by
 
@@ -83,6 +87,7 @@ One secret per environment, `APP_PASSWORD`, from the same Terraform variable the
 The `e2e-dev` job reads the `dev` one to log in; the `prd` one is written for symmetry and nothing reads it. Fork pull requests never receive either.
 
 Nothing here is copied by hand: `terraform apply` in `dev` or `prd` writes all four variables and the secret, so a resource Terraform recreates updates its own variable on the next apply.
+The same apply sets the environment's deployment branch policy, `develop` for `dev` and `main` for `prd`, which is the one place the branch a deploy may run from is written.
 
 `ci.yml` reads none of them: it needs no variable and no secret, which is what keeps it running on fork pull requests.
 

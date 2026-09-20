@@ -1,10 +1,14 @@
 locals {
-  # Both checks belong to workflows that do not exist yet. Until they do, the
-  # bypass actor is the only way to merge anything.
   protected_branches = {
     develop = ["ci"]
     main    = ["ci", "e2e-dev"]
   }
+}
+
+resource "github_workflow_repository_permissions" "this" {
+  repository                       = local.github_repository
+  default_workflow_permissions     = "read"
+  can_approve_pull_request_reviews = true
 }
 
 module "branch_ruleset" {
