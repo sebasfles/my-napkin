@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   diagramItem,
   diagramUrl,
+  e2eName,
   folderItem,
   goToRoot,
   itemList,
@@ -12,6 +13,7 @@ import {
   openFolder,
   openItemMenu,
   removeItemsCreatedHere,
+  renameFolder,
   setDiagramLock,
 } from "./helpers";
 
@@ -74,6 +76,36 @@ test.describe("folders", () => {
 
     await expect(page.getByTestId("crumb-current")).toHaveText(folder, { timeout: awsTimeout });
     await expect(diagramItem(page, inside)).toBeVisible();
+  });
+
+  test("renames a folder from its menu and keeps the name after a reload", async ({ page }) => {
+    await openApp(page);
+    const folder = await newFolder(page, "folders rename");
+
+    await openFolder(page, folder);
+    const inside = await newDiagram(page, "folders rename inside");
+    await goToRoot(page);
+
+    await openItemMenu(page, folderItem(page, folder));
+    await page.getByTestId("menu-rename").click();
+    await expect(
+      page.getByTestId("name-dialog"),
+      "a folder is renamed as a folder, not as a diagram",
+    ).toContainText("Rename folder");
+    await page.getByTestId("name-cancel").click();
+
+    const renamed = e2eName("folders renamed");
+    await renameFolder(page, folder, renamed);
+    await expect(folderItem(page, folder)).toHaveCount(0);
+
+    await page.reload();
+    await expect(folderItem(page, renamed)).toBeVisible({ timeout: awsTimeout });
+
+    await openFolder(page, renamed);
+    await expect(
+      diagramItem(page, inside),
+      "and a rename moves nothing: what was inside is still inside",
+    ).toBeVisible();
   });
 
   test("moves a diagram into a folder and back to the root", async ({ page }) => {

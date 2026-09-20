@@ -91,4 +91,15 @@ Appending the locked sentence to the existing message put the most important war
 
 The full suite ran again after that copy change; `5-folder-delete-light.png` and `-dark.png` were retaken and now show a folder holding a locked diagram.
 
+### Round 3
+
+The finding applied: `folders.spec.ts` renames a folder through its menu and reads the name back after a reload, with the helper that was written and never called.
+The case also asserts the dialog says "Rename folder" before cancelling out of it, which is the branch that made this more than the diagram path with a different argument, and it checks that the diagram inside is still inside afterwards, since a rename moves nothing.
+The unused helper was a fair tell and I should have read it as one.
+
+One thing the finding did not ask for, because it only becomes reachable with this spec: `renameDiagram` and `renameFolder` now move the name they renamed inside the cleanup registry.
+Cleanup deletes by tracked name, so renaming a tracked item used to strand it, and the two existing rename specs only survived that by accident, both renaming to a string that still contains the old one, which `hasText` matches.
+The new case renames to an unrelated name and would have leaked on every run.
+A throwaway read-only spec after the suite confirmed the dev table holds no `e2e` diagram, no `e2e` folder and no pinned row.
+
 ## Result

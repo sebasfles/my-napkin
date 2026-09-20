@@ -155,9 +155,18 @@ async function renameThrough(page: Page, item: Locator, name: string) {
   await page.getByTestId("name-submit").click();
 }
 
+function retrack(registry: Map<Page, string[]>, page: Page, from: string, to: string) {
+  const names = registry.get(page) ?? [];
+  const at = names.indexOf(from);
+
+  if (at >= 0) names[at] = to;
+  registry.set(page, names);
+}
+
 export async function renameDiagram(page: Page, from: string, to: string) {
   await renameThrough(page, diagramItem(page, from), to);
   await expect(diagramItem(page, to)).toBeVisible({ timeout: awsTimeout });
+  retrack(createdByPage, page, from, to);
 }
 
 export async function renameActiveDiagram(page: Page, name: string) {
@@ -168,6 +177,7 @@ export async function renameActiveDiagram(page: Page, name: string) {
 export async function renameFolder(page: Page, from: string, to: string) {
   await renameThrough(page, folderItem(page, from), to);
   await expect(folderItem(page, to)).toBeVisible({ timeout: awsTimeout });
+  retrack(foldersByPage, page, from, to);
 }
 
 export async function setDiagramLock(page: Page, name: string, locked: boolean) {
