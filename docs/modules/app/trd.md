@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0013_e2e_dev_red
 ---
 
 # app: technical

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0009_deploy_dev_first_run
+updated: 2026-09-20
+source: 0013_e2e_dev_red
 ---
 
 # infra: architecture and debt
@@ -105,3 +105,19 @@ source: 0009_deploy_dev_first_run
 - Debt created: none.
 - Revisit when: GitHub changes the subject a job with an environment gets, or a third environment appears.
 - Source: 0009_deploy_dev_first_run
+
+## 2026-09-20: the CDN serves two prefixes from the bucket, and `public/static/` is the only public folder
+
+- Decision: `static_path_patterns` is `["/_next/static/*", "/static/*"]`, the default of `infra/stacks/app/variables.tf` rather than a per-environment local, and every file of `app/public/` lives under `public/static/`.
+  Everything else is the server's, the Next metadata routes included.
+- Alternatives rejected: listing each public file as its own pattern; a `/*.png` wildcard; keeping the files at the root of `public/` and adding a pattern per file as they appear.
+- Reason: a pattern the bucket does not hold answers 403 through the origin access control instead of falling through to the server, so a wildcard is not a safe superset.
+  It was checked against production rather than reasoned about: `/icon.png`, `/apple-icon.png`, `/icon.svg`, `/favicon.ico` and `/manifest.webmanifest` all answer 200 from the Lambda today, so `/*.png` would have broken the app's own icons to fix its manifest's.
+  A prefix ends the drift instead of managing it: a new file under `public/static/` is a deploy and needs no apply, which a file list would have required forever, in two environments, by hand.
+  The list covers exactly what the build emits, taken from `.open-next/assets` after a real build rather than from the repository, since the bucket only ever receives the former: `BUILD_ID`, `favicon.ico`, `static/icon-192.png`, `static/icon-512.png` and `_next/static/*`.
+  `favicon.ico` is emitted as a key and is also a working Lambda route, and it keeps no pattern: adding one would move a working route onto a behavior for no gain, and every pattern is a hand apply in two environments forever.
+  It is a stack default because nothing about it differs between environments, and `dev/main.tf` and `prd/main.tf` have to stay identical.
+- Debt created: none, but `/static/*` is served with no session by construction, so nothing private may ever be placed under `app/public/static/`. Nothing enforces that beyond this entry and the module's `trd.md`.
+- Revisit when: the app needs a public file that cannot live under one prefix, or CloudFront gains a way to fall through to the origin on a bucket miss.
+- Source: 0013_e2e_dev_red
+

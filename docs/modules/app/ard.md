@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-20
-source: 0011_workspace_redesign
+source: 0013_e2e_dev_red
 ---
 
 # app: architecture decisions
@@ -493,3 +493,34 @@ source: 0011_workspace_redesign
 - Debt created: `src/lib/api.ts` navigates with a full page assign on 401, warned about by `@next/next/no-location-assign-relative-destination`, and any in-flight request can move the page while something else is driving it.
 - Revisit when: `api.ts` gains a client boundary, or the warning is upgraded to an error.
 - Source: 0011_workspace_redesign
+
+## 2026-09-20: a key press at the editor is a consequence of a landed click, never an independent input
+
+- Decision: an e2e helper selects a tool by clicking that tool's `<label class="ToolIcon">`, which Playwright's actionability gates, and asserts the tool is checked.
+  Where a key press cannot be avoided, as with paste, the helper first clicks the canvas through the same gate and asserts that `.excalidraw-container` has focus.
+  No helper sends a key press after an ungated coordinate click.
+- Alternatives rejected: a blind `mouse.click` at canvas coordinates followed by the key, which is what the suite did and what broke; any delay before the click; mounting the editor with `handleKeyboardGlobally` so a document listener would exist; clicking the tool's radio input directly, which cannot work because the editor's stylesheet gives it `pointer-events: none`.
+- Reason: the editor binds `onKeyDown` as a React prop on its own container div, which carries `tabIndex: 0`, and binds nothing to the document unless `handleKeyboardGlobally` is set, which this app does not set.
+  So a key press is never an independent input: it is delivered only if a click has already put focus inside that container.
+  A spec that presses a tool key without a landed click is not racing a slow editor, it is asserting against a listener that was never registered, which is why the failure could never recover inside a 15 second assertion and why both CI attempts failed identically.
+  The click is droppable in the first place because a modal dialog holds `pointer-events: none` on the body while it closes, and the helper that submitted it did not wait for it to be hidden.
+  The gate is an actionability check rather than a duration because the window is a finite race, proved by the same cause appearing as a hard failure through one helper and as a flake through another in the same run.
+  The sharpening from "the click may be early" to "there is no document level listener to fall back to" came from the 0012 review.
+- Debt created: none.
+- Revisit when: the editor is mounted with `handleKeyboardGlobally`, or the app adds document level shortcuts of its own, either of which makes a key press independent of focus again and makes this helper shape unnecessary.
+- Source: 0013_e2e_dev_red
+
+## 2026-09-20: the suite tracks a created row before it is named, and resolves a tracked row by exact name
+
+- Decision: `adoptActiveDiagram` records the row under the name the app gave it, before renaming, and retracks it afterwards.
+  `diagramItem`, `folderItem` and `pinnedItem` resolve a row with `has: getByText(name, { exact: true })` rather than `hasText`.
+- Alternatives rejected: tracking the row id instead of its name; leaving the substring match and accepting that a failed rename leaks a row.
+- Reason: a row exists from the moment it is created, so tracking it only after the rename resolved meant any failure in between left a row cleanup could never delete; 11 of 14 strays found in the shared dev table carried default names, which is exactly that window.
+  The id was the obvious handle and was rejected because the registries hold names, `retrack` moves names and `deleteDiagram` takes one, so an id would have made their contents heterogeneous to repair a single call site.
+  `hasText` is a case-insensitive substring, and the app's default name is a prefix of its own suffixed siblings, so tracking an app-generated name would have made cleanup ambiguous in precisely the failure path it exists to serve.
+  Exact matching fixes the invariant for every caller rather than for the one that exposed it: a tracked name resolves to the row it names and to no other.
+  It also closes the same defect in `e2eName`, whose trailing sequence makes `-1` a prefix of `-10`; unreachable in practice, which is why it never fired, not why it was safe.
+- Debt created: two narrow windows stay open. A failure between the create click and the row becoming active still leaks a row, because the name is not readable until then, and closing it needs a diff of the name set that would assume nothing else writes to the table while several workspaces share it. `newFolderNamed` tracks its folder only after the create round trip, the same shape with a smaller window.
+- Revisit when: the suite runs concurrently against a shared table by design rather than by accident, at which point row ownership needs to be explicit rather than inferred from a name.
+- Source: 0013_e2e_dev_red
+

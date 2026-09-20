@@ -67,7 +67,8 @@ Why the two helpers sit differently in that window is not established; `pasteIma
 
 ## om-reviewer verification
 
-2026-09-20, round 1 at `1cc4d5f`.
+2026-09-20, round 2 at `d0f2236`.
+Round 1 at `1cc4d5f` verified the same way; the dev run was repeated at this tip because the round 2 fix changes how every spec resolves a row, so the earlier proof would have been stale.
 
 - Cause 2: verified. The om-developer's run against deployed dev returns 63 passed, 1 failed, 0 flaky, with all eight `drawRectangle` specs passing and `save-reload.spec.ts:35` passing without a retry, against the same environment that failed them twice each in run 35526315218.
   The Observed section's first bullet no longer reproduces.
