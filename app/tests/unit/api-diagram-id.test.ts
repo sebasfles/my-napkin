@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Diagram, SceneUrls } from "@/lib/diagrams";
+import type { Diagram, Folder, Item, SceneUrls } from "@/lib/diagrams";
 
 const repository = {
   list: vi.fn(),
@@ -15,7 +15,7 @@ const scenes = {
   remove: vi.fn(),
 };
 
-vi.mock("@/lib/dynamo", () => ({ diagramRepository: repository }));
+vi.mock("@/lib/dynamo", () => ({ itemRepository: repository }));
 vi.mock("@/lib/s3", () => ({ sceneStore: scenes }));
 
 const { DELETE, PATCH } = await import("@/app/api/diagrams/[id]/route");
@@ -33,6 +33,17 @@ function diagram(): Diagram {
     name: "Napkin 18092026",
     createdAt: "2026-09-18T08:00:00.000Z",
     updatedAt: "2026-09-18T09:00:00.000Z",
+  };
+}
+
+function folder(id = "folder-1", parentId?: string): Folder {
+  return {
+    id,
+    kind: "folder",
+    name: `folder ${id}`,
+    createdAt: "2026-09-18T08:00:00.000Z",
+    updatedAt: "2026-09-18T08:00:00.000Z",
+    ...(parentId === undefined ? {} : { parentId }),
   };
 }
 
@@ -64,7 +75,7 @@ describe("PATCH /api/diagrams/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(repository.update).toHaveBeenCalledWith("diagram-1", { name: "Sketches" });
-    await expect(response.json()).resolves.toEqual({ diagram: diagram() });
+    await expect(response.json()).resolves.toEqual({ item: diagram() });
   });
 
   it("records the scene counters the browser measured after an upload", async () => {
@@ -133,6 +144,81 @@ describe("PATCH /api/diagrams/[id]", () => {
   });
 });
 
+describe("PATCH /api/diagrams/[id], moving and pinning", () => {
+  it("moves an item into a folder once the tree allows it", async () => {
+    repository.list.mockResolvedValue([diagram(), folder()]);
+    repository.update.mockResolvedValue({ ...diagram(), parentId: "folder-1" });
+
+    const response = await PATCH(patch(JSON.stringify({ parentId: "folder-1" })), params);
+
+    expect(response.status).toBe(200);
+    expect(repository.update).toHaveBeenCalledWith("diagram-1", { parentId: "folder-1" });
+  });
+
+  it("refuses a parent that would make a subtree unreachable, and writes nothing", async () => {
+    repository.list.mockResolvedValue([folder(), folder("child", "folder-1"), diagram()]);
+
+    for (const parentId of ["folder-1", "child", "gone", "diagram-1"]) {
+      const response = await PATCH(
+        new Request("http://localhost:3000/api/diagrams/folder-1", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ parentId }),
+        }),
+        { params: Promise.resolve({ id: "folder-1" }) },
+      );
+
+      expect(response.status).toBe(400);
+      expect(repository.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("answers 404 when the item to move is gone", async () => {
+    repository.list.mockResolvedValue([folder()]);
+
+    const response = await PATCH(patch(JSON.stringify({ parentId: null })), params);
+
+    expect(response.status).toBe(404);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("pins and unpins a diagram", async () => {
+    repository.list.mockResolvedValue([diagram()]);
+    repository.update.mockResolvedValue(diagram());
+
+    await PATCH(patch(JSON.stringify({ pinned: true })), params);
+    const [, pinning] = repository.update.mock.calls[0];
+    expect(typeof pinning.pinnedAt).toBe("string");
+
+    await PATCH(patch(JSON.stringify({ pinned: false })), params);
+    expect(repository.update).toHaveBeenLastCalledWith("diagram-1", { pinnedAt: null });
+  });
+
+  it("refuses to pin a folder, since a pin is a shortcut to a diagram", async () => {
+    repository.list.mockResolvedValue([folder()]);
+
+    const response = await PATCH(
+      new Request("http://localhost:3000/api/diagrams/folder-1", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pinned: true }),
+      }),
+      { params: Promise.resolve({ id: "folder-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("reads the table only when the body moves or pins, so a rename stays one write", async () => {
+    repository.update.mockResolvedValue(diagram());
+
+    await PATCH(patch(JSON.stringify({ name: "Sketches" })), params);
+
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+});
+
 describe("DELETE /api/diagrams/[id]", () => {
   it("removes the item and then the scene object", async () => {
     const order: string[] = [];
@@ -148,6 +234,47 @@ describe("DELETE /api/diagrams/[id]", () => {
     expect(order).toEqual(["item", "scene"]);
     expect(repository.remove).toHaveBeenCalledWith("diagram-1");
     expect(scenes.remove).toHaveBeenCalledWith("diagram-1");
+  });
+
+  it("cascades a folder deepest first, so a half-failed cascade never leaves an orphan row", async () => {
+    const inside: Item[] = [
+      folder(),
+      folder("child", "folder-1"),
+      { ...diagram(), id: "deep", parentId: "child" },
+      { ...diagram(), id: "shallow", parentId: "folder-1" },
+    ];
+    repository.get.mockResolvedValue(folder());
+    repository.list.mockResolvedValue(inside);
+
+    const removed: string[] = [];
+    repository.remove.mockImplementation(async (id: string) => void removed.push(`item ${id}`));
+    scenes.remove.mockImplementation(async (id: string) => void removed.push(`scene ${id}`));
+
+    const response = await DELETE(new Request("http://localhost:3000/x", { method: "DELETE" }), {
+      params: Promise.resolve({ id: "folder-1" }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(removed).toEqual([
+      "item deep",
+      "scene deep",
+      "item child",
+      "item shallow",
+      "scene shallow",
+      "item folder-1",
+    ]);
+  });
+
+  it("asks for no scene object for the folders it removes", async () => {
+    repository.get.mockResolvedValue(folder());
+    repository.list.mockResolvedValue([folder()]);
+
+    await DELETE(new Request("http://localhost:3000/x", { method: "DELETE" }), {
+      params: Promise.resolve({ id: "folder-1" }),
+    });
+
+    expect(repository.remove).toHaveBeenCalledWith("folder-1");
+    expect(scenes.remove).not.toHaveBeenCalled();
   });
 });
 
@@ -179,6 +306,15 @@ describe("GET /api/diagrams/[id]/urls", () => {
 
   it("signs nothing for a diagram that is not there, so no orphan scene can be written", async () => {
     repository.get.mockResolvedValue(null);
+
+    const response = await GET(new Request("http://localhost:3000/x"), params);
+
+    expect(response.status).toBe(404);
+    expect(scenes.urls).not.toHaveBeenCalled();
+  });
+
+  it("signs nothing for a folder, since a folder owns no scene object", async () => {
+    repository.get.mockResolvedValue(folder());
 
     const response = await GET(new Request("http://localhost:3000/x"), params);
 

@@ -73,5 +73,5 @@ stateDiagram-v2
 ```
 
 Opening a diagram never saves it: the editor's first report after a mount becomes the baseline when it changes no element.
-Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back.
+Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back; deleting a folder stops the savers of every diagram under it the same way, before the cascade starts.
 A locked diagram never enters this flow at all: the editor mounts no saver, `/urls` signs no upload, and the PATCH is refused by a condition on the item, so a browser that locked nothing is stopped too.

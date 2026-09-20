@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Diagram } from "@/lib/diagrams";
+import type { Diagram, Folder, Item } from "@/lib/diagrams";
 
 const repository = {
   list: vi.fn(),
   get: vi.fn(),
   create: vi.fn(),
-  touch: vi.fn(),
+  update: vi.fn(),
   remove: vi.fn(),
 };
 
@@ -15,7 +15,7 @@ const scenes = {
   remove: vi.fn(),
 };
 
-vi.mock("@/lib/dynamo", () => ({ diagramRepository: repository }));
+vi.mock("@/lib/dynamo", () => ({ itemRepository: repository }));
 vi.mock("@/lib/s3", () => ({ sceneStore: scenes }));
 
 const { GET, POST } = await import("@/app/api/diagrams/route");
@@ -29,6 +29,16 @@ function diagram(): Diagram {
   };
 }
 
+function folder(): Folder {
+  return {
+    id: "folder-1",
+    kind: "folder",
+    name: "Trips",
+    createdAt: "2026-09-18T08:00:00.000Z",
+    updatedAt: "2026-09-18T08:00:00.000Z",
+  };
+}
+
 function post(body: unknown): Request {
   return new Request("http://localhost:3000/api/diagrams", {
     method: "POST",
@@ -37,18 +47,26 @@ function post(body: unknown): Request {
   });
 }
 
+async function created(body: unknown): Promise<Item> {
+  const { item } = (await (await POST(post(body))).json()) as { item: Item };
+  return item;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  scenes.createEmpty.mockResolvedValue(undefined);
+  repository.create.mockResolvedValue(undefined);
+  repository.get.mockResolvedValue(folder());
 });
 
 describe("GET /api/diagrams", () => {
-  it("answers with the diagrams the repository lists", async () => {
-    repository.list.mockResolvedValue([diagram()]);
+  it("answers with both kinds of item the repository lists", async () => {
+    repository.list.mockResolvedValue([diagram(), folder()]);
 
     const response = await GET();
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ diagrams: [diagram()] });
+    await expect(response.json()).resolves.toEqual({ items: [diagram(), folder()] });
   });
 
   it("is never cached", async () => {
@@ -73,29 +91,46 @@ describe("POST /api/diagrams", () => {
   });
 
   it("gives the diagram an id and the same created and updated stamp", async () => {
-    scenes.createEmpty.mockResolvedValue(undefined);
-    repository.create.mockResolvedValue(undefined);
+    const item = await created({ name: "Sketches" });
 
-    const { diagram: created } = (await (await POST(post({ name: "Sketches" }))).json()) as {
-      diagram: Diagram;
-    };
-
-    expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(created.name).toBe("Sketches");
-    expect(created.createdAt).toBe(created.updatedAt);
-    expect(scenes.createEmpty).toHaveBeenCalledWith(created.id);
-    expect(repository.create).toHaveBeenCalledWith(created);
+    expect(item.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(item.name).toBe("Sketches");
+    expect(item.createdAt).toBe(item.updatedAt);
+    expect(item.kind).toBeUndefined();
+    expect(item.parentId).toBeUndefined();
+    expect(scenes.createEmpty).toHaveBeenCalledWith(item.id);
+    expect(repository.create).toHaveBeenCalledWith(item);
   });
 
   it("trims the name the browser sends", async () => {
-    scenes.createEmpty.mockResolvedValue(undefined);
-    repository.create.mockResolvedValue(undefined);
+    expect((await created({ name: "  Sketches  " })).name).toBe("Sketches");
+  });
 
-    const { diagram: created } = (await (await POST(post({ name: "  Sketches  " }))).json()) as {
-      diagram: Diagram;
-    };
+  it("writes no scene object for a folder, so every scene object still has a diagram", async () => {
+    const item = await created({ name: "Trips", kind: "folder" });
 
-    expect(created.name).toBe("Sketches");
+    expect(item.kind).toBe("folder");
+    expect(scenes.createEmpty).not.toHaveBeenCalled();
+    expect(repository.create).toHaveBeenCalledWith(item);
+  });
+
+  it("creates inside the folder the browser names", async () => {
+    const item = await created({ name: "Kyoto", parentId: "folder-1" });
+
+    expect(item.parentId).toBe("folder-1");
+    expect(repository.get).toHaveBeenCalledWith("folder-1");
+  });
+
+  it("writes nothing when the parent is missing or is not a folder", async () => {
+    for (const parent of [null, diagram()]) {
+      repository.get.mockResolvedValue(parent);
+
+      const response = await POST(post({ name: "Kyoto", parentId: "nope" }));
+
+      expect(response.status).toBe(400);
+      expect(scenes.createEmpty).not.toHaveBeenCalled();
+      expect(repository.create).not.toHaveBeenCalled();
+    }
   });
 
   it("writes nothing when the name is missing, blank or not a string", async () => {

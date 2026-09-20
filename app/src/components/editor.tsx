@@ -10,10 +10,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
-import { useDiagrams } from "@/components/diagrams-provider";
+import { useWorkspace } from "@/components/workspace-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
-import { isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
+import { isDiagram, isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
 import { editorLangCode } from "@/lib/editor";
 import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
@@ -28,12 +28,12 @@ const Canvas = dynamic(async () => (await import("@excalidraw/excalidraw")).Exca
 export function Editor({ diagramId }: { diagramId: string }) {
   const t = useTranslations("editor");
   const router = useRouter();
-  const { diagrams, failed: listFailed } = useDiagrams();
+  const { items, failed: listFailed } = useWorkspace();
   const [loaded, setLoaded] = useState<{ scene: Scene; urls: SceneAccess } | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const cached = diagrams.find((item) => item.id === diagramId) ?? null;
-  const cachedLock = cached ? isLocked(cached) : null;
+  const cached = items.find((item) => item.id === diagramId) ?? null;
+  const cachedLock = cached !== null && isDiagram(cached) ? isLocked(cached) : null;
   const locked = cachedLock ?? loaded?.urls.locked ?? true;
 
   useEffect(() => {
@@ -121,7 +121,7 @@ function SceneSaving({
   urls: SceneUrls;
   saverRef: RefObject<SceneSaver | null>;
 }) {
-  const { isDeleted, markSaved, registerSaver, reportSave } = useDiagrams();
+  const { isDeleted, markSaved, registerSaver, reportSave } = useWorkspace();
 
   const onStatus = useCallback(
     (status: SaveStatus) => reportSave(diagramId, status),

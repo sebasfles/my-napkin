@@ -3,7 +3,7 @@ import {
   drawRectangle,
   newDiagram,
   openApp,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   saveFailedText,
   saveIndicator,
   savedText,
@@ -11,7 +11,7 @@ import {
 
 test.describe("a save that fails", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("shows the failure and saves the next change", async ({ page }) => {

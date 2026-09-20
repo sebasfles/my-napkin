@@ -3,7 +3,7 @@ import {
   drawRectangle,
   newDiagram,
   openApp,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   saveIndicator,
 } from "./helpers";
 
@@ -12,7 +12,7 @@ const englishHeading = "Diagrams";
 
 test.describe("locale", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test.describe("a browser asking for Spanish", () => {

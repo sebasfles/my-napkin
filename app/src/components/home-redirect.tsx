@@ -3,24 +3,26 @@
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDiagrams } from "@/components/diagrams-provider";
+import { useWorkspace } from "@/components/workspace-provider";
+import { byUpdatedAtDesc, isDiagram } from "@/lib/diagrams";
 import { Button } from "@/components/ui/button";
 
 export function HomeRedirect() {
   const t = useTranslations("editor");
   const router = useRouter();
-  const { diagrams, loading, failed, create } = useDiagrams();
+  const { items, loading, failed, create } = useWorkspace();
   const [createFailed, setCreateFailed] = useState(false);
   const started = useRef(false);
 
   const open = useCallback(async () => {
     try {
-      const target = diagrams[0] ?? (await create());
+      const newest = items.filter(isDiagram).sort(byUpdatedAtDesc)[0];
+      const target = newest ?? (await create(null));
       router.replace(`/d/${target.id}`);
     } catch {
       setCreateFailed(true);
     }
-  }, [create, diagrams, router]);
+  }, [create, items, router]);
 
   useEffect(() => {
     if (loading || failed || started.current) return;

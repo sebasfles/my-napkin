@@ -4,17 +4,20 @@ import {
   deleteDiagram,
   diagramItem,
   diagramUrl,
+  drawRectangle,
   login,
   newDiagram,
   openApp,
   openItemMenu,
-  removeDiagramsCreatedHere,
+  removeItemsCreatedHere,
   renameDiagram,
+  saveIndicator,
+  savedText,
 } from "./helpers";
 
 test.describe("diagram list", () => {
   test.afterEach(async ({ page }) => {
-    await removeDiagramsCreatedHere(page);
+    await removeItemsCreatedHere(page);
   });
 
   test("opens a diagram on first load, and never leaves the user without one", async ({ page }) => {
@@ -66,6 +69,25 @@ test.describe("diagram list", () => {
 
     await page.reload();
     await expect(diagramItem(page, renamed)).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("the save indicator belongs to the diagram being edited, and to no other", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const edited = await newDiagram(page, "indicator edited");
+
+    await drawRectangle(page);
+    await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
+
+    const other = await newDiagram(page, "indicator other");
+
+    await expect(
+      saveIndicator(page),
+      "the row of a diagram nobody is editing must not claim it just saved",
+    ).toHaveCount(0);
+    await expect(diagramItem(page, edited)).toContainText(/ago|now/);
+    await expect(activeItem(page)).toContainText(other);
   });
 
   test("leaves the diagram alone when the delete is cancelled", async ({ page }) => {

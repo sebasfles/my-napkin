@@ -1,20 +1,36 @@
-export interface Diagram {
+export type ParentId = string | null;
+
+interface ItemFields {
   id: string;
   name: string;
+  parentId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Diagram extends ItemFields {
+  kind?: "diagram";
+  pinnedAt?: string;
   lockedAt?: string;
   elementCount?: number;
   sceneBytes?: number;
 }
+
+export interface Folder extends ItemFields {
+  kind: "folder";
+}
+
+export type Item = Diagram | Folder;
 
 export interface SceneStats {
   elementCount: number;
   sceneBytes: number;
 }
 
-export interface DiagramChanges {
+export interface ItemChanges {
   name?: string;
+  parentId?: ParentId;
+  pinnedAt?: string | null;
   lockedAt?: string | null;
   scene?: SceneStats;
 }
@@ -29,11 +45,11 @@ export interface SceneAccess extends SceneUrls {
   locked: boolean;
 }
 
-export interface DiagramRepository {
-  list(): Promise<Diagram[]>;
-  get(id: string): Promise<Diagram | null>;
-  create(diagram: Diagram): Promise<void>;
-  update(id: string, changes: DiagramChanges): Promise<Diagram | null>;
+export interface ItemRepository {
+  list(): Promise<Item[]>;
+  get(id: string): Promise<Item | null>;
+  create(item: Item): Promise<void>;
+  update(id: string, changes: ItemChanges): Promise<Item | null>;
   remove(id: string): Promise<void>;
 }
 
@@ -43,10 +59,30 @@ export interface SceneStore {
   remove(id: string): Promise<void>;
 }
 
-export function byUpdatedAtDesc(a: Diagram, b: Diagram): number {
+export function isFolder(item: Item): item is Folder {
+  return item.kind === "folder";
+}
+
+export function isDiagram(item: Item): item is Diagram {
+  return item.kind !== "folder";
+}
+
+export function parentOf(item: Item): ParentId {
+  return item.parentId ?? null;
+}
+
+export function byUpdatedAtDesc(a: Item, b: Item): number {
   return b.updatedAt.localeCompare(a.updatedAt);
+}
+
+export function byNameAsc(a: Item, b: Item): number {
+  return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
 }
 
 export function isLocked(diagram: Diagram): boolean {
   return typeof diagram.lockedAt === "string";
+}
+
+export function isPinned(diagram: Diagram): boolean {
+  return typeof diagram.pinnedAt === "string";
 }

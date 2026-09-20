@@ -7,12 +7,7 @@ import {
   ScanCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import {
-  byUpdatedAtDesc,
-  type Diagram,
-  type DiagramChanges,
-  type DiagramRepository,
-} from "@/lib/diagrams";
+import { byUpdatedAtDesc, type Item, type ItemChanges, type ItemRepository } from "@/lib/diagrams";
 import { diagramsTable } from "@/lib/env";
 
 let documents: DynamoDBDocumentClient | undefined;
@@ -22,7 +17,7 @@ function client(): DynamoDBDocumentClient {
   return documents;
 }
 
-function updateParts(changes: DiagramChanges) {
+function updateParts(changes: ItemChanges) {
   const sets: string[] = [];
   const removes: string[] = [];
   const names: Record<string, string> = {};
@@ -32,6 +27,18 @@ function updateParts(changes: DiagramChanges) {
     sets.push("#name = :name");
     names["#name"] = "name";
     values[":name"] = changes.name;
+  }
+
+  if (changes.parentId === null) removes.push("parentId");
+  else if (changes.parentId !== undefined) {
+    sets.push("parentId = :parentId");
+    values[":parentId"] = changes.parentId;
+  }
+
+  if (changes.pinnedAt === null) removes.push("pinnedAt");
+  else if (changes.pinnedAt !== undefined) {
+    sets.push("pinnedAt = :pinnedAt");
+    values[":pinnedAt"] = changes.pinnedAt;
   }
 
   if (changes.lockedAt === null) removes.push("lockedAt");
@@ -50,34 +57,34 @@ function updateParts(changes: DiagramChanges) {
   return { sets, removes, names, values };
 }
 
-export const diagramRepository: DiagramRepository = {
+export const itemRepository: ItemRepository = {
   async list() {
-    const diagrams: Diagram[] = [];
+    const items: Item[] = [];
     let startKey: Record<string, unknown> | undefined;
 
     do {
       const page = await client().send(
         new ScanCommand({ TableName: diagramsTable(), ExclusiveStartKey: startKey }),
       );
-      diagrams.push(...((page.Items ?? []) as Diagram[]));
+      items.push(...((page.Items ?? []) as Item[]));
       startKey = page.LastEvaluatedKey;
     } while (startKey);
 
-    return diagrams.sort(byUpdatedAtDesc);
+    return items.sort(byUpdatedAtDesc);
   },
 
   async get(id) {
-    const { Item } = await client().send(
+    const { Item: found } = await client().send(
       new GetCommand({ TableName: diagramsTable(), Key: { id } }),
     );
-    return (Item as Diagram | undefined) ?? null;
+    return (found as Item | undefined) ?? null;
   },
 
-  async create(diagram) {
+  async create(item) {
     await client().send(
       new PutCommand({
         TableName: diagramsTable(),
-        Item: diagram,
+        Item: item,
         ConditionExpression: "attribute_not_exists(id)",
       }),
     );
@@ -107,7 +114,7 @@ export const diagramRepository: DiagramRepository = {
           ReturnValues: "ALL_NEW",
         }),
       );
-      return (Attributes as Diagram | undefined) ?? null;
+      return (Attributes as Item | undefined) ?? null;
     } catch (error) {
       if (error instanceof ConditionalCheckFailedException) return null;
       throw error;
