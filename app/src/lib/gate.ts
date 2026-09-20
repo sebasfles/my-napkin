@@ -1,7 +1,7 @@
 export const loginPath = "/login";
 export const loginApiPath = "/api/login";
 
-const publicPrefixes = ["/_next/"];
+const publicPrefixes = ["/_next/", "/static/"];
 const publicPaths = new Set([loginPath, loginApiPath, "/favicon.ico"]);
 const rootFile = /^\/[^/]+\.[^/]+$/;
 

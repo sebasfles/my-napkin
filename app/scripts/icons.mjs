@@ -11,8 +11,8 @@ const lightPlate = "#3668b1";
 const outputs = [
   { file: "src/app/icon.png", size: 32, scheme: "light", behind: "transparent" },
   { file: "src/app/apple-icon.png", size: 180, scheme: "light", behind: lightPlate },
-  { file: "public/icon-192.png", size: 192, scheme: "light", behind: "transparent" },
-  { file: "public/icon-512.png", size: 512, scheme: "light", behind: "transparent" },
+  { file: "public/static/icon-192.png", size: 192, scheme: "light", behind: "transparent" },
+  { file: "public/static/icon-512.png", size: 512, scheme: "light", behind: "transparent" },
 ];
 
 function ico(png) {

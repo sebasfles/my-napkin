@@ -59,9 +59,9 @@ variable "scene_version_retention_days" {
 }
 
 variable "static_path_patterns" {
-  description = "Paths CloudFront serves from the assets bucket. The application has no public/ directory, so the build output holds nothing but _next/static."
+  description = "Paths CloudFront serves from the assets bucket: the build output under _next/static, and public/static, which is where every file of public/ lives so that adding one needs no apply. Everything else, the Next metadata routes included, is the server's."
   type        = list(string)
-  default     = ["/_next/static/*"]
+  default     = ["/_next/static/*", "/static/*"]
 }
 
 variable "lambda_memory_size" {
