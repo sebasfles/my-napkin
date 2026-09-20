@@ -42,9 +42,46 @@ describe("toScene", () => {
     expect(toScene([], appState(), {}).appState).not.toHaveProperty("theme");
   });
 
-  it("carries the files through, or pasted images would be lost", () => {
+  it("drops the selection rectangle, which is a gesture and not a drawing", () => {
+    const scene = toScene([element("kept"), element("box", { type: "selection" })], appState(), {});
+
+    expect(scene.elements.map((item) => item.id)).toEqual(["kept"]);
+  });
+
+  it("carries the files an element uses, or pasted images would be lost", () => {
     const files = { abc: { id: "abc", dataURL: "data:image/png;base64,AAA" } };
-    expect(toScene([], appState(), files as never).files).toBe(files);
+    const scene = toScene(
+      [element("img", { type: "image", fileId: "abc" })],
+      appState(),
+      files as never,
+    );
+
+    expect(scene.files).toEqual(files);
+  });
+
+  it("drops a file no element references, so one canvas's blobs never ride along with another's", () => {
+    const files = {
+      used: { id: "used", dataURL: "data:image/png;base64,AAA" },
+      orphan: { id: "orphan", dataURL: "data:image/png;base64,BBB" },
+    };
+    const scene = toScene(
+      [element("img", { type: "image", fileId: "used" })],
+      appState(),
+      files as never,
+    );
+
+    expect(Object.keys(scene.files)).toEqual(["used"]);
+  });
+
+  it("drops a file only a deleted element referenced", () => {
+    const files = { gone: { id: "gone", dataURL: "data:image/png;base64,AAA" } };
+    const scene = toScene(
+      [element("img", { type: "image", fileId: "gone", isDeleted: true })],
+      appState(),
+      files as never,
+    );
+
+    expect(scene.files).toEqual({});
   });
 });
 

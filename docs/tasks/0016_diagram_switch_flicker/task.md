@@ -97,10 +97,45 @@ Constraints:
 - `app/tests/e2e/tabs.spec.ts` asserts that no painted frame falls back to a placeholder, which a loader over the canvas now breaks by design.
   Rewrite that assertion; do not delete it or weaken it to nothing.
 
+After the rebase on 934acdb (0012 phase 1), 2026-09-20:
+
+- A library canvas now opens in the same editor surface (`library = urls.items !== undefined`), so removing the remount changes every switch through that surface, not only diagram to diagram.
+  Diagram to library, library to library and library to diagram are in scope because they are the same code path; Goal and Scope predate 0012 and only name diagrams.
+- `EditorCanvas` seeds `hint` with `useState(() => library ? libraryCanvasHint(scene) : null)`, which runs at mount only.
+  Without the remount a stale `LibraryHints` overlay survives the swap, so the hint is re-derived when the scene is.
+- `CanvasSaving` takes `write={library ? writeLibrary : writeDiagram}`, so the saver-binding hazard is now cross-kind: an `onChange` for a diagram reaching the previous library's saver would write a diagram through `writeLibrary`.
+
+
+Reproduction, settled 2026-09-20 after five diagnosis runs produced no measurement:
+
+- The dedicated diagnosis runs are bounded (om-manager). If the last one yields nothing, reproduction is not skipped, it moves into the spec that ships: the Acceptance 2 e2e is written first and run red against the current tree, then the fix, then green from the same spec.
+  A red run of the instrument that will guard this afterwards is stronger evidence than a throwaway trace, and it is what Sebastian's rule about reproducing before fixing asks for.
+- Proceeding on the established mechanism with reasoning as the "before" was rejected: that is what 0011 phase 4 did, and this task is the result.
+- In that case the deployed-dev confirmation after the merge is load-bearing, not a formality: Sebastian looks at dev once it deploys, before the promotion PR merges (om-manager, 2026-09-20).
+
+Acceptance 2, added 2026-09-20 from the round 0 measurement (om-reviewer):
+
+- The symptom is a canvas that is present and empty, not the splash text: on deployed dev the chrome was fully painted at +483ms after a switch with the canvas blank, and content arrived at +503ms.
+  So the spec asserts on drawn content, not on the canvas element existing: no frame between the click and the settle may show painted chrome over an undrawn canvas.
+- `LoadingMessage` is mounted twice in the package, once behind a 250ms delay on the scene path and once with no delay at all while the locale chunk loads, both at mount.
+  One persistent instance does not shorten those windows, it stops re-entering them, which is the argument for the fix being a surviving mount rather than a faster load.
+
+Files and scope, corrected 2026-09-20 from the package rather than from my note (om-reviewer):
+
+- `resetScene` does **not** clear `files`, and nothing on the imperative API removes them; only `componentWillUnmount` does, so the remount this task deletes is the only thing that has ever cleared them.
+  The files hazard is therefore certain once the remount goes, not theoretical, and it cannot be solved through Excalidraw.
+- It is solved where we serialize: `toScene` (`src/lib/scene.ts`) keeps only the files referenced by the elements it writes, which is deterministic whatever the instance holds and also prunes blobs of deleted images.
+  This touches the save path for every diagram, wider than "the switch" and not covered by `Out of scope`; accepted as necessary and as a strict improvement, and it wants an ARD entry at `document-task`, since normalizing on write cuts against the recorded debt that a stored scene keeps the shape it was written in.
+- Risk to check before that lands: a scene written before this fix can carry unreferenced files, so the first `onChange` after opening it serializes differently from the baseline read out of S3.
+  If that reaches `advance("change")`, every diagram uploads on open and `updatedAt` churns without an edit, against `docs/modules/app/ard.md` 2026-09-20.
+  `fire()`'s `opening` branch absorbs it, since `sceneVersion` is blind to files: proved by a unit test that was also shown to fail when that branch is disabled.
+  The invariant it rests on belongs in the ARD: the rebase happens only on the first report after open, so pruning must stay a pure function of the elements and files in that same report, and breaks if it ever depends on anything outside the scene.
+- `onChange` is never synchronous (it fires from `componentDidUpdate`, gated on `!isLoading`), and `api.onChange(cb)` returns an unsubscribe, so the saver binds by subscription rather than through a mutable ref and the binding race goes away by construction.
+
 I will also check in review:
 
 - The saver is bound to B before `onChange` can fire for B's content, since `updateScene` provokes `onChange` and `saverRef` must not still hold A's saver.
-- `resetScene` before `updateScene`, so B inherits neither A's undo stack nor A's `files`, and B's first save carries none of A's blobs.
+- `resetScene` before `updateScene` for the undo stack. The files half of this note was wrong and is corrected below.
 - A second switch during a fetch wins over the first, and a scene that fails to load leaves the editor somewhere the user can leave.
 - The new e2e fails on the unfixed component for the reason it names, the way phase 4's did.
 

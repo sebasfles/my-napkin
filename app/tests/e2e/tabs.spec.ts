@@ -147,12 +147,27 @@ test.describe("tabs", () => {
       const sample = () => {
         watched.frames = (watched.frames ?? 0) + 1;
 
-        if (
-          document.querySelector('[data-testid="editor-scene"]') === null &&
-          watched.blank == null
-        ) {
-          const editor = document.querySelector('[data-testid="editor"]');
-          watched.blank = `at ${Math.round(performance.now() - start)}ms on ${location.pathname}, ${document.querySelectorAll('[data-testid="tab"]').length} tabs, the editor area read "${(editor?.textContent ?? "nothing at all").slice(0, 40)}"`;
+        const cover =
+          document.querySelector('[data-testid="canvas-loading"]') ??
+          document.querySelector('[data-testid="canvas-failed"]');
+
+        if (cover !== null && watched.blank == null) {
+          const scene = document.querySelector('[data-testid="editor-scene"]');
+          const bar = document.querySelector('[data-testid="tab-bar"]');
+          const sidebar = document.querySelector('[data-testid="sidebar"]');
+          const over = cover.getBoundingClientRect();
+          const area = scene?.getBoundingClientRect();
+
+          const escaped =
+            area === undefined ||
+            over.top < area.top - 1 ||
+            over.left < area.left - 1 ||
+            over.right > area.right + 1 ||
+            over.bottom > area.bottom + 1;
+
+          if (escaped || bar === null || sidebar === null) {
+            watched.blank = `at ${Math.round(performance.now() - start)}ms on ${location.pathname}, the cover spanned ${Math.round(over.width)}x${Math.round(over.height)} against a canvas area of ${Math.round(area?.width ?? 0)}x${Math.round(area?.height ?? 0)}, tab bar ${bar === null ? "gone" : "painted"}, sidebar ${sidebar === null ? "gone" : "painted"}`;
+          }
         }
 
         requestAnimationFrame(sample);
@@ -164,9 +179,9 @@ test.describe("tabs", () => {
     await tab(page, first).getByRole("link").click();
     await expect(activeTab(page)).toContainText(first);
     await expect(
-      page.locator('[data-testid="editor-scene"]'),
-      "the scene on screen is the one the active tab names",
-    ).toHaveAttribute("data-stale", "false");
+      page.getByTestId("canvas-loading"),
+      "the scene on screen is the one the active tab names, with nothing left covering it",
+    ).toHaveCount(0, { timeout: awsTimeout });
     await page.waitForTimeout(2_000);
 
     const shell = await page.evaluate(() => {
@@ -191,7 +206,7 @@ test.describe("tabs", () => {
     expect(shell.frames, "the sampler watched the switch happen").toBeGreaterThan(30);
     expect(
       shell.blank,
-      "no painted frame fell back to a placeholder: the drawing on screen is replaced, never blanked",
+      "while the next scene loads the cover stays inside the canvas area, leaving the shell and the tab bar painted",
     ).toBeNull();
     expect(shell.sidebar, "the sidebar is the same node it was before the switch").toBe(true);
     expect(shell.bar, "and so is the tab bar").toBe(true);
