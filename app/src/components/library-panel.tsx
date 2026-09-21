@@ -19,8 +19,7 @@ import { libraryItemThumbnail, sceneCoords } from "@/lib/library-file";
 import { appendToLibrary, readLibraryItems } from "@/lib/library-io";
 import { insertedElements, newIdentity, selectionForLibrary } from "@/lib/library-items";
 import { resolveTheme } from "@/lib/theme";
-import { useSidebarCollapsed } from "@/lib/use-sidebar-collapsed";
-import { useSidebarSection } from "@/lib/use-sidebar-section";
+import { openShellPanel } from "@/lib/use-shell-layout";
 import { cn } from "@/lib/utils";
 
 export const libraryPanelName = "napkin-libraries";
@@ -53,8 +52,6 @@ export function LibraryPanel({
 }) {
   const t = useTranslations("library");
   const { items, createLibrary, markSaved, setLibraryIds } = useWorkspace();
-  const [, showSection] = useSidebarSection();
-  const [, setCollapsed] = useSidebarCollapsed(false);
   const [adding, setAdding] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -137,10 +134,7 @@ export function LibraryPanel({
               size="sm"
               className="justify-start"
               data-testid="library-panel-browse"
-              onClick={() => {
-                showSection("libraries");
-                setCollapsed(false);
-              }}
+              onClick={() => openShellPanel("libraries")}
             >
               <Search aria-hidden />
               {t("browse")}

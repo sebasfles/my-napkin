@@ -35,8 +35,10 @@ export interface SceneSaver {
   abandon(): void;
 }
 
+export const defaultDebounceMs = 1_500;
+
 export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
-  const debounceMs = options.debounceMs ?? 1500;
+  const debounceMs = options.debounceMs ?? defaultDebounceMs;
   const renewUrlMs = options.renewUrlMs ?? 60_000;
   const now = options.now ?? Date.now;
   const deleted = options.deleted ?? (() => false);

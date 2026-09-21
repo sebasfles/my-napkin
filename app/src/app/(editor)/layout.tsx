@@ -6,17 +6,17 @@ import { Shortcuts } from "@/components/shortcuts";
 import { Sidebar } from "@/components/sidebar";
 import { TabBar } from "@/components/tab-bar";
 import { WorkspaceProvider } from "@/components/workspace-provider";
-import { sidebarCollapsedCookie } from "@/lib/sidebar-cookie";
+import { shellLayoutCookie } from "@/lib/shell-layout";
 
 export default async function EditorLayout({ children }: { children: ReactNode }) {
-  const collapsed = (await cookies()).get(sidebarCollapsedCookie)?.value === "true";
+  const layout = (await cookies()).get(shellLayoutCookie)?.value ?? "";
 
   return (
     <WorkspaceProvider>
       <PageTitle />
       <Shortcuts />
       <main className="flex h-dvh w-full overflow-hidden">
-        <Sidebar collapsed={collapsed} />
+        <Sidebar layout={layout} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TabBar />
           <div className="min-h-0 flex-1">

@@ -5,7 +5,7 @@ import { useCallback, useEffect } from "react";
 import { openItemId } from "@/lib/diagrams";
 import { shortcutFor } from "@/lib/shortcuts";
 import { tabAt, tabBeside } from "@/lib/tabs";
-import { toggleCollapsed } from "@/lib/use-sidebar-collapsed";
+import { toggleShellPanel } from "@/lib/use-shell-layout";
 import { useTabs } from "@/lib/use-tabs";
 
 export function Shortcuts() {
@@ -25,8 +25,8 @@ export function Shortcuts() {
       event.preventDefault();
       event.stopPropagation();
 
-      if (shortcut.kind === "toggleSidebar") {
-        toggleCollapsed();
+      if (shortcut.kind === "toggleSidebarPanel") {
+        toggleShellPanel();
         return;
       }
 

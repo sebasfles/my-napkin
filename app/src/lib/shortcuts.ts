@@ -1,7 +1,7 @@
 export type TabCommand =
   { kind: "jump"; index: number } | { kind: "cycle"; delta: number } | { kind: "close" };
 
-export type Shortcut = { kind: "tab"; command: TabCommand } | { kind: "toggleSidebar" };
+export type Shortcut = { kind: "tab"; command: TabCommand } | { kind: "toggleSidebarPanel" };
 
 export interface KeyChord {
   code: string;
@@ -20,7 +20,7 @@ export function shortcutFor(chord: KeyChord): Shortcut | null {
     return null;
   }
 
-  if (chord.code === "KeyB") return { kind: "toggleSidebar" };
+  if (chord.code === "KeyB") return { kind: "toggleSidebarPanel" };
   if (chord.code === "KeyW") return tab({ kind: "close" });
 
   const digit = /^Digit([1-9])$/.exec(chord.code);
