@@ -664,3 +664,50 @@ source: 0012_libraries
 - Debt created: none.
 - Revisit when: a third unavailable control appears that does have something to explain, at which point the two shapes are worth one component rather than two rules.
 - Source: 0012_libraries
+
+## 2026-09-20: the package's own library is taken away three ways, one of them by a generated id
+
+- Decision: one rule in `globals.css` scoped to `.napkin-editor` hides three doors into the editor package's own library: the trigger in the top right, the library tab inside the default sidebar, and the "Add to library" entry in the canvas context menu.
+  The trigger is hidden by its `label` through `:has(.default-sidebar-trigger)`, the tab by the id Radix generates, `[id$="-trigger-library"]`, and the menu entry by `li[data-testid="addToLibrary"]`.
+- Alternatives rejected: `UIOptions`, which in 0.18.1 carries only `dockedSidebarBreakpoint`, seven `canvasActions` and `tools.image` and cannot hide any of the three; hiding the trigger alone, as `Context & decisions` planned; hiding the inner `div` rather than the `label`.
+- Reason: the button is not the only way in. `DEFAULT_SIDEBAR` is `{ name: "default", defaultTab: "library" }` and `DefaultSidebar` renders both tab triggers unconditionally, so Ctrl+F and "Find on canvas" open a sidebar with the native library one click away; and the context menu writes to the same store under a name almost identical to this phase's own action.
+  Hiding the inner `div` would have left the `label`'s checkbox focusable, so Tab then Space would open a library with nothing on screen to explain it.
+- Debt created: the tab selector is keyed on an id Radix composes from a generated base and the tab name, which no contract covers.
+  `library-panel.spec.ts` guards it by counting what is on screen, one visible sidebar trigger and one visible tab trigger, and by asserting the context menu entry is present and hidden, so a scheme change fails the count rather than passing by matching nothing.
+- Revisit when: the editor package is upgraded, or `UIOptions` gains a flag for the library.
+- Source: 0012_libraries
+
+## 2026-09-20: a dropped library file is the app's, not the editor's
+
+- Decision: a capture-phase `onDropCapture` on the editor wrapper claims a dropped file whose name ends in `.excalidrawlib`, calls `preventDefault` and `stopPropagation`, and routes it to the same import producer the sidebar button uses, creating a library and linking it to the open diagram without navigating.
+  Every other dropped file is left untouched.
+- Alternatives rejected: leaving the drop to the package; swallowing the drop and pointing at the Libraries section; navigating to the new library's canvas as the sidebar import does.
+- Reason: the package answers that file with `updateLibrary({ merge: true, openLibraryMenu: true })`, which sets `openSidebar` directly, so it opens the library panel this phase hides and merges the file into a store the app never reads.
+  Acceptance 5 would have shipped false through the gesture the export button invites.
+  Navigating would take the user off the diagram he is drawing on and still leave the library unlinked, so the items would not be where he dropped them; linking in the same action is the rule this phase already took for adding a selection to a new library.
+- Debt created: none.
+  Ordering is not luck: React 18 attaches its capture listener to the app root, an ancestor of the package's container, and React's `stopPropagation` calls the native one, so the package never sees the event.
+- Revisit when: React changes where it attaches listeners, or the package stops preventing the default on `dragover`, which is what makes a real drag deliver at all.
+- Source: 0012_libraries
+
+## 2026-09-20: an assertion on a count the table owns is written as "becomes"
+
+- Decision: `elementsOf` is private to the e2e helpers and `expectElements`, a retrying assertion, is the only exported way to assert on a diagram's element count.
+- Alternatives rejected: fixing the one failing call site; keeping the raw read exported with a comment warning against it.
+- Reason: the Info dialog reports the table's `elementCount`, which a save writes, so it lags the canvas by one save, and `saveIndicator` renders the saver's `idle` state as "Saved", so waiting for "Saved" after any earlier save is satisfied the instant it is asked.
+  A one-shot read therefore always lands before the second save completes, deterministically rather than sometimes, which is why it failed identically at a 16 MB memory floor and at a 1012 MB one.
+  Making the unsafe form unavailable is what stops the next person reaching for `elementsOf` believing it reads the canvas.
+- Debt created: none.
+- Revisit when: the count is served from the scene rather than the table, at which point the retry is wasted work.
+- Source: 0012_libraries
+
+## 2026-09-20: a library item carries no image, and the panel does not say so
+
+- Decision: the derivation skips image elements, a selection added to a library leaves images out and says how many, and a selection of nothing but images is refused with its own message.
+- Alternatives rejected: carrying the binary in the library's `files`; adding the image as an empty frame.
+- Reason: the `.excalidrawlib` format's `LibraryItem` carries no `files`, so an item cannot hold an image and a frame holding one would export as an empty item.
+  A frame on a library canvas already says this, but nothing in the editor's panel does.
+- Debt created: a person meets this limit for the first time when a toast tells him, rather than before he tries.
+  The limit is in `docs/PRD.md` under `Open questions` so a reader of the product's own documentation can find it.
+- Revisit when: the format carries files, or a library item is worth storing in a shape of ours rather than the package's.
+- Source: 0012_libraries

@@ -82,6 +82,19 @@ The interface starts in the browser's language, Spanish or English, and in its l
 8. Linking is per diagram, not per workspace: a library shows as linked only while the diagram that links it is open, and linking moves nothing, so it never counts as an edit of the drawing.
 9. Deleting a library leaves every diagram alone, including the ones that linked it; what a diagram already took from a library is a copy and stays.
 
+### Draw with a library
+
+1. The editor carries a Libraries panel of its own, opened from an icon in the top right of the canvas, with one collapsible section per library the open diagram links and nothing from the libraries it does not.
+2. Each section shows the library's name, its item count and a thumbnail of every item, drawn in the theme the user is reading in.
+3. Clicking a thumbnail inserts that item at the middle of the canvas; dragging one out of the panel inserts it where it is dropped, and a release anywhere but the drawing surface inserts nothing.
+4. An inserted item is a copy: it carries none of the library's identity, so two inserts of the same item are two independent drawings and neither changes if the library is later edited or deleted.
+5. "Add selection to library" takes what the user has selected and appends it to a linked library, or to a new one he names there, as one more frame below what that library already holds.
+   Selecting a frame adds what the frame holds. Images are left out, because a library item cannot carry one, and a selection of nothing else is refused rather than silently adding an empty frame.
+6. Adding to a brand new library links it to the open diagram in the same action, so the item appears in the panel it was added from.
+7. "Browse libraries" opens the Libraries section of the sidebar, which is where linking, renaming, importing and deleting live.
+8. Dropping a `.excalidrawlib` on the canvas makes it a library and links it to the open diagram, and says which library it became; every other dropped file is still the editor's, images included.
+9. The panel is the only library the editor offers: the package's own library, its button and its entry in the canvas menu are not shown, so there is one place a library can come from and it is the user's own.
+
 ### Lock a diagram
 
 1. User locks a finished diagram from its menu; the row shows a lock and the editor opens it read only.

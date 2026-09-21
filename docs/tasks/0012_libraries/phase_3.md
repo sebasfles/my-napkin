@@ -332,10 +332,10 @@ One smaller thing, recorded because the artefact is the om-reviewer's evidence r
 I then ran it for real, exit 0, so the line is true, and `verify.log` carries a note saying it was true by luck rather than by evidence when written.
 A correction that quietly made the line true would have left an accurate and unreliable log, which is worse than a wrong one, because nobody would have had reason to look.
 
-#### Documentation agreed and deliberately not yet written
+#### Documentation agreed while waiting for the machine
 
-Drafted and accepted by the om-reviewer while waiting for the machine, written here rather than into the documents because a documentation commit ahead of a verified round would have to be redone.
-`document-task` writes these on the clean signal.
+Drafted and accepted by the om-reviewer during the wait, and written here first rather than into the documents, because a documentation commit ahead of a verified round would have to be redone, and because a session that is stopped loses everything it did not put on disk.
+All four were written into the documents on the clean signal; what follows is the text as agreed, and the section after it records what the pass actually did.
 
 `docs/PRD.md`, new capability, in the file's voice and with no mention of phases:
 
@@ -361,5 +361,34 @@ Without it the only record of this limitation is a debt entry in `ard.md`, read 
 > A library item carries no image; a frame holding one says so and the item is skipped.
 
 `docs/PRD.md`, `Not in the product`, two entries from the task's own `Out of scope`: publishing to or syncing with libraries.excalidraw.com, and sharing libraries.
+
+#### Documentation written
+
+`docs/modules/app/`: `prd.md` gains "Draw with a library", the panel's nine points including that the package's own library is not offered; `trd.md` gains `library-cache.ts` and `library-panel.tsx` and widens `library-io.ts` to the one import producer both doors use; `database.md` gains the invariant that `libraryIds` is the only reference a diagram holds to a library and that an inserted item names nothing a library owns; `README.md` stops calling the panel "still being built"; `ard.md` gains four entries.
+`docs/ARD.md` gains two debt rows and nothing else.
+`flows.md` untouched: this phase added no flow that deserves a diagram, the insert being one gesture and one `updateScene`.
+
+`docs/PRD.md` was written too, and it is worth naming that `document-task` reserves that file for the om-manager while `task.md#Scope` assigns it to this task.
+I followed the task and the om-reviewer's instruction and wrote it: the capability line, the two `Not in the product` entries, the image limitation under `Open questions`, and the cross-cutting rule.
+If the skill's ownership rule is the one that should win, the om-reviewer can take that file out of this commit; the rest of the documentation does not depend on it.
+
+**The cross-cutting rule is the one thing here Sebastian has to accept rather than read.**
+`docs/PRD.md` promised that the editor does not diverge from the package's behaviour, and this task deliberately diverges.
+It has been false since phase 3 was approved, not since it was built, and three documentation passes went over that file without catching it.
+It is now worded as the promise plus its single exception, and it belongs at the top of the PR's `Decisions` with the scope paragraph.
+
+#### Two findings that are not this phase's and must not read as its debt
+
+Neither is in the debt index, because neither is debt this task created.
+Both are against 0011's surface and belong to a task of its own.
+
+- **A full list refetch inside the consistency window of a create can be read as a deletion.**
+  `list()` in `dynamo.ts` is a paginated `ScanCommand` with no `ConsistentRead`; `setItems(loaded)` replaces the list wholesale; `reload()` sets loading without clearing items; and the tab bar's reconciliation treats an id absent from `items` as deleted and calls `router.replace`.
+  Every link exists in the code and **the sequence has not been observed**: the realistic path is creating a diagram and then reloading the page before the scan catches up, since the optimistic paths cover the create itself.
+  Rare, recoverable, real.
+- **One unexplained observation of a missing tab**, seen once in four screenshot passes: the editor showed a diagram open with no tab for it.
+  Three candidate mechanisms and no evidence choosing between them: the render dropping a tab whose item is missing in the `failed` case, the consistency window above, and `openTab` replacing a preview tab in place rather than appending.
+  The retake showed three ids and three rendered, so the window was not hit rather than closed, and the reads that would have discriminated were not taken at the time it occurred.
+  The accent bar being plainly visible on the retaken dark shot rules out the one theory that would have been worse, that the active tab is unreadable in dark mode.
 
 ## Result

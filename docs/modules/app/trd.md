@@ -28,7 +28,9 @@ Nothing here is planned.
 | `app/src/lib/tree.ts` | The tree, pure: a folder's children, the pinned section, the path to a folder, a subtree deepest first, and the one rule that decides a move. It never sees a library | now |
 | `app/src/lib/library-items.ts` | Frames to library items and back, pure and package free: the derivation, the import layout and the id, group, container and binding remapping both directions share | now |
 | `app/src/lib/library-file.ts` | The only module that reaches the editor package outside a component, lazily: the package's own `.excalidrawlib` envelope on the way out, its own loader on the way in | now |
-| `app/src/lib/library-io.ts` | The three library flows that leave the browser: read a file, write it as a new library's canvas and items, export one back | now |
+| `app/src/lib/library-io.ts` | The library flows that leave the browser: read a file, write it as a new library's canvas and items, export one back, read a library's items, append a selection to one, and the single import producer both doors use | now |
+| `app/src/lib/library-cache.ts` | One in-memory entry per library, replaced when its `updatedAt` moves, so every tab linking it reads what the last save derived and a library with no items is never fetched | now |
+| `app/src/components/library-panel.tsx` | The editor's own Libraries panel through the package's `Sidebar`: sections, thumbnails, the pointer-capture insert gesture, add selection, browse | now |
 | `app/src/lib/tabs.ts` | The tab list, pure: open as preview, keep, close, reconcile against the table, jump and cycle | now |
 | `app/src/lib/shortcuts.ts` | Every key chord the app claims, pure and in one table: which chord means which command, and nothing about how it is delivered | now |
 | `app/src/lib/use-sidebar-folder.ts`, `use-tabs.ts` | Where the sidebar is and which diagrams are open, as stores over `localStorage` rather than state seeded by an effect | now |
