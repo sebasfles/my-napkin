@@ -1,3 +1,7 @@
+locals {
+  scenes_bucket_prefixes = ["scenes", "libraries"]
+}
+
 module "server" {
   source = "../../modules/aws/lambda_function"
 
@@ -28,7 +32,7 @@ module "server" {
 
     scenes = {
       actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-      resources = ["${module.scenes_bucket.arn}/scenes/*"]
+      resources = [for prefix in local.scenes_bucket_prefixes : "${module.scenes_bucket.arn}/${prefix}/*"]
     }
   }
 }

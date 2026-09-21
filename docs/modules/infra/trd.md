@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0013_e2e_dev_red
+updated: 2026-09-21
+source: 0018_lambda_libraries_grant
 ---
 
 # infra: technical
@@ -53,6 +53,8 @@ Root variables, backed by each root's `terraform.tfvars` (gitignored), all sensi
 - `core`: `github_app_pem`, the private key of the GitHub App, and `budget_notification_email`, which is a variable rather than a literal because the repository is public.
 - `github_app_pem` is the same key in all three roots; the App ids are literals in each `locals.tf`.
 - Everything that differs between environments lives in that root's `locals.tf`, including the CORS origins, PITR, deletion protection and `force_destroy`, so `dev/main.tf` and `prd/main.tf` are identical.
+- The server's role may get, put and delete objects only under the prefixes in `scenes_bucket_prefixes`, declared at the top of `stacks/app/compute.tf`: `scenes` and `libraries`, the keys `app/src/lib/s3.ts` builds.
+  A prefix the app starts writing is one entry there and an apply in `dev` and `prd`; without it the Lambda gets `AccessDenied` on every object under it.
 - The distribution serves two path patterns from the assets bucket, `/_next/static/*` and `/static/*`, and everything else from the server, the Next metadata routes (`/favicon.ico`, `/icon.png`, `/icon.svg`, `/apple-icon.png`, `/manifest.webmanifest`) included, because those are routes the Lambda renders and not keys the build emits.
   A pattern the bucket does not hold answers 403 through the origin access control rather than falling through to the server, so the list names prefixes the build always fills and never a wildcard like `/*.png` that would swallow those routes.
   `/static/*` is `app/public/static/`, which is where every file of `public/` lives: a new one is then a deploy and not an apply, and nothing private may be put there, since the behavior serves it with no session.
