@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect } from "react";
-import { openDiagramId } from "@/lib/diagrams";
+import { openItemId } from "@/lib/diagrams";
 import { shortcutFor } from "@/lib/shortcuts";
 import { tabAt, tabBeside } from "@/lib/tabs";
 import { toggleCollapsed } from "@/lib/use-sidebar-collapsed";
@@ -31,7 +31,7 @@ export function Shortcuts() {
       }
 
       const { command } = shortcut;
-      const active = openDiagramId(window.location.pathname);
+      const active = openItemId(window.location.pathname);
 
       if (command.kind === "close") {
         if (active !== null) goTo(close(active, active));

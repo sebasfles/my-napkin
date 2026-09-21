@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { isFolder } from "@/lib/diagrams";
+import { isDiagram, isFolder, isLibrary } from "@/lib/diagrams";
 import { itemRepository } from "@/lib/dynamo";
 import { itemChanges } from "@/lib/item-changes";
-import { sceneStore } from "@/lib/s3";
+import { libraryStore, sceneStore } from "@/lib/s3";
 import { canMoveInto, subtree } from "@/lib/tree";
 
 interface RouteContext {
@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const { parentId, pinnedAt } = parsed.changes;
+  const { parentId, pinnedAt, lockedAt, libraryIds } = parsed.changes;
 
   if (parentId !== undefined || pinnedAt !== undefined) {
     const items = await itemRepository.list();
@@ -24,14 +24,31 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     if (target === undefined) {
       return NextResponse.json({ error: "diagram not found" }, { status: 404 });
     }
-    if (pinnedAt !== undefined && isFolder(target)) {
+    if (pinnedAt !== undefined && !isDiagram(target)) {
       return NextResponse.json({ error: "only a diagram can be pinned" }, { status: 400 });
+    }
+    if (parentId !== undefined && isLibrary(target)) {
+      return NextResponse.json({ error: "a library lives outside the folders" }, { status: 400 });
     }
     if (parentId !== undefined && !canMoveInto(items, id, parentId)) {
       return NextResponse.json(
         { error: "parentId must be a folder that is not this item or one of its descendants" },
         { status: 400 },
       );
+    }
+  }
+
+  if (lockedAt !== undefined || libraryIds !== undefined) {
+    const target = await itemRepository.get(id);
+
+    if (target === null) {
+      return NextResponse.json({ error: "diagram not found" }, { status: 404 });
+    }
+    if (lockedAt !== undefined && !isDiagram(target)) {
+      return NextResponse.json({ error: "only a diagram can be locked" }, { status: 400 });
+    }
+    if (libraryIds !== undefined && !isDiagram(target)) {
+      return NextResponse.json({ error: "only a diagram can link libraries" }, { status: 400 });
     }
   }
 
@@ -52,14 +69,16 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (item !== null && isFolder(item)) {
     for (const member of subtree(await itemRepository.list(), id)) {
       await itemRepository.remove(member.id);
-      if (!isFolder(member)) await sceneStore.remove(member.id);
+      if (isDiagram(member)) await sceneStore.remove(member.id);
     }
 
     return new NextResponse(null, { status: 204 });
   }
 
   await itemRepository.remove(id);
-  await sceneStore.remove(id);
+
+  if (item !== null && isLibrary(item)) await libraryStore.remove(id);
+  else await sceneStore.remove(id);
 
   return new NextResponse(null, { status: 204 });
 }

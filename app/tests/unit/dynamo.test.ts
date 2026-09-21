@@ -238,3 +238,44 @@ describe("itemRepository.remove", () => {
     });
   });
 });
+
+describe("itemRepository.update, libraries", () => {
+  it("writes itemCount with the scene counters, only onto a library", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-20T09:00:00.000Z") });
+
+    await itemRepository.update("one", {
+      library: { elementCount: 6, sceneBytes: 2048, itemCount: 2 },
+    });
+
+    const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
+    expect(input.UpdateExpression).toBe(
+      "SET updatedAt = :updatedAt, elementCount = :elementCount, sceneBytes = :sceneBytes, itemCount = :itemCount",
+    );
+    expect(input.ConditionExpression).toBe("attribute_exists(id) AND #kind = :kind");
+    expect(input.ExpressionAttributeNames).toEqual({ "#kind": "kind" });
+    expect(input.ExpressionAttributeValues?.[":kind"]).toBe("library");
+    expect(input.ExpressionAttributeValues?.[":itemCount"]).toBe(2);
+  });
+
+  it("writes libraryIds whole and leaves updatedAt alone, since linking is not an edit", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-20T09:00:00.000Z") });
+
+    await itemRepository.update("one", { libraryIds: ["library-1", "library-2"] });
+
+    const input = dynamo.commandCalls(UpdateCommand)[0].args[0].input;
+    expect(input.UpdateExpression).toBe("SET libraryIds = :libraryIds");
+    expect(input.ExpressionAttributeValues).toEqual({
+      ":libraryIds": ["library-1", "library-2"],
+    });
+  });
+
+  it("removes libraryIds when the last link goes", async () => {
+    dynamo.on(UpdateCommand).resolves({ Attributes: diagram("one", "2026-09-20T09:00:00.000Z") });
+
+    await itemRepository.update("one", { libraryIds: [] });
+
+    expect(dynamo.commandCalls(UpdateCommand)[0].args[0].input.UpdateExpression).toBe(
+      "REMOVE libraryIds",
+    );
+  });
+});

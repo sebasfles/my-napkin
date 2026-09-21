@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0014_sidebar_shortcut_title
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: architecture decisions
@@ -157,8 +157,8 @@ source: 0014_sidebar_shortcut_title
 - Alternatives rejected: a single `stop()` that refuses every pending write; relying on the editor unmounting to know the diagram is gone; aborting the request in flight with an `AbortController`.
 - Reason: the flush on unmount is what saves a change made in the last second and a half before switching diagrams, so a single stop that refuses everything trades an orphan object for the user's work.
   Unmount order cannot carry it either: the editor only unmounts after the DELETE responds, which on a cold Lambda outlives the debounce.
-- Debt created: a PUT whose bytes are already on the wire when the DELETE lands can still leave a scene object no code will delete.
-- Revisit when: orphan objects show up in the bucket, or a lifecycle rule is wanted to sweep them.
+- Debt created: a PUT whose bytes are already on the wire when the DELETE lands can still leave an object no code will delete: a diagram's `scenes/{id}.json`, or a library's `scene.json` and `items.json` under `libraries/{id}/`, since a library save writes two objects rather than one.
+- Revisit when: orphan objects show up in the bucket, or a lifecycle rule is wanted to sweep them, which now has twice as much to sweep per library.
 - Note: without `resume()` the first remount stopped the saver permanently and autosave died in silence, in production as much as in development.
   The Playwright suite runs against `npm run dev`, so React Strict Mode is part of the environment under test, and that is what made it catchable.
 - Source: 0004_diagram_persistence
@@ -247,7 +247,7 @@ source: 0014_sidebar_shortcut_title
 - 9 transitive npm advisories under the editor package that no change in this repo can resolve.
 - The expired-cookie path is proved by unit tests only, because a spec against a deployed environment has no signing secret to forge one with.
 - The theme control's selected colour is set at the call site, not in the generated variant.
-- A PUT already on the wire when a delete lands can leave an orphan scene object in the bucket.
+- A PUT already on the wire when a delete lands can leave an orphan in the bucket: a diagram's scene object, or a library's two under `libraries/{id}/`.
 - The first paint of the diagram list waits for a round trip, since no page renders it on the server.
 - A stored scene keeps the shape it was written in; the editor normalizes it on read, never on disk.
 - `sceneVersion` copies four lines the editor package owns, to keep that package behind its dynamic import.
@@ -256,6 +256,8 @@ source: 0014_sidebar_shortcut_title
 - A folder delete that fails partway leaves the folder half emptied and can orphan scene objects; nothing reconciles the bucket.
 - A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle.
 - An unknown id in the address is navigated away by two paths at once, the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces before it settles.
+- The library export is proved in Chromium only: it clicks an anchor that is not in the document and revokes its object URL in the same turn.
+- A library whose row is created and whose first write then fails stays in the list as an empty library.
 
 ## 2026-09-19: the first editor paint of the suite carries an explicit 30s timeout
 
@@ -406,7 +408,7 @@ source: 0014_sidebar_shortcut_title
 
 ## 2026-09-20: the open scene lives above the route segment, so a tab switch never blanks the canvas
 
-- Decision: the editor surface is rendered by `(editor)/layout.tsx`, reads the open diagram from the address and keeps the scene it already has on screen until the next one has loaded, swapping both in one commit; the outgoing scene is marked stale and takes no pointer events, and `/d/[id]/page.tsx` renders `null`.
+- Decision: the editor surface is rendered by `(editor)/layout.tsx`, reads the open diagram from the address, and `/d/[id]/page.tsx` renders `null`. ~~It keeps the scene it already has on screen until the next one has loaded, swapping both in one commit, and the outgoing scene is marked stale and takes no pointer events.~~ Reversed by 0016_diagram_switch_flicker, 2026-09-21: a click leaves the canvas at once and a cover holds the gap. The rest of this entry stands, and its rejection of a scene cache stands twice over.
 - Alternatives rejected: keeping `<Editor key={id}>` in the page, which is where it was; caching loaded scenes in a module-level map so a remount can paint immediately; mounting every open tab's editor at once and hiding the inactive ones; a fade over the gap.
 - Reason: measured before it was touched, a switch between two fixed tabs left the editor area, which is most of the screen, on the app's own centred "Loading" for 271ms in a production build and 367 to 441ms in dev, while the shell itself never moved: same DOM nodes for the sidebar, the tab bar and `<main>`, identical computed styles across 241 sampled frames, one navigation entry, no stylesheet churn.
   The blank was the whole of what looked like a full repaint.
@@ -544,3 +546,242 @@ source: 0014_sidebar_shortcut_title
 - Debt created: none; the tooltip presentation is a span until a `Kbd` exists, and then it is a component swap in two places.
 - Revisit when: a second control needs to show a chord, or shadcn's `Kbd` arrives for another reason.
 - Source: 0014_sidebar_shortcut_title
+
+## 2026-09-20: a library's items file is written by the first save, not by the route that creates it
+
+- Decision: `POST` writes `libraries/{id}/scene.json` and stops; `libraries/{id}/items.json` appears when the browser first saves the canvas. A missing items file reads as no items.
+- Alternatives rejected: writing an empty `.excalidrawlib` from the route, so both objects exist from the start.
+- Reason: the items file is the editor package's own format, and the route runs on the server, which cannot import that package. Writing the envelope by hand from the route would hard-code a `version` the package owns, which is the exact divergence the decision below exists to prevent, and it would diverge silently, on a file Sebastian checks by hand on excalidraw.com. Treating the absent file as empty costs nothing, because `database.md` already says a missing scene object reads as an empty scene and `itemCount` says the same thing.
+- Debt created: a library created and never opened has one object where the invariant reads two, so anything reading `items.json` must treat a 404 as no items rather than as an error.
+- Revisit when: a second writer needs the items file before the browser has ever saved, at which point the envelope has to come from somewhere the server can reach.
+- Source: 0012_libraries
+
+## 2026-09-20: the saver takes one `write` port, and `/urls` says which flavour of canvas is open
+
+- Decision: `createSceneSaver` lost its `put` and `save` ports for a single `write`, and its `diagramId` became `itemId`. A diagram injects `writeDiagram`, a library injects `writeLibrary`, which derives the items, writes both objects and patches the counts. The editor learns which to inject from the `items` pair in the `/urls` answer, not from the item list.
+- Alternatives rejected: a mode flag inside the factory; reading `kind` from the workspace list.
+- Reason: the debounce, the single upload at a time, the retry, the baseline and the signature renewal are the parts that are hard to get right, and none of them should know what a library is. One port keeps them ignorant, and both flavours are module level constants, so the hook's memo still holds. The list can still be loading when the scene arrives, and the flavour decides which saver mounts, so taking it from the response that carried the scene removes a frame in which the canvas would not know what it is.
+- Debt created: none. The factory's 24 existing tests pass unchanged through a helper that rebuilds the old pair.
+- Revisit when: a third flavour of canvas appears, or a save needs to write more than the two objects a library does.
+- Source: 0012_libraries
+
+## 2026-09-20: a library save is its own PATCH intent, conditioned on the kind in the table
+
+- Decision: `ItemChanges` carries `library` beside `scene`. The library one writes `itemCount` with the counters and is conditional on `#kind = :kind`, so it can only land on a library.
+- Alternatives rejected: adding `itemCount` to the existing `scene` intent; reading the item first to check its kind.
+- Reason: the save path is the hot one and a read per save is a real cost, while a condition expression is free. The condition also keeps the two refusals apart: `scene` stays conditional on `lockedAt` alone, so a 409 still means "locked" and nothing else.
+- Debt created: the reverse is not checked. A `scene` intent carries no kind condition, so the API would take diagram counts on a library. No UI can send that, since `/urls` always signs an items pair for a library, but the route does not refuse it.
+- Revisit when: a second client writes to this API, or the `scene` intent starts meaning something a library could receive by accident.
+- Source: 0012_libraries
+
+## 2026-09-20: derived library items get deterministic ids, and every frame is one item
+
+- Decision: an item's id is its frame's id, its elements are `{frameId}_{n}` and its groups `{frameId}_g{n}`, by position. Every frame becomes an item, including an empty one and one holding only an image, since the derivation drops images.
+- Alternatives rejected: fresh random ids per derivation; skipping frames that derive to nothing.
+- Reason: random ids would rewrite `items.json` on every save even when no frame changed. Positional ids are stable for an unchanged frame and disjoint between frames, so two items of one library cannot collide when both are inserted. "Every frame is one item" with no exception is a rule a person can hold while drawing; an exception for emptiness would contradict it, and the image case has to produce an empty item anyway.
+- Debt created: inserting an element near the front of a frame renumbers the ids after it, so `items.json` changes more than the edit did. It is written on every save regardless, so nothing reads the churn.
+- Revisit when: something starts diffing `items.json` between saves, or an item's id has to survive its frame being recreated.
+- Source: 0012_libraries
+
+## 2026-09-20: the editor package's library serializer is imported lazily, in one thin module
+
+- Decision: `src/lib/library-file.ts` does `await import("@excalidraw/excalidraw")` inside its only function to reach `serializeLibraryAsJSON`. Module scope stays `import type`, and nothing else in `src/lib/` touches the package at all.
+- Alternatives rejected: writing the `.excalidrawlib` envelope by hand; a top level import.
+- Reason: this qualifies the 2026-09-18 entry on `sceneVersion` rather than reversing it. That one reimplemented four lines of arithmetic, where importing the editor to add up integers buys nothing. This is a format contract: the envelope's `version` is the package's own constant, and a hand written copy diverges silently from the exact file Sebastian imports into excalidraw.com to check. Reimplement a trivial function, import a format contract. On a library canvas the package is already loaded, since the canvas is the editor, so the import resolves a module already in memory.
+- Debt created: the isolation is a convention, not a rule. If a unit test ever reaches this module, Vitest loads the editor package in the node environment and dies on its CSS, which is what keeps the derivation testable without jsdom.
+- Revisit when: the package publishes its serializer from a module that is safe to import on the server, or a second call site needs it.
+- Source: 0012_libraries
+
+## 2026-09-20: a spec that means the first row of the list says so
+
+- Decision: the five `getByTestId("diagram-item").first()` in `diagram-list`, `item-menu` and `save-reload` are scoped to `itemList(page)`, including the ones alphabetical file order happens to protect today.
+- Alternatives rejected: scoping only the spec that failed; widening its timeout; making the pinned rows carry a different `data-testid`.
+- Reason: the pinned section renders above the folder list from the same `DiagramRow` and carries the same `data-testid`, so an unscoped first match stops asking "the first row of the list" and starts asking "the first diagram row on the page" the moment anything is pinned. That is a correction rather than a workaround: the assertions now ask what they already meant, and the suite already held the scoped form twice. Fixing three of five would leave the suite saying two different things with one syntax.
+- Debt created: none here. The leftover that exposed it is a separate defect, `removeItemsCreatedHere` looking for diagrams at the root only and silently skipping any that live inside a folder, which belongs to its own task and is untouched.
+- Revisit when: a second list of diagram rows appears, at which point scoping by list stops being enough to name one.
+- Note: the leftover is necessary but not sufficient. The same suite passed this spec twice with the same defect present, so something else decides whether the pinned row is on screen at that moment, and it was not found. Scoping makes the question moot rather than answering it.
+- Source: 0012_libraries
+
+## 2026-09-20: an imported library is written through the saver's own port, never copied in
+
+- Decision: importing a `.excalidrawlib` parses it, lays its items out as frames with `framesFromLibraryItems`, and then writes the new library with `writeLibrary`, the same port the saver injects: the canvas, then `items.json` derived from those frames, then the counts.
+  The file that came in is never uploaded.
+- Alternatives rejected: storing the imported file as `items.json` and the frames as the canvas; a second writer beside the saver.
+- Reason: `items.json` has exactly one producer, the derivation, so a library imported from elsewhere is indistinguishable from one drawn here, its item ids are the deterministic frame ids from the first moment, and an export of it is a copy of our own derivation rather than of somebody else's bytes.
+  It also makes the round trip the acceptance asks for a real one instead of a file being handed back unchanged.
+  The file is read before the row is created, so the failure this flow will actually see, a file that is not a library, writes nothing at all.
+- Debt created: the create and the write are two steps with no transaction between them, so a create that succeeds and an S3 write that fails leaves an empty library in the list.
+  It is visible and deletable from its own menu, and no work is lost, since the file is still on disk.
+- Revisit when: a second flow creates a library with content in it, or the empty leftover is seen often enough to want a cleanup.
+- Source: 0012_libraries
+
+## 2026-09-20: the export is a detached anchor click, and Chromium is the only browser that proves it
+
+- Decision: `exportLibrary` fetches `items.json`, wraps it in a blob URL, clicks an `<a download>` that was never added to the document, and revokes the URL immediately after.
+- Alternatives rejected: navigating to the presigned GET; re-signing that GET with a `response-content-disposition`; the File System Access API.
+- Reason: the presigned GET is signed without a disposition, so following it opens the JSON in a tab instead of saving it, and signing a second variant means a route change for a file the browser can already hold.
+  The anchor is the plain way and needs nothing from the server.
+  A library that has never been saved has no `items.json` at all, so an export of one with `itemCount` 0 serializes an empty file rather than reading S3 and guessing whether a missing key answers 403 or 404.
+- Debt created: the export path is proved in Chromium only, since the suite runs Chromium alone.
+  The two hazards are the anchor never being in the document and the object URL being revoked in the same turn as the click; a browser that disagrees about either saves nothing and says nothing.
+- Revisit when: a second browser is supported, or an export is reported as not saving.
+- Source: 0012_libraries
+
+## 2026-09-20: the package's loader already restores, so the import does not restore twice
+
+- Decision: reading a `.excalidrawlib` calls `loadLibraryFromBlob` and nothing else.
+  `restoreLibraryItems` is not called on its result.
+- Alternatives rejected: calling `restoreLibraryItems` after the loader, which is what the phase file's wording asked for.
+- Reason: in 0.18.1 `loadLibraryFromBlob` is `parseLibraryJSON(await parseFileContents(blob), defaultStatus)`, and `parseLibraryJSON` ends in `restoreLibraryItems(data.libraryItems || data.library, defaultStatus)`.
+  Its type says the same thing: it takes the restorer's own `defaultStatus` and returns restored `LibraryItem[]`.
+  A second call would be a no-op that reads as a safeguard, and a safeguard that does nothing is worse than none, because the next reader treats it as load bearing and keeps it.
+- Debt created: none.
+  The claim rests on the package's implementation, which the type signature corroborates.
+- Revisit when: the package's loader stops restoring, which its return type would announce.
+- Source: 0012_libraries
+
+## 2026-09-20: the suite names a library through its own menu and finds it by id
+
+- Decision: `newLibrary` and `importLibrary` rename the library through the row's menu the moment it exists, track `{ id, name }`, and `removeItemsCreatedHere` deletes it through the same menu.
+  Locators find a library by the `href` of its row, never by its name, and assert the name through `library-item-name`.
+- Alternatives rejected: locating by name, as diagrams and folders are; keeping phase 1's `DELETE` through Playwright's request context.
+- Reason: an import names the library after the file it came from, so between the import and the rename two rows can carry one name, which a name locator cannot survive and which no wait fixes.
+  Deleting through the menu also puts the last piece of test code that computed `x-amz-content-sha256` out of the suite, which is what the 2026-09-19 entry on that header already claims is true of this repo; phase 1 had to break that claim because a library had no menu to delete from.
+- Debt created: none.
+  What is left is the pre-existing leak, `removeItemsCreatedHere` looking for diagrams at the root only.
+- Revisit when: a flow creates a library without opening it, at which point the rename has no active row to work from.
+- Source: 0012_libraries
+
+## 2026-09-20: a menu item with nothing to explain is plainly disabled
+
+- Decision: the link item on a library row carries Radix's `disabled` when no diagram is open.
+  The 2026-09-20 entry "a control that is unavailable is aria-disabled, never disabled" is narrowed rather than generalised: it governs a control whose purpose is to explain its own unavailability.
+- Alternatives rejected: generalising that rule to every unavailable control; hiding the item when no diagram is open.
+- Reason: that entry named its own revisit condition as "Libraries ships, or a second unavailable control appears", and both have now happened, so leaving it untouched would leave a rule claiming more than it means.
+  The rail placeholder existed to say "coming soon", so it had to stay hoverable and focusable or it could not do the one thing it was for.
+  A link item has nothing to say that the open tab does not already say, and Radix's `disabled` is `aria-disabled` on a div rather than the HTML attribute, so it is announced as a disabled item instead of disappearing from the keyboard.
+  Hiding it would make the menu change shape between diagrams and libraries, which is worse than a greyed line.
+- Debt created: none.
+- Revisit when: a third unavailable control appears that does have something to explain, at which point the two shapes are worth one component rather than two rules.
+- Source: 0012_libraries
+
+## 2026-09-20: the package's own library is taken away three ways, one of them by a generated id
+
+- Decision: one rule in `globals.css` scoped to `.napkin-editor` hides three doors into the editor package's own library: the trigger in the top right, the library tab inside the default sidebar, and the "Add to library" entry in the canvas context menu.
+  The trigger is hidden by its `label` through `:has(.default-sidebar-trigger)`, the tab by the id Radix generates, `[id$="-trigger-library"]`, and the menu entry by `li[data-testid="addToLibrary"]`.
+- Alternatives rejected: `UIOptions`, which in 0.18.1 carries only `dockedSidebarBreakpoint`, seven `canvasActions` and `tools.image` and cannot hide any of the three; hiding the trigger alone, as `Context & decisions` planned; hiding the inner `div` rather than the `label`.
+- Reason: the button is not the only way in. `DEFAULT_SIDEBAR` is `{ name: "default", defaultTab: "library" }` and `DefaultSidebar` renders both tab triggers unconditionally, so Ctrl+F and "Find on canvas" open a sidebar with the native library one click away; and the context menu writes to the same store under a name almost identical to this phase's own action.
+  Hiding the inner `div` would have left the `label`'s checkbox focusable, so Tab then Space would open a library with nothing on screen to explain it.
+- Debt created: the tab selector is keyed on an id Radix composes from a generated base and the tab name, which no contract covers.
+  `library-panel.spec.ts` guards it by counting what is on screen, one visible sidebar trigger and one visible tab trigger, and by asserting the context menu entry is present and hidden, so a scheme change fails the count rather than passing by matching nothing.
+- Revisit when: the editor package is upgraded, or `UIOptions` gains a flag for the library.
+- Source: 0012_libraries
+
+## 2026-09-20: a dropped library file is the app's, not the editor's
+
+- Decision: a capture-phase `onDropCapture` on the editor wrapper claims a dropped file whose name ends in `.excalidrawlib`, calls `preventDefault` and `stopPropagation`, and routes it to the same import producer the sidebar button uses, creating a library and linking it to the open diagram without navigating.
+  Every other dropped file is left untouched.
+- Alternatives rejected: leaving the drop to the package; swallowing the drop and pointing at the Libraries section; navigating to the new library's canvas as the sidebar import does.
+- Reason: the package answers that file with `updateLibrary({ merge: true, openLibraryMenu: true })`, which sets `openSidebar` directly, so it opens the library panel this phase hides and merges the file into a store the app never reads.
+  Acceptance 5 would have shipped false through the gesture the export button invites.
+  Navigating would take the user off the diagram he is drawing on and still leave the library unlinked, so the items would not be where he dropped them; linking in the same action is the rule this phase already took for adding a selection to a new library.
+- Debt created: none.
+  Ordering is not luck: React 18 attaches its capture listener to the app root, an ancestor of the package's container, and React's `stopPropagation` calls the native one, so the package never sees the event.
+- Revisit when: React changes where it attaches listeners, or the package stops preventing the default on `dragover`, which is what makes a real drag deliver at all.
+- Source: 0012_libraries
+
+## 2026-09-20: an assertion on a count the table owns is written as "becomes"
+
+- Decision: `elementsOf` is private to the e2e helpers and `expectElements`, a retrying assertion, is the only exported way to assert on a diagram's element count.
+- Alternatives rejected: fixing the one failing call site; keeping the raw read exported with a comment warning against it.
+- Reason: the Info dialog reports the table's `elementCount`, which a save writes, so it lags the canvas by one save, and `saveIndicator` renders the saver's `idle` state as "Saved", so waiting for "Saved" after any earlier save is satisfied the instant it is asked.
+  A one-shot read therefore always lands before the second save completes, deterministically rather than sometimes, which is why it failed identically at a 16 MB memory floor and at a 1012 MB one.
+  Making the unsafe form unavailable is what stops the next person reaching for `elementsOf` believing it reads the canvas.
+- Debt created: none.
+- Revisit when: the count is served from the scene rather than the table, at which point the retry is wasted work.
+- Source: 0012_libraries
+
+## 2026-09-20: a library item carries no image, and the panel does not say so
+
+- Decision: the derivation skips image elements, a selection added to a library leaves images out and says how many, and a selection of nothing but images is refused with its own message.
+- Alternatives rejected: carrying the binary in the library's `files`; adding the image as an empty frame.
+- Reason: the `.excalidrawlib` format's `LibraryItem` carries no `files`, so an item cannot hold an image and a frame holding one would export as an empty item.
+  A frame on a library canvas already says this, but nothing in the editor's panel does.
+- Debt created: a person meets this limit for the first time when a toast tells him, rather than before he tries.
+  The limit is in `docs/PRD.md` under `Open questions` so a reader of the product's own documentation can find it.
+- Revisit when: the format carries files, or a library item is worth storing in a shape of ours rather than the package's.
+- Source: 0012_libraries
+
+## 2026-09-21: one editor instance for the session, and the scene swapped through its API
+
+- Decision: the Excalidraw instance is mounted once in the editor surface and never keyed by the canvas on screen.
+  A switch resets it, then hands it the next scene through `updateScene`, `addFiles` and `history.clear`.
+- Alternatives rejected: keeping `key={id}` and making the load faster; preloading the next scene; keeping the previous canvas on screen until the next one lands, which is what this reverses.
+- Reason: the package mounts its own `LoadingMessage` twice, once behind a 250ms delay on the scene path and once with no delay at all while the locale chunk loads, and both are tied to mount.
+  A faster load shortens those windows; a mount that survives stops entering them at all.
+  It is also the only way the editor's own chrome can stay on screen while the next scene is fetched, since unmounting the canvas takes the toolbars with it.
+- Debt created: the instance now outlives every scene it shows, so anything the package derives from mount is ours to reset.
+  `resetScene` is what does it, and it resets more than the scene: see the two entries below.
+- Revisit when: the package exposes a scene swap that resets what a remount resets, or a released version stops tying `LoadingMessage` to mount.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: view mode is asserted after the reset, because the package follows the prop and not its state
+
+- Decision: after `resetScene`, and only while no scene is shown, the editor asserts `viewModeEnabled` again through `updateScene`.
+- Alternatives rejected: folding it into the scene swap, which would have to re-run whenever the lock moves and would then overwrite what is being drawn; toggling the prop to force a resync; not calling `resetScene` at all, which is what clears the store the undo stack reads.
+- Reason: `resetScene` restores the package's default appState, `viewModeEnabled` included, and the package copies that prop into state only when the prop itself changes (`componentDidUpdate` compares against `prevProps`), never when its state drifts from it.
+  Without this a switch to a locked diagram left it editable, which the suite caught and no type or lint could.
+  The window with no scene shown is also the only one with no saver subscribed, and every `updateScene` provokes an `onChange`: one that reaches a saver on open uploads a scene nobody edited.
+- Debt created: any second piece of appState we drive from a prop needs the same treatment, and nothing in the code says so except this entry and the comment above the effect.
+- Revisit when: the package syncs a prop against state rather than against its previous value, or a second prop-derived appState key is added.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: what was fetched for a canvas is dropped when the address leaves it
+
+- Decision: the loaded scene is cleared when the route moves to another canvas, so every visit fetches and the cover is up until that fetch lands.
+- Alternatives rejected: keeping the last loaded scene and letting the next fetch replace it, which is what the code did; keeping the previous canvas visible but inert.
+- Reason: the loaded scene is the scene as it was when the canvas was opened, and the canvas is drawn on after that.
+  Leaving a canvas and coming back inside the next fetch painted that snapshot, silently and with no cover, and the next stroke saved it over everything drawn since: one measured run fetched a rectangle at version 14 and uploaded a different rectangle at version 7.
+  That is the stale scene this module's 2026-09-20 entry rejected a cache for, arriving as a cache of one that nobody decided to keep, and the remount had been hiding it because `initialData` is read at mount only.
+  Removing a remount is not a cosmetic change: it turns what mount used to guarantee into something that has to be said out loud.
+- Debt created: none.
+- Revisit when: a scene can be revalidated cheaply enough to show it while it is being checked, which needs a version the list already carries.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: the cover is part of the contract, and the editor is visible before it can be drawn on
+
+- Decision: a cover sits over the canvas area whenever no scene is on screen, under the package's UI layer (`z-[3]` against `--zIndex-layerUI: 4`) so the tools stay visible and clickable, and over the canvas so a stroke cannot reach it.
+  It lifts one frame after the swap rather than in the same commit.
+- Alternatives rejected: a full-area loading paragraph, which is the flash this task removes; lifting the cover with the swap; a fade.
+- Reason: `updateScene` hands the scene over and the editor paints on a frame of its own, so lifting the cover in the same commit painted bare chrome over an empty canvas about one switch in three.
+  Holding the pointer off is not a side effect but the point: it is what stops a stroke landing on a scene that is about to be replaced.
+  The consequence reaches every spec in the suite: `.excalidraw` being visible used to mean the scene was there, because the editor was not mounted until it was, and it no longer does.
+  Canvas gestures in `helpers.ts` wait for the cover to go; specs that do not will fail intermittently and read as flakes.
+- Debt created: the cover lifts on the next animation frame rather than on a paint the editor confirms, because the package offers no such signal.
+  A scene heavy enough to take more than a frame to paint could still show one bare frame.
+- Revisit when: the package reports when it has painted, or a scene is seen to paint slowly enough to matter.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: the scene is pruned where it is serialized, and pruning stays a pure function of the report
+
+- Decision: `toScene` keeps only the files its elements reference and drops selection elements, so what is written carries nothing the drawing does not use.
+- Alternatives rejected: clearing the editor's file map through the package, which has no API for it; leaving the files alone, which without a remount would carry one canvas's blobs into the next canvas's save.
+- Reason: `componentWillUnmount` was the only thing that ever cleared that map, so the remount this task removes was also the only thing keeping files apart.
+  The save path is the one place where the answer is deterministic whatever the instance holds, and it also prunes the blobs of deleted images.
+  The invariant it rests on: the saver rebases its baseline on the first report after opening, so pruning must stay a pure function of the elements and files in that same report.
+  Depend on anything outside it and every diagram uploads on open and `updatedAt` churns without an edit.
+- Debt created: this normalizes on write, which cuts against the recorded debt that a stored scene keeps the shape it was written in.
+  The two now disagree about files, and only about files.
+- Revisit when: a second normalization on write is wanted, which is the point at which that debt should be paid rather than widened.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: a saver recreated while dirty leaves the indicator reading "Saving"
+
+- Decision: recorded as debt and left alone in this task.
+- Alternatives rejected: fixing it here, alongside the swap, three defect fixes and a serialization change.
+- Reason: `useCanvasSave`'s cleanup calls `flush()` and then `stop()`, and `stop()` mutes the success callback, so a saver rebuilt while it has a pending change uploads correctly and never reports that it did.
+  The saver is rebuilt whenever the workspace list changes identity, which every save does, so this is reachable on develop and is not this task's doing.
+  It is worse than a wrong label: it masked the data loss above, turning it into a stuck indicator, and a bug that disguises other bugs earns a task rather than a queue position.
+- Debt created: the save indicator can read "Saving" for a save that has landed, until the next edit moves it.
+- Revisit when: its own task, which the om-reviewer has asked the om-manager to raise.
+- Source: 0016_diagram_switch_flicker

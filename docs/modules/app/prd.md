@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0014_sidebar_shortcut_title
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: product
@@ -15,7 +15,8 @@ One user, no sign-up, priced to run at $0 fixed cost per month.
 ## Interface
 
 The user opens `/`, is asked for the password once, and lands on his workspace with nothing open: the editor area invites him to pick a diagram or start one, and the app never picks for him.
-The sidebar carries the app's name, My Napkin, a section of pinned diagrams when there are any, the contents of one folder under a breadcrumb of where that folder sits, the language and theme controls, and a way to close the session.
+The sidebar carries the app's name, My Napkin, and two sections the user switches between, Diagrams and Libraries: Diagrams holds the pinned ones when there are any and the contents of one folder under a breadcrumb of where that folder sits, Libraries holds every library he has made.
+Below them sit the language and theme controls and a way to close the session.
 It collapses to a narrow rail of icons when the drawing needs the room, and comes back from the same control or from Alt+B, which is how the room is taken and given back without leaving the drawing; both controls name the chord in their tooltip.
 A bar of tabs sits above the canvas, one per diagram the user has open, and it is there only while something is open.
 The browser tab names the diagram he is on before the product, so a window among many is recognisable before it is read, and carries the app's own mark.
@@ -66,6 +67,35 @@ The interface starts in the browser's language, Spanish or English, and in its l
 4. The keyboard reaches the tabs while the user is drawing: Alt and a digit jumps to that tab, Alt+Shift with an arrow moves to the next or the previous one, Alt+W closes.
    Nothing the editor binds is taken away.
 5. A tab whose diagram was deleted closes itself, including every tab a deleted folder took with it.
+6. Moving between two open canvases repaints the drawing and nothing else: the sidebar, the tab bar and the editor's own tools stay where they are, and while the next drawing is on its way a quiet loader covers the canvas area alone.
+   The user leaves the diagram he was on the moment he clicks, so no canvas is ever shown under another one's tab, and the loader is also what tells him the canvas is not his to draw on yet.
+
+### Build a library
+
+1. User opens the Libraries section from the sidebar, or from its icon on the rail, and sees every library he has made with how many items each holds.
+2. User creates one and it opens as a canvas, in a tab like a diagram and marked as a library.
+3. Every frame he draws on that canvas is one library item, and the frame's name is the item's name.
+   An empty canvas says so, and a frame holding an image says that images are not saved in a library item.
+4. Drawing a frame and pausing saves the canvas, and the library reports one more item; deleting the frame takes the item with it.
+5. Libraries are global: one lives outside the folders, is never pinned, locked or moved, and is reachable from wherever the user is.
+6. Every library has the same menu as a diagram's row: rename, export, delete behind a confirmation that names it, and link or unlink to whichever diagram is open.
+7. User imports a `.excalidrawlib`, from excalidraw.com or from an export of his own, and gets a new library whose canvas holds one frame per item, laid out in a grid and ready to edit.
+   Exporting one gives back the same file, so a library can leave the app and come back.
+8. Linking is per diagram, not per workspace: a library shows as linked only while the diagram that links it is open, and linking moves nothing, so it never counts as an edit of the drawing.
+9. Deleting a library leaves every diagram alone, including the ones that linked it; what a diagram already took from a library is a copy and stays.
+
+### Draw with a library
+
+1. The editor carries a Libraries panel of its own, opened from an icon in the top right of the canvas, with one collapsible section per library the open diagram links and nothing from the libraries it does not.
+2. Each section shows the library's name, its item count and a thumbnail of every item, drawn in the theme the user is reading in.
+3. Clicking a thumbnail inserts that item at the middle of the canvas; dragging one out of the panel inserts it where it is dropped, and a release anywhere but the drawing surface inserts nothing.
+4. An inserted item is a copy: it carries none of the library's identity, so two inserts of the same item are two independent drawings and neither changes if the library is later edited or deleted.
+5. "Add selection to library" takes what the user has selected and appends it to a linked library, or to a new one he names there, as one more frame below what that library already holds.
+   Selecting a frame adds what the frame holds. Images are left out, because a library item cannot carry one, and a selection of nothing else is refused rather than silently adding an empty frame.
+6. Adding to a brand new library links it to the open diagram in the same action, so the item appears in the panel it was added from.
+7. "Browse libraries" opens the Libraries section of the sidebar, which is where linking, renaming, importing and deleting live.
+8. Dropping a `.excalidrawlib` on the canvas makes it a library and links it to the open diagram, and says which library it became; every other dropped file is still the editor's, images included.
+9. The panel is the only library the editor offers: the package's own library, its button and its entry in the canvas menu are not shown, so there is one place a library can come from and it is the user's own.
 
 ### Lock a diagram
 
@@ -84,7 +114,8 @@ A list that cannot be loaded offers to try again rather than pretending to be em
 
 ## Rules
 
-- Only one user; there is no concept of ownership or sharing per diagram.
+- Only one user; there is no concept of ownership or sharing per diagram or library.
+- A library is a canvas, not a list: it is edited in the same editor as a diagram, and its items are whatever its frames are at the last save.
 - A locked diagram is refused by the server, not only by the browser that locked it.
 - Which diagrams are open, where the user is in the tree and whether the sidebar is a rail are remembered per browser; the address names the open diagram and nothing else, so no link points at a folder or at a set of tabs.
 - A diagram's saved scene includes any pasted images, so they survive closing and reopening.

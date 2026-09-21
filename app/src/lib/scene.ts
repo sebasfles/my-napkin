@@ -1,5 +1,8 @@
 import type { AppState, BinaryFiles } from "@excalidraw/excalidraw/types";
-import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  OrderedExcalidrawElement,
+} from "@excalidraw/excalidraw/element/types";
 import type { SceneStats } from "@/lib/diagrams";
 
 export const sceneContentType = "application/json";
@@ -31,15 +34,28 @@ export function sceneAppState(appState: Partial<AppState>): SceneAppState {
 }
 
 export function toScene(
-  elements: SceneElements,
+  elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
   files: BinaryFiles,
 ): Scene {
+  const kept = elements.filter(
+    (element): element is OrderedExcalidrawElement =>
+      !element.isDeleted && element.type !== "selection",
+  );
+
   return {
-    elements: elements.filter((element) => !element.isDeleted),
+    elements: kept,
     appState: sceneAppState(appState),
-    files,
+    files: filesOf(kept, files),
   };
+}
+
+function filesOf(elements: SceneElements, files: BinaryFiles): BinaryFiles {
+  const used = new Set<string>(
+    elements.flatMap((element) => ("fileId" in element && element.fileId ? [element.fileId] : [])),
+  );
+
+  return Object.fromEntries(Object.entries(files).filter(([id]) => used.has(id)));
 }
 
 export function sceneVersion(elements: readonly { version: number }[]): number {

@@ -53,7 +53,7 @@ Commands run one at a time, serial flags included.
 
 | Target | Path | lint | typecheck | unit | e2e |
 |---|---|---|---|---|---|
-| app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run` | `npx playwright test --workers=1` |
+| app | `app/` | `npm run lint` | `npm run typecheck` | `npx vitest run --no-file-parallelism` | `npx playwright test --workers=1` |
 | infra-core | `infra/environments/core/` | `terraform fmt -check -recursive ../..` | `terraform validate` | n/a | n/a |
 | infra-dev | `infra/environments/dev/` | n/a | `terraform validate` | n/a | n/a |
 | infra-prd | `infra/environments/prd/` | n/a | `terraform validate` | n/a | n/a |

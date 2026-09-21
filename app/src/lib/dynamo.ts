@@ -47,14 +47,37 @@ function updateParts(changes: ItemChanges) {
     values[":lockedAt"] = changes.lockedAt;
   }
 
-  if (changes.scene !== undefined) {
+  if (changes.libraryIds !== undefined) {
+    if (changes.libraryIds.length === 0) removes.push("libraryIds");
+    else {
+      sets.push("libraryIds = :libraryIds");
+      values[":libraryIds"] = changes.libraryIds;
+    }
+  }
+
+  const written = changes.scene ?? changes.library;
+  if (written !== undefined) {
     sets.push("updatedAt = :updatedAt", "elementCount = :elementCount", "sceneBytes = :sceneBytes");
     values[":updatedAt"] = new Date().toISOString();
-    values[":elementCount"] = changes.scene.elementCount;
-    values[":sceneBytes"] = changes.scene.sceneBytes;
+    values[":elementCount"] = written.elementCount;
+    values[":sceneBytes"] = written.sceneBytes;
+  }
+
+  if (changes.library !== undefined) {
+    sets.push("itemCount = :itemCount");
+    values[":itemCount"] = changes.library.itemCount;
+    names["#kind"] = "kind";
+    values[":kind"] = "library";
   }
 
   return { sets, removes, names, values };
+}
+
+function writeCondition(changes: ItemChanges): string {
+  if (changes.library !== undefined) return "attribute_exists(id) AND #kind = :kind";
+  if (changes.scene !== undefined) return "attribute_exists(id) AND attribute_not_exists(lockedAt)";
+
+  return "attribute_exists(id)";
 }
 
 export const itemRepository: ItemRepository = {
@@ -105,10 +128,7 @@ export const itemRepository: ItemRepository = {
           TableName: diagramsTable(),
           Key: { id },
           UpdateExpression: expression,
-          ConditionExpression:
-            changes.scene === undefined
-              ? "attribute_exists(id)"
-              : "attribute_exists(id) AND attribute_not_exists(lockedAt)",
+          ConditionExpression: writeCondition(changes),
           ExpressionAttributeValues: Object.keys(values).length > 0 ? values : undefined,
           ExpressionAttributeNames: Object.keys(names).length > 0 ? names : undefined,
           ReturnValues: "ALL_NEW",

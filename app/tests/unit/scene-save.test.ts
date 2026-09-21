@@ -1,9 +1,9 @@
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
+import type { Canvas, Diagram, SceneStats, SceneUrls } from "@/lib/diagrams";
 import type { SaveStatus } from "@/lib/save-state";
 import { createSceneSaver, type SceneSaverOptions } from "@/lib/scene-save";
-import type { Scene } from "@/lib/scene";
+import { sceneStats, type Scene } from "@/lib/scene";
 
 const now = Date.parse("2026-09-18T10:00:00.000Z");
 
@@ -12,6 +12,20 @@ function scene(version: number): Scene {
     elements: [{ id: "a", version } as unknown as OrderedExcalidrawElement],
     appState: {},
     files: {},
+  };
+}
+
+function sceneWithOrphanFile(version: number): Scene {
+  return {
+    ...scene(version),
+    files: {
+      orphan: {
+        mimeType: "image/png",
+        id: "orphan",
+        dataURL: "data:image/png;base64,iVBORw0KGgo=",
+        created: now,
+      },
+    } as unknown as Scene["files"],
   };
 }
 
@@ -32,23 +46,30 @@ function diagram(): Diagram {
   };
 }
 
+type Put = (url: string, body: string) => Promise<void>;
+type Save = (id: string, stats: SceneStats) => Promise<Diagram>;
+
+function writeWith(put: Put, save: Save): SceneSaverOptions["write"] {
+  return async (id, signed, changed, serialized) => {
+    await put(signed.put, serialized);
+    return save(id, sceneStats(changed, serialized));
+  };
+}
+
 function setup(overrides: Partial<SceneSaverOptions> = {}) {
   const statuses: SaveStatus[] = [];
-  const saved: Diagram[] = [];
-  const put = vi.fn<(url: string, body: string) => Promise<void>>().mockResolvedValue(undefined);
-  const save = vi
-    .fn<(id: string, stats: SceneStats) => Promise<Diagram>>()
-    .mockResolvedValue(diagram());
+  const saved: Canvas[] = [];
+  const put = vi.fn<Put>().mockResolvedValue(undefined);
+  const save = vi.fn<Save>().mockResolvedValue(diagram());
   const requestUrls = vi.fn<(id: string) => Promise<SceneUrls>>().mockResolvedValue(urls(300_000));
 
   const saver = createSceneSaver({
-    diagramId: "diagram-1",
+    itemId: "diagram-1",
     baseline: { serialized: JSON.stringify(scene(1)), version: 1 },
     initialUrls: urls(300_000),
     now: () => now,
     urls: requestUrls,
-    put,
-    save,
+    write: writeWith(put, save),
     onStatus: (status) => statuses.push(status),
     onSaved: (item) => saved.push(item),
     ...overrides,
@@ -63,17 +84,16 @@ function createExpiringSaver({
   save,
 }: {
   requestUrls: SceneSaverOptions["urls"];
-  put: SceneSaverOptions["put"];
-  save: SceneSaverOptions["save"];
+  put: Put;
+  save: Save;
 }) {
   return createSceneSaver({
-    diagramId: "diagram-1",
+    itemId: "diagram-1",
     baseline: { serialized: JSON.stringify(scene(1)), version: 1 },
     initialUrls: urls(0),
     now: () => now,
     urls: requestUrls,
-    put,
-    save,
+    write: writeWith(put, save),
     onStatus: () => {},
     onSaved: () => {},
   });
@@ -114,6 +134,30 @@ describe("createSceneSaver", () => {
     expect(put).not.toHaveBeenCalled();
     expect(statuses).toEqual([]);
     expect(saver.dirty()).toBe(false);
+  });
+
+  it("stays quiet when opening a stored scene whose unreferenced files are pruned away", async () => {
+    const stored = sceneWithOrphanFile(1);
+    const { saver, put, save, statuses } = setup({
+      baseline: { serialized: JSON.stringify(stored), version: 1 },
+    });
+
+    saver.change(scene(1));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(
+      put,
+      "opening a diagram must not upload just because its files were pruned",
+    ).not.toHaveBeenCalled();
+    expect(save, "and updatedAt must not move for a diagram nobody edited").not.toHaveBeenCalled();
+    expect(statuses).toEqual([]);
+    expect(saver.dirty()).toBe(false);
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put, "a real edit after that still saves").toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0][1]).toBe(JSON.stringify(scene(2)));
   });
 
   it("touches updatedAt only after the upload lands, and reports the diagram", async () => {

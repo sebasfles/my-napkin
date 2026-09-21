@@ -1,8 +1,12 @@
 import {
+  isDiagram,
   isFolder,
+  isLibrary,
   type Diagram,
   type Folder,
   type Item,
+  type Library,
+  type LibraryStats,
   type ParentId,
   type SceneAccess,
   type SceneStats,
@@ -31,6 +35,13 @@ export async function createFolder(name: string, parentId: ParentId): Promise<Fo
   return created;
 }
 
+export async function createLibrary(name: string): Promise<Library> {
+  const created = await createItem({ name, kind: "library", parentId: null });
+  if (!isLibrary(created)) throw new Error(`${created.id} was not created as a library`);
+
+  return created;
+}
+
 export async function renameItem(id: string, name: string): Promise<Item> {
   return patchItem(id, { name });
 }
@@ -43,8 +54,19 @@ export async function pinDiagram(id: string, pinned: boolean): Promise<Diagram> 
   return asDiagram(await patchItem(id, { pinned }));
 }
 
+export async function linkLibraries(id: string, libraryIds: string[]): Promise<Diagram> {
+  return asDiagram(await patchItem(id, { libraryIds }));
+}
+
 export async function saveDiagram(id: string, stats: SceneStats): Promise<Diagram> {
   return asDiagram(await patchItem(id, stats));
+}
+
+export async function saveLibrary(id: string, stats: LibraryStats): Promise<Library> {
+  const saved = await patchItem(id, stats);
+  if (!isLibrary(saved)) throw new Error(`${saved.id} is not a library`);
+
+  return saved;
 }
 
 export async function lockDiagram(id: string, locked: boolean): Promise<Diagram> {
@@ -73,13 +95,13 @@ export async function loadScene(id: string): Promise<{ scene: Scene; urls: Scene
   return { scene: parseScene(await response.json()), urls };
 }
 
-export async function putScene(url: string, body: string): Promise<void> {
+export async function putObject(url: string, body: string): Promise<void> {
   const response = await fetch(url, {
     method: "PUT",
     headers: { "content-type": sceneContentType },
     body,
   });
-  if (!response.ok) throw new Error(`scene upload failed with ${response.status}`);
+  if (!response.ok) throw new Error(`upload failed with ${response.status}`);
 }
 
 async function createItem(body: object): Promise<Item> {
@@ -101,7 +123,7 @@ async function patchItem(id: string, changes: object): Promise<Item> {
 }
 
 function asDiagram(item: Item): Diagram {
-  if (isFolder(item)) throw new Error(`${item.id} is a folder, not a diagram`);
+  if (!isDiagram(item)) throw new Error(`${item.id} is a ${item.kind}, not a diagram`);
   return item;
 }
 

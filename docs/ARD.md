@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0013_e2e_dev_red
+updated: 2026-09-21
+source: 0012_libraries
 ---
 
 # Architecture and Debt Record
@@ -104,7 +104,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
 | infra | 2026-09-18 | The bundle ships inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped | The OpenNext bundle approaches 50 MB |
-| app | 2026-09-18 | A PUT already on the wire when a delete lands can orphan a scene object | Orphans show up, or a lifecycle rule is wanted |
+| app | 2026-09-18 | A PUT already on the wire when a delete lands can orphan a diagram's scene object, or a library's two under `libraries/{id}/` | Orphans show up, or a lifecycle rule is wanted |
 | app | 2026-09-18 | The first paint of the diagram list waits for a round trip | The skeleton lasts long enough to be worth server rendering |
 | app | 2026-09-18 | A stored scene keeps the shape it was written in, normalized only on read | An editor upgrade needs saved scenes migrated |
 | app | 2026-09-18 | `sceneVersion` copies four lines the editor package owns | The package exports it from a server safe module |
@@ -118,4 +118,17 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle | A second writer appears, human or automated |
 | app | 2026-09-20 | An unknown id in the address is navigated away by both the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces | A third place navigates on the workspace changing, or the double replace lands somewhere wrong |
 | app | 2026-09-20 | The palette is duplicated outside the tokens, in `theme-colors.ts`, `icon.svg` and `scripts/icons.mjs`, since a meta tag, a manifest and a favicon cannot reach a CSS variable | The palette is retuned, or a second brand colour appears outside the document |
+| app | 2026-09-21 | The editor instance outlives every scene it shows, so anything the package derives from mount is ours to reset, `resetScene` included | The package exposes a scene swap that resets what a remount resets |
+| app | 2026-09-21 | `viewModeEnabled` is asserted by hand after every reset, since the package follows the prop and not its state; a second prop-derived appState key needs the same | The package syncs a prop against state, or a second such key is added |
+| app | 2026-09-21 | The cover lifts on the next animation frame rather than on a paint the editor confirms, so a heavy enough scene could still show one bare frame | The package reports when it has painted, or a scene paints slowly enough to matter |
+| app | 2026-09-21 | `toScene` prunes files on write, which disagrees with the debt that a stored scene keeps the shape it was written in, about files alone | A second normalization on write is wanted |
+| app | 2026-09-21 | A saver recreated while dirty uploads and never reports it, so the indicator can read "Saving" for a save that has landed | Its own task, already asked for |
 | app | 2026-09-20 | `src/lib/api.ts` leaves for `/login` on a 401 with a full page `window.location.assign`, which can move the page while something else is driving it | `api.ts` gains a client boundary, or the lint warning is upgraded to an error |
+| app | 2026-09-20 | A library created and never opened has no `items.json`, so a reader must treat its absence as no items | A second writer needs the items file before the browser has saved |
+| app | 2026-09-20 | A scene-only PATCH carries no kind condition, so the API would take diagram counts on a library although no UI can send them | A second client writes to this API |
+| app | 2026-09-20 | Derived library element ids are positional, so an insert near the front of a frame renumbers the rest of `items.json` | Something starts diffing `items.json` between saves |
+| app | 2026-09-20 | Keeping the editor package out of the unit suite rests on `library-file.ts` being the only module that reaches it, by convention rather than by a rule | A unit test reaches that module and Vitest dies on the package's CSS |
+| app | 2026-09-20 | The library export is proved in Chromium only: it clicks an anchor that is not in the document and revokes its object URL in the same turn | A second browser is supported, or an export is reported as not saving |
+| app | 2026-09-20 | A library whose row is created and whose first write then fails stays in the list as an empty library | A second flow creates a library with content, or the leftover is seen often |
+| app | 2026-09-20 | The rule that hides the package's library tab is keyed on an id Radix composes from a generated base and the tab name, which no contract covers | The editor package is upgraded, or `UIOptions` gains a flag for the library |
+| app | 2026-09-20 | A person meets the "a library item carries no image" limit through a toast after trying, rather than before | The format carries files, or a library item is stored in a shape of ours |

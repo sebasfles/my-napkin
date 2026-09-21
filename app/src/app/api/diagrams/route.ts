@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isFolder, type Item } from "@/lib/diagrams";
 import { itemRepository } from "@/lib/dynamo";
 import { newItem } from "@/lib/item-changes";
-import { sceneStore } from "@/lib/s3";
+import { libraryStore, sceneStore } from "@/lib/s3";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +30,13 @@ export async function POST(request: Request) {
     name,
     createdAt: now,
     updatedAt: now,
-    ...(kind === "folder" ? { kind } : {}),
+    ...(kind === "diagram" ? {} : { kind }),
+    ...(kind === "library" ? { itemCount: 0 } : {}),
     ...(parentId === null ? {} : { parentId }),
   };
 
   if (kind === "diagram") await sceneStore.createEmpty(item.id);
+  if (kind === "library") await libraryStore.createEmpty(item.id);
   await itemRepository.create(item);
 
   return NextResponse.json({ item }, { status: 201 });

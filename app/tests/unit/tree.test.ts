@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Diagram, Folder, Item } from "@/lib/diagrams";
+import type { Diagram, Folder, Item, Library } from "@/lib/diagrams";
 import {
   canMoveInto,
   childrenOf,
@@ -213,5 +213,46 @@ describe("currentFolder", () => {
 
   it("falls back to the root when the id names a diagram", () => {
     expect(currentFolder(workspace(), "kyoto")).toBeNull();
+  });
+});
+
+describe("the tree never sees a library", () => {
+  const library: Library = {
+    id: "shapes",
+    kind: "library",
+    name: "Shapes",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: at(4),
+  };
+
+  function withLibrary(): Item[] {
+    return [...workspace(), library];
+  }
+
+  it("keeps it out of the root listing, where its missing parent would otherwise put it", () => {
+    const root = childrenOf(withLibrary(), null);
+
+    expect(root.diagrams.map((item) => item.id)).toEqual(
+      childrenOf(workspace(), null).diagrams.map((item) => item.id),
+    );
+    expect(root.folders.map((item) => item.id)).toEqual(
+      childrenOf(workspace(), null).folders.map((item) => item.id),
+    );
+  });
+
+  it("keeps it out of the pinned section even when it carries a pin", () => {
+    const pinned = [...withLibrary(), { ...library, id: "pinned-shapes", pinnedAt: at(1) }];
+
+    expect(pinnedDiagrams(pinned).map((item) => item.id)).toEqual(
+      pinnedDiagrams(workspace()).map((item) => item.id),
+    );
+  });
+
+  it("keeps it out of a folder's subtree, its counts and the Move dialog's choices", () => {
+    expect(subtree(withLibrary(), "trips").map((item) => item.id)).not.toContain("shapes");
+    expect(subtreeCounts(withLibrary(), "trips")).toEqual(subtreeCounts(workspace(), "trips"));
+    expect(folderChoices(withLibrary(), "napkin").map((choice) => choice.folder.id)).toEqual(
+      folderChoices(workspace(), "napkin").map((choice) => choice.folder.id),
+    );
   });
 });

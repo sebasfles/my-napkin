@@ -126,3 +126,49 @@ describe("newItem", () => {
     }
   });
 });
+
+describe("newItem and itemChanges, libraries", () => {
+  it("accepts a library and refuses one inside a folder", () => {
+    expect(newItem({ name: "Shapes", kind: "library" })).toEqual({
+      ok: true,
+      item: { name: "Shapes", kind: "library", parentId: null },
+    });
+    expect(newItem({ name: "Shapes", kind: "library", parentId: "folder-1" }).ok).toBe(false);
+  });
+
+  it("reads libraryIds as its own intent, without duplicates", () => {
+    expect(itemChanges({ libraryIds: ["a", "b", "a"] }, new Date())).toEqual({
+      ok: true,
+      changes: { libraryIds: ["a", "b"] },
+    });
+    expect(itemChanges({ libraryIds: [] }, new Date())).toEqual({
+      ok: true,
+      changes: { libraryIds: [] },
+    });
+  });
+
+  it("refuses libraryIds that are not ids", () => {
+    for (const libraryIds of ["a", [1], [""], [null], {}]) {
+      expect(itemChanges({ libraryIds }, new Date()).ok).toBe(false);
+    }
+  });
+
+  it("separates a library save from a diagram save by itemCount", () => {
+    expect(itemChanges({ elementCount: 4, sceneBytes: 100, itemCount: 2 }, new Date())).toEqual({
+      ok: true,
+      changes: { library: { elementCount: 4, sceneBytes: 100, itemCount: 2 } },
+    });
+    expect(itemChanges({ elementCount: 4, sceneBytes: 100 }, new Date())).toEqual({
+      ok: true,
+      changes: { scene: { elementCount: 4, sceneBytes: 100 } },
+    });
+  });
+
+  it("refuses an itemCount that is not a whole number", () => {
+    for (const itemCount of [-1, 1.5, "2", null]) {
+      expect(itemChanges({ elementCount: 4, sceneBytes: 100, itemCount }, new Date()).ok).toBe(
+        false,
+      );
+    }
+  });
+});
