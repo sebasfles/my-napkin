@@ -47,20 +47,20 @@ test.describe("sidebar panel", () => {
     const rail = await page.getByTestId("sidebar-rail").boundingBox();
     await expect(page.getByTestId("item-list")).toBeVisible();
 
-    await page.getByTestId("sidebar-rail").evaluate((node) => {
-      node.setAttribute("data-marked", "yes");
-    });
+    const libraries = page.getByTestId("rail-libraries");
+    await libraries.focus();
+    await expect(libraries).toBeFocused();
 
-    await page.getByTestId("rail-diagrams").click();
+    await page.keyboard.press("Alt+b");
 
     await expect(sidebar(page)).toHaveAttribute("data-collapsed", "true");
     await expect(page.getByTestId("sidebar-panel")).toHaveCount(0);
     await expect(page.getByTestId("item-list"), "the list went with the panel").toHaveCount(0);
     await expect(page.getByTestId("sidebar-rail")).toBeVisible();
     await expect(
-      page.getByTestId("sidebar-rail"),
-      "the rail is the same element it was, never remounted around the panel",
-    ).toHaveAttribute("data-marked", "yes");
+      libraries,
+      "the rail kept the keyboard through the toggle, which a remounted rail could not have done",
+    ).toBeFocused();
     expect(
       await page.getByTestId("sidebar-rail").boundingBox(),
       "and it neither moves nor changes width",
