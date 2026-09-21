@@ -188,6 +188,22 @@ the package reports on every re-render and any later interaction carries it, but
 unreported until one happens. Strictly better than the window destroying the scene, which is what it
 did before.
 
+### Documentation
+
+`docs/modules/app/`: two `ard.md` entries (the gate, and why the rule is pure rather than rendered),
+a `trd.md` row for `src/lib/editor.ts`, and one corrected sentence in `flows.md`, which claimed the
+saver runs "while the editor is open" and now says from the paint. That sentence was false in the
+same way the `viewModeEnabled` comment was, so it is corrected rather than added to.
+`docs/modules/infra/ard.md`: the `libraries/` version retention debt. `docs/ARD.md`: three new debt
+rows and one widened, none removed, since this task resolves no recorded debt. The widened one is
+the cover's animation frame, which now delays the saver too: that is one mechanism discharged by one
+event, so it is one row rather than a second alongside it. Caught by the om-reviewer, who noticed
+the module entry already called it a widening while the index was adding a duplicate.
+
+`prd.md` is untouched on purpose. The fix restores the behaviour it already describes at line 79,
+that a saved canvas reports its items, so there is nothing new for a user to read. `README.md` and
+`database.md` likewise: no boundary, table or invariant moved.
+
 `No e2e:` the fix is one gate on when the saver subscribes, and the window it closes only opens when
 the scene fetch is slower than the editor's own mount. A spec cannot make that true against dev
 without stubbing the network, which `docs/TRD.md#Conventions` forbids, and the four library specs

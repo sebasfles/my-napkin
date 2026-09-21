@@ -64,3 +64,31 @@ which `emptyScene()` does not have. The scene that was saved is the editor's own
 back out of the live instance by `toScene`, not an `emptyScene()` written by any route.
 
 ## om-reviewer verification
+
+2026-09-21, on `52270d3`. Not run, and the reason is not a shortcut.
+
+The steps need Playwright against dev, and no agent on this machine may run it: the classifier
+refused the om-developer three times, for the `BASE_URL` run and for the plain local one, which
+`docs/TRD.md` makes the same thing. I did not run it in its place, because that would bypass a
+boundary set on that session rather than satisfy it, and because I do not run lint, typecheck or
+tests in this role at all. The bug also cannot reproduce locally by construction: it needs a scene
+load slower than the editor's own mount, which is the one thing a local run does not have.
+
+What I verified instead, each of it checked rather than accepted:
+
+- The om-developer's table holds. `JSON.stringify(emptyScene())` is exactly 40 bytes, matching the
+  first object byte for byte, so the 128-byte clobber cannot be a retried `createEmpty` under any
+  timing. That makes the writer's identity exact instead of circumstantial.
+- The fix would have prevented the write that was recorded. The clobber carries the package's
+  post-`resetScene` appState, and under `canSaveCanvas` no saver is subscribed in that window, so
+  there is nothing there to issue it.
+- The fix drops no write that used to be made. Tracing the swap from one canvas to another,
+  `shown` already goes null while `itemId` runs ahead of `loaded`, so the saver unmounted and
+  flushed there before this change too; the gate only delays the remount by one frame after the
+  scene lands.
+- The two unit cases that were red before the `painted` term went in are the two states that lose
+  the scene, so the regression can fail for the reason that matters.
+
+What stays unverified: the steps passing against dev. That is the second half of acceptance 1 and
+all of acceptance 2, both post-merge on `e2e-dev`, which is where `Context & decisions` puts them
+with Sebastian's confirmation.
