@@ -15,7 +15,7 @@ import { useWorkspace } from "@/components/workspace-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
 import { isDiagram, isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
-import { editorLangCode } from "@/lib/editor";
+import { canSaveCanvas, editorLangCode } from "@/lib/editor";
 import { librariesOf, libraryFileAmong, nextLibraryIds } from "@/lib/libraries";
 import { importLibraryFile } from "@/lib/library-io";
 import type { SaveStatus } from "@/lib/save-state";
@@ -129,8 +129,8 @@ export function Editor({ itemId }: { itemId: string }) {
 
   // The package reads viewModeEnabled off the prop only when the prop itself changes, so the reset
   // above, which restores the package's defaults, hands a locked canvas its tools back. Only while
-  // nothing is shown: that is where the reset happens, and the one window with no saver to hear
-  // the onChange this provokes.
+  // nothing is shown: that is where the reset happens, and no saver is subscribed there, because
+  // the saver waits for the scene to be painted and not merely loaded.
   useEffect(() => {
     if (api === null || shown !== null) return;
 
@@ -174,7 +174,8 @@ export function Editor({ itemId }: { itemId: string }) {
             ) : null}
           </CanvasEditor>
         </div>
-        {shown === null || locked ? null : (
+        {/* the cover's own condition, so the saver starts exactly when a stroke can first land */}
+        {shown === null || !canSaveCanvas(shown, painted, locked) ? null : (
           <CanvasSaving
             api={api}
             itemId={shown.id}
