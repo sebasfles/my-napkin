@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: technical
@@ -13,7 +13,7 @@ Nothing here is planned.
 | Path | What | Status |
 |---|---|---|
 | `app/src/app/layout.tsx` | Root layout, sets `lang`, mounts the intl, theme and tooltip providers, puts the self-hosted typeface on `html`, and declares the page metadata | now |
-| `app/src/app/(editor)/layout.tsx` | Workspace provider, sidebar, tab bar, the editor surface and the two headless components (document title, global shortcuts) around every editor route, so the list is fetched once and both the tabs and the open scene survive navigation | now |
+| `app/src/app/(editor)/layout.tsx` | Workspace provider, sidebar, tab bar, the editor surface and the two headless components (document title, global shortcuts) around every editor route, so the list is fetched once and the tabs and the editor instance survive navigation | now |
 | `app/src/app/(editor)/page.tsx` | `/`, the workspace with nothing open: a message and a way to create a diagram in the folder the sidebar shows | now |
 | `app/src/app/(editor)/d/[id]/page.tsx` | One diagram, and it renders nothing on purpose: see below | now |
 | `app/src/app/icon.svg`, `icon.png`, `apple-icon.png`, `favicon.ico` | The app's mark as the browser asks for it, the SVG carrying its own light and dark variants | now |
@@ -57,6 +57,15 @@ The pages are client driven: no server component reads DynamoDB or S3, and every
 The App Router keys a dynamic segment by its parameter, so anything the page holds is thrown away on every `/d/a` to `/d/b`, including the scene already on screen.
 The editor surface therefore lives in the layout, which survives: it reads the open diagram from the address, the same source the sidebar and the tab bar read, and the route exists only to name it.
 Move the editor back into the page and the canvas blanks on every tab switch; `docs/modules/app/ard.md` carries the measurement.
+
+One Excalidraw instance lives in that surface for the life of the session, and a switch swaps the scene through its imperative API rather than remounting it.
+Three things follow, and all three have cost a defect already:
+
+- What was fetched for a canvas is not kept when the address leaves it, so every visit fetches and there is no scene on screen until its own fetch lands.
+- A cover sits over the canvas area while there is none, under the package's UI layer so the tools stay reachable, and over the canvas so a stroke cannot land on a scene that is about to be replaced.
+  It lifts a frame after the swap, because the editor paints on a frame of its own.
+- The editor's chrome is therefore on screen before its scene is.
+  For the suite this means `.excalidraw` being visible no longer means the canvas can be drawn on: every gesture in `helpers.ts` waits for the cover to go, which is all a person can do too.
 
 ## Endpoints owned
 

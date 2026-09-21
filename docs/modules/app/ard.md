@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: architecture decisions
@@ -408,7 +408,7 @@ source: 0012_libraries
 
 ## 2026-09-20: the open scene lives above the route segment, so a tab switch never blanks the canvas
 
-- Decision: the editor surface is rendered by `(editor)/layout.tsx`, reads the open diagram from the address and keeps the scene it already has on screen until the next one has loaded, swapping both in one commit; the outgoing scene is marked stale and takes no pointer events, and `/d/[id]/page.tsx` renders `null`.
+- Decision: the editor surface is rendered by `(editor)/layout.tsx`, reads the open diagram from the address, and `/d/[id]/page.tsx` renders `null`. ~~It keeps the scene it already has on screen until the next one has loaded, swapping both in one commit, and the outgoing scene is marked stale and takes no pointer events.~~ Reversed by 0016_diagram_switch_flicker, 2026-09-21: a click leaves the canvas at once and a cover holds the gap. The rest of this entry stands, and its rejection of a scene cache stands twice over.
 - Alternatives rejected: keeping `<Editor key={id}>` in the page, which is where it was; caching loaded scenes in a module-level map so a remount can paint immediately; mounting every open tab's editor at once and hiding the inactive ones; a fade over the gap.
 - Reason: measured before it was touched, a switch between two fixed tabs left the editor area, which is most of the screen, on the app's own centred "Loading" for 271ms in a production build and 367 to 441ms in dev, while the shell itself never moved: same DOM nodes for the sidebar, the tab bar and `<main>`, identical computed styles across 241 sampled frames, one navigation entry, no stylesheet churn.
   The blank was the whole of what looked like a full repaint.
@@ -711,3 +711,77 @@ source: 0012_libraries
   The limit is in `docs/PRD.md` under `Open questions` so a reader of the product's own documentation can find it.
 - Revisit when: the format carries files, or a library item is worth storing in a shape of ours rather than the package's.
 - Source: 0012_libraries
+
+## 2026-09-21: one editor instance for the session, and the scene swapped through its API
+
+- Decision: the Excalidraw instance is mounted once in the editor surface and never keyed by the canvas on screen.
+  A switch resets it, then hands it the next scene through `updateScene`, `addFiles` and `history.clear`.
+- Alternatives rejected: keeping `key={id}` and making the load faster; preloading the next scene; keeping the previous canvas on screen until the next one lands, which is what this reverses.
+- Reason: the package mounts its own `LoadingMessage` twice, once behind a 250ms delay on the scene path and once with no delay at all while the locale chunk loads, and both are tied to mount.
+  A faster load shortens those windows; a mount that survives stops entering them at all.
+  It is also the only way the editor's own chrome can stay on screen while the next scene is fetched, since unmounting the canvas takes the toolbars with it.
+- Debt created: the instance now outlives every scene it shows, so anything the package derives from mount is ours to reset.
+  `resetScene` is what does it, and it resets more than the scene: see the two entries below.
+- Revisit when: the package exposes a scene swap that resets what a remount resets, or a released version stops tying `LoadingMessage` to mount.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: view mode is asserted after the reset, because the package follows the prop and not its state
+
+- Decision: after `resetScene`, and only while no scene is shown, the editor asserts `viewModeEnabled` again through `updateScene`.
+- Alternatives rejected: folding it into the scene swap, which would have to re-run whenever the lock moves and would then overwrite what is being drawn; toggling the prop to force a resync; not calling `resetScene` at all, which is what clears the store the undo stack reads.
+- Reason: `resetScene` restores the package's default appState, `viewModeEnabled` included, and the package copies that prop into state only when the prop itself changes (`componentDidUpdate` compares against `prevProps`), never when its state drifts from it.
+  Without this a switch to a locked diagram left it editable, which the suite caught and no type or lint could.
+  The window with no scene shown is also the only one with no saver subscribed, and every `updateScene` provokes an `onChange`: one that reaches a saver on open uploads a scene nobody edited.
+- Debt created: any second piece of appState we drive from a prop needs the same treatment, and nothing in the code says so except this entry and the comment above the effect.
+- Revisit when: the package syncs a prop against state rather than against its previous value, or a second prop-derived appState key is added.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: what was fetched for a canvas is dropped when the address leaves it
+
+- Decision: the loaded scene is cleared when the route moves to another canvas, so every visit fetches and the cover is up until that fetch lands.
+- Alternatives rejected: keeping the last loaded scene and letting the next fetch replace it, which is what the code did; keeping the previous canvas visible but inert.
+- Reason: the loaded scene is the scene as it was when the canvas was opened, and the canvas is drawn on after that.
+  Leaving a canvas and coming back inside the next fetch painted that snapshot, silently and with no cover, and the next stroke saved it over everything drawn since: one measured run fetched a rectangle at version 14 and uploaded a different rectangle at version 7.
+  That is the stale scene this module's 2026-09-20 entry rejected a cache for, arriving as a cache of one that nobody decided to keep, and the remount had been hiding it because `initialData` is read at mount only.
+  Removing a remount is not a cosmetic change: it turns what mount used to guarantee into something that has to be said out loud.
+- Debt created: none.
+- Revisit when: a scene can be revalidated cheaply enough to show it while it is being checked, which needs a version the list already carries.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: the cover is part of the contract, and the editor is visible before it can be drawn on
+
+- Decision: a cover sits over the canvas area whenever no scene is on screen, under the package's UI layer (`z-[3]` against `--zIndex-layerUI: 4`) so the tools stay visible and clickable, and over the canvas so a stroke cannot reach it.
+  It lifts one frame after the swap rather than in the same commit.
+- Alternatives rejected: a full-area loading paragraph, which is the flash this task removes; lifting the cover with the swap; a fade.
+- Reason: `updateScene` hands the scene over and the editor paints on a frame of its own, so lifting the cover in the same commit painted bare chrome over an empty canvas about one switch in three.
+  Holding the pointer off is not a side effect but the point: it is what stops a stroke landing on a scene that is about to be replaced.
+  The consequence reaches every spec in the suite: `.excalidraw` being visible used to mean the scene was there, because the editor was not mounted until it was, and it no longer does.
+  Canvas gestures in `helpers.ts` wait for the cover to go; specs that do not will fail intermittently and read as flakes.
+- Debt created: the cover lifts on the next animation frame rather than on a paint the editor confirms, because the package offers no such signal.
+  A scene heavy enough to take more than a frame to paint could still show one bare frame.
+- Revisit when: the package reports when it has painted, or a scene is seen to paint slowly enough to matter.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: the scene is pruned where it is serialized, and pruning stays a pure function of the report
+
+- Decision: `toScene` keeps only the files its elements reference and drops selection elements, so what is written carries nothing the drawing does not use.
+- Alternatives rejected: clearing the editor's file map through the package, which has no API for it; leaving the files alone, which without a remount would carry one canvas's blobs into the next canvas's save.
+- Reason: `componentWillUnmount` was the only thing that ever cleared that map, so the remount this task removes was also the only thing keeping files apart.
+  The save path is the one place where the answer is deterministic whatever the instance holds, and it also prunes the blobs of deleted images.
+  The invariant it rests on: the saver rebases its baseline on the first report after opening, so pruning must stay a pure function of the elements and files in that same report.
+  Depend on anything outside it and every diagram uploads on open and `updatedAt` churns without an edit.
+- Debt created: this normalizes on write, which cuts against the recorded debt that a stored scene keeps the shape it was written in.
+  The two now disagree about files, and only about files.
+- Revisit when: a second normalization on write is wanted, which is the point at which that debt should be paid rather than widened.
+- Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: a saver recreated while dirty leaves the indicator reading "Saving"
+
+- Decision: recorded as debt and left alone in this task.
+- Alternatives rejected: fixing it here, alongside the swap, three defect fixes and a serialization change.
+- Reason: `useCanvasSave`'s cleanup calls `flush()` and then `stop()`, and `stop()` mutes the success callback, so a saver rebuilt while it has a pending change uploads correctly and never reports that it did.
+  The saver is rebuilt whenever the workspace list changes identity, which every save does, so this is reachable on develop and is not this task's doing.
+  It is worse than a wrong label: it masked the data loss above, turning it into a stuck indicator, and a bug that disguises other bugs earns a task rather than a queue position.
+- Debt created: the save indicator can read "Saving" for a save that has landed, until the next edit moves it.
+- Revisit when: its own task, which the om-reviewer has asked the om-manager to raise.
+- Source: 0016_diagram_switch_flicker

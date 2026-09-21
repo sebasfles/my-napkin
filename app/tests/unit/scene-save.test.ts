@@ -15,6 +15,20 @@ function scene(version: number): Scene {
   };
 }
 
+function sceneWithOrphanFile(version: number): Scene {
+  return {
+    ...scene(version),
+    files: {
+      orphan: {
+        mimeType: "image/png",
+        id: "orphan",
+        dataURL: "data:image/png;base64,iVBORw0KGgo=",
+        created: now,
+      },
+    } as unknown as Scene["files"],
+  };
+}
+
 function urls(expiresInMs: number): SceneUrls {
   return {
     get: "https://scenes.example/get",
@@ -120,6 +134,30 @@ describe("createSceneSaver", () => {
     expect(put).not.toHaveBeenCalled();
     expect(statuses).toEqual([]);
     expect(saver.dirty()).toBe(false);
+  });
+
+  it("stays quiet when opening a stored scene whose unreferenced files are pruned away", async () => {
+    const stored = sceneWithOrphanFile(1);
+    const { saver, put, save, statuses } = setup({
+      baseline: { serialized: JSON.stringify(stored), version: 1 },
+    });
+
+    saver.change(scene(1));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(
+      put,
+      "opening a diagram must not upload just because its files were pruned",
+    ).not.toHaveBeenCalled();
+    expect(save, "and updatedAt must not move for a diagram nobody edited").not.toHaveBeenCalled();
+    expect(statuses).toEqual([]);
+    expect(saver.dirty()).toBe(false);
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put, "a real edit after that still saves").toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0][1]).toBe(JSON.stringify(scene(2)));
   });
 
   it("touches updatedAt only after the upload lands, and reports the diagram", async () => {

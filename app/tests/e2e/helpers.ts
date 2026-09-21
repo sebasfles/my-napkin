@@ -645,7 +645,16 @@ function editorCanvas(page: Page): Locator {
   return page.locator("canvas.excalidraw__canvas.interactive");
 }
 
+// The editor's chrome is on screen before its scene is, and a cover holds the pointer off the
+// canvas until the scene it is fetching lands. Every gesture waits for the cover to go, which is
+// all a person can do too: a stroke drawn into it never reaches the canvas.
+async function canvasReady(page: Page) {
+  await expect(page.getByTestId("canvas-loading")).toHaveCount(0, { timeout: awsTimeout });
+}
+
 async function canvasBox(page: Page) {
+  await canvasReady(page);
+
   const box = await editorCanvas(page).boundingBox();
   if (!box) throw new Error("the editor canvas has no layout box");
 
