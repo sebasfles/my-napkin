@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Folder, ParentId } from "@/lib/diagrams";
-
-const visibleCrumbs = 2;
+import { crumbs } from "@/lib/tree";
 
 export function FolderBreadcrumbs({
   path,
@@ -31,8 +30,7 @@ export function FolderBreadcrumbs({
   onNavigate: (folderId: ParentId) => void;
 }) {
   const t = useTranslations("sidebar");
-  const hidden = path.slice(0, Math.max(path.length - visibleCrumbs, 0));
-  const shown = path.slice(hidden.length);
+  const { hidden, shown } = crumbs(path);
 
   return (
     <Breadcrumb data-testid="breadcrumbs" className="min-w-0">
@@ -43,7 +41,7 @@ export function FolderBreadcrumbs({
               className="text-xs font-medium tracking-wider uppercase"
               data-testid="crumb-root"
             >
-              {t("diagrams")}
+              {t("home")}
             </BreadcrumbPage>
           ) : (
             <BreadcrumbLink asChild>
@@ -53,7 +51,7 @@ export function FolderBreadcrumbs({
                 onClick={() => onNavigate(null)}
                 className="cursor-pointer text-xs font-medium tracking-wider uppercase outline-none focus-visible:underline"
               >
-                {t("diagrams")}
+                {t("home")}
               </button>
             </BreadcrumbLink>
           )}

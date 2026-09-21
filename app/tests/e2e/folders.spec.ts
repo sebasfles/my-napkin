@@ -125,7 +125,7 @@ test.describe("folders", () => {
       timeout: awsTimeout,
     });
 
-    await moveItem(page, diagramItem(page, diagram), "Diagrams");
+    await moveItem(page, diagramItem(page, diagram), "Home");
     await expect(diagramItem(page, diagram)).toHaveCount(0, { timeout: awsTimeout });
 
     await goToRoot(page);
@@ -147,7 +147,7 @@ test.describe("folders", () => {
 
     const choices = page.getByTestId("move-choices");
     await expect(choices).toBeVisible();
-    await expect(choices).toContainText("Diagrams");
+    await expect(choices).toContainText("Home");
     await expect(choices, "a folder cannot be moved into itself").not.toContainText(parent);
     await expect(choices, "nor into anything under it").not.toContainText(child);
 
@@ -192,7 +192,7 @@ test.describe("folders", () => {
     await expect(diagramItem(page, inside)).toHaveCount(0);
   });
 
-  test("truncates a long folder name in the breadcrumb instead of covering the buttons", async ({
+  test("truncates a long folder name in the breadcrumb instead of widening the panel", async ({
     page,
   }) => {
     await openApp(page);
@@ -204,21 +204,18 @@ test.describe("folders", () => {
     await openFolder(page, name);
 
     const crumb = page.getByTestId("crumb-current");
-    const [crumbBox, folderButton, diagramButton] = await Promise.all([
+    const [crumbBox, panelBox] = await Promise.all([
       crumb.boundingBox(),
-      page.getByTestId("folder-new").boundingBox(),
-      page.getByTestId("diagram-new").boundingBox(),
+      page.getByTestId("sidebar-panel").boundingBox(),
     ]);
 
     expect(crumbBox).not.toBeNull();
-    expect(folderButton).not.toBeNull();
-    expect(diagramButton).not.toBeNull();
+    expect(panelBox).not.toBeNull();
 
     expect(
       crumbBox!.x + crumbBox!.width,
-      "the crumbs stop where the create buttons begin",
-    ).toBeLessThanOrEqual(folderButton!.x + 1);
-    expect(folderButton!.x + folderButton!.width).toBeLessThanOrEqual(diagramButton!.x + 1);
+      "the crumbs stop where the panel does",
+    ).toBeLessThanOrEqual(panelBox!.x + panelBox!.width + 1);
 
     const clipped = await crumb.evaluate(
       (node) => node.scrollWidth > node.clientWidth + 1 && node.clientWidth > 0,

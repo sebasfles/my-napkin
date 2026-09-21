@@ -3,6 +3,7 @@ import type { Diagram, Folder, Item, Library } from "@/lib/diagrams";
 import {
   canMoveInto,
   childrenOf,
+  crumbs,
   currentFolder,
   folderChoices,
   pathTo,
@@ -254,5 +255,21 @@ describe("the tree never sees a library", () => {
     expect(folderChoices(withLibrary(), "napkin").map((choice) => choice.folder.id)).toEqual(
       folderChoices(workspace(), "napkin").map((choice) => choice.folder.id),
     );
+  });
+});
+
+describe("crumbs", () => {
+  const path = (depth: number): Folder[] =>
+    Array.from({ length: depth }, (_, at) => folder(`f${at}`, `F${at}`));
+
+  it("shows the whole path while HOME and the folders are three levels or fewer", () => {
+    expect(crumbs(path(0))).toEqual({ hidden: [], shown: [] });
+    expect(crumbs(path(1))).toEqual({ hidden: [], shown: path(1) });
+    expect(crumbs(path(2))).toEqual({ hidden: [], shown: path(2) });
+  });
+
+  it("hides everything but the folder the user is in, from three folders on", () => {
+    expect(crumbs(path(3))).toEqual({ hidden: path(2), shown: [path(3)[2]] });
+    expect(crumbs(path(4))).toEqual({ hidden: path(3), shown: [path(4)[3]] });
   });
 });

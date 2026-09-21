@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { sessionCookieName } from "@/lib/session";
-import { e2ePassword, emptyWorkspace, login, openApp } from "./helpers";
+import { e2ePassword, emptyWorkspace, login, openApp, openSettings } from "./helpers";
 
 const passwordField = (page: Page) => page.getByLabel("Password");
 const submitButton = (page: Page) => page.getByRole("button", { name: "Enter" });
@@ -91,6 +91,7 @@ test.describe("login", () => {
     await openApp(page);
     await expect(emptyWorkspace(page)).toBeVisible();
 
+    await openSettings(page);
     await page.getByRole("button", { name: "Log out" }).click();
 
     await expect(page).toHaveURL(/\/login$/);

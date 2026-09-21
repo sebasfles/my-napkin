@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
+import { defaultDebounceMs } from "@/lib/scene-save";
 
 export const savedText = "Saved";
 export const saveFailedText = "Not saved, retrying on the next change";
@@ -202,8 +203,7 @@ function activeLibrary(page: Page): Locator {
 }
 
 export async function showLibraries(page: Page) {
-  await expandSidebar(page);
-  await page.getByTestId("section-libraries").click();
+  await showSection(page, "libraries");
   await expect(page.getByTestId("library-section")).toBeVisible({ timeout: awsTimeout });
   await expect(
     page.getByTestId("library-list-loading"),
@@ -212,8 +212,7 @@ export async function showLibraries(page: Page) {
 }
 
 export async function showDiagrams(page: Page) {
-  await expandSidebar(page);
-  await page.getByTestId("section-diagrams").click();
+  await showSection(page, "diagrams");
   await expect(page.getByTestId("folder-section")).toBeVisible({ timeout: awsTimeout });
 }
 
@@ -470,16 +469,33 @@ async function elementsOf(page: Page, diagram: string): Promise<number> {
   return Number(count);
 }
 
-export async function expandSidebar(page: Page) {
+// The rail owns both the section and the panel: one click opens the panel on the section asked
+// for, switches an open panel onto it, or closes the panel when it is the one already showing.
+// Which of the three it would be is read off the sidebar, never off the icon: the icon marks the
+// section the panel is remembered on, whether or not the panel is open.
+export async function showSection(page: Page, section: "diagrams" | "libraries") {
   const sidebar = page.getByTestId("sidebar");
   await expect(sidebar, "the app is not on screen, so nothing here can be cleaned up").toBeVisible({
     timeout: awsTimeout,
   });
 
-  if ((await sidebar.getAttribute("data-collapsed")) !== "true") return;
+  const closed = (await sidebar.getAttribute("data-collapsed")) === "true";
+  const showing = await sidebar.getAttribute("data-section");
+  if (closed || showing !== section) await page.getByTestId(`rail-${section}`).click();
 
-  await page.getByTestId("sidebar-toggle").click();
   await expect(sidebar).toHaveAttribute("data-collapsed", "false");
+  await expect(sidebar).toHaveAttribute("data-section", section);
+}
+
+export function settingsMenu(page: Page): Locator {
+  return page.getByTestId("settings-menu");
+}
+
+export async function openSettings(page: Page) {
+  if (await settingsMenu(page).isVisible()) return;
+
+  await page.getByTestId("settings-toggle").click();
+  await expect(settingsMenu(page)).toBeVisible();
 }
 
 export async function goToRoot(page: Page) {
@@ -585,6 +601,24 @@ export async function deleteFolder(page: Page, name: string) {
   await deleteItem(page, folderItem(page, name), name);
 }
 
+// A save still in flight rewrites updatedAt, and childrenOf sorts diagrams by it, so the list
+// re-sorts under whatever menu the cleanup has open, which is how a delete loses its own menu
+// item mid-click. The open diagram's row carries the save status where its date would be, so
+// this waits for the last save to have landed before anything is deleted. It waits out the
+// saver's debounce first, with the same again as margin: until that window has elapsed, a change
+// made just before this still reads as Saved, because the upload it armed has not started yet.
+async function savesSettled(page: Page) {
+  const indicator = saveIndicator(page);
+  if ((await indicator.count()) === 0) return;
+
+  await page.waitForTimeout(defaultDebounceMs * 2);
+  await expect(indicator, "a save never landed, so the list is still moving").toHaveAttribute(
+    "data-status",
+    "saved",
+    { timeout: awsTimeout },
+  );
+}
+
 export async function removeItemsCreatedHere(page: Page) {
   const folders = foldersByPage.get(page) ?? [];
   const diagrams = createdByPage.get(page) ?? [];
@@ -592,6 +626,10 @@ export async function removeItemsCreatedHere(page: Page) {
   foldersByPage.delete(page);
   createdByPage.delete(page);
   librariesByPage.delete(page);
+
+  if (libraries.length === 0 && folders.length === 0 && diagrams.length === 0) return;
+
+  await savesSettled(page);
 
   if (libraries.length > 0) {
     await showLibraries(page);

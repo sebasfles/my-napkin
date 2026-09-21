@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { logout } from "@/lib/api";
 import { loginPath } from "@/lib/gate";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function LogoutButton() {
   const t = useTranslations("sidebar");
@@ -24,19 +23,16 @@ export function LogoutButton() {
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t("logout")}
-          onClick={handleLogout}
-        >
-          <LogOut aria-hidden />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{t("logout")}</TooltipContent>
-    </Tooltip>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="w-full justify-start text-muted-foreground"
+      data-testid="logout"
+      onClick={handleLogout}
+    >
+      <LogOut aria-hidden />
+      {t("logout")}
+    </Button>
   );
 }

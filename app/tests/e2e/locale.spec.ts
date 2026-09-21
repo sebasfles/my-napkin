@@ -3,6 +3,7 @@ import {
   drawRectangle,
   newDiagram,
   openApp,
+  openSettings,
   removeItemsCreatedHere,
   saveIndicator,
 } from "./helpers";
@@ -48,6 +49,7 @@ test.describe("locale", () => {
       await newDiagram(page, "locale-switch");
       await expect(page.getByTestId("diagrams-heading")).toHaveText(englishHeading);
 
+      await openSettings(page);
       await page.getByTestId("locale-toggle").click();
       await expect(page.getByTestId("diagrams-heading")).toHaveText(spanishHeading);
 

@@ -6,8 +6,7 @@
   "sidebar": {
     "title": "My Napkin",
     "diagrams": "Diagrams",
-    "collapse": "Collapse the sidebar",
-    "expand": "Expand the sidebar",
+    "home": "Home",
     "shortcut": "Alt+B",
     "libraries": "Libraries",
     "pinned": "Pinned",
@@ -70,7 +69,9 @@
     "sections": "Workspace sections",
     "renameLibrary": "Rename library",
     "deleteLibraryTitle": "Delete this library?",
-    "deleteLibraryBody": "{name} and its items are deleted for good. Diagrams keep everything they already inserted from it. This cannot be undone."
+    "deleteLibraryBody": "{name} and its items are deleted for good. Diagrams keep everything they already inserted from it. This cannot be undone.",
+    "settings": "Settings",
+    "language": "Language"
   },
   "tabs": {
     "label": "Open diagrams",

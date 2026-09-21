@@ -32,8 +32,8 @@ describe("shortcutFor", () => {
     });
   });
 
-  it("reads Alt+B as the sidebar toggle", () => {
-    expect(shortcutFor(chord("KeyB", { alt: true }))).toEqual({ kind: "toggleSidebar" });
+  it("reads Alt+B as the sidebar panel toggle", () => {
+    expect(shortcutFor(chord("KeyB", { alt: true }))).toEqual({ kind: "toggleSidebarPanel" });
   });
 
   it("claims nothing without Alt, and nothing the editor binds with Ctrl or Cmd", () => {
