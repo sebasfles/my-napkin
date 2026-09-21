@@ -1,7 +1,15 @@
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { LibraryItem } from "@excalidraw/excalidraw/types";
 import { describe, expect, it } from "vitest";
-import { framesFromLibraryItems, libraryFrames, libraryItemsFromFrames } from "@/lib/library-items";
+import {
+  frameForSelection,
+  framesFromLibraryItems,
+  insertedElements,
+  libraryFrames,
+  libraryItemsFromFrames,
+  newIdentity,
+  selectionForLibrary,
+} from "@/lib/library-items";
 import type { SceneElements } from "@/lib/scene";
 
 const created = Date.parse("2026-09-20T10:00:00.000Z");
@@ -370,5 +378,256 @@ describe("framesFromLibraryItems", () => {
       one.elements[1].y - one.elements[0].y,
     ];
     expect(offset(after[0])).toEqual(offset(before[0]));
+  });
+});
+
+describe("insertedElements", () => {
+  function item(...elements: ElementFields[]): LibraryItem {
+    return {
+      id: "item",
+      status: "unpublished",
+      created,
+      elements: elements.map(element) as unknown as LibraryItem["elements"],
+    };
+  }
+
+  function ids() {
+    let at = 0;
+    return () => `new-${(at += 1)}`;
+  }
+
+  it("centres the copy on the point it was dropped at", () => {
+    const [copy] = insertedElements(
+      item({ id: "a", x: 0, y: 0, width: 100, height: 50 }),
+      { x: 500, y: 300 },
+      newIdentity(ids()),
+    ) as unknown as Required<ElementFields>[];
+
+    expect([copy.x, copy.y]).toEqual([450, 275]);
+  });
+
+  it("centres the whole item, not each of its elements", () => {
+    const copy = insertedElements(
+      item(
+        { id: "a", x: 0, y: 0, width: 100, height: 100 },
+        { id: "b", x: 100, y: 0, width: 100, height: 100 },
+      ),
+      { x: 0, y: 0 },
+      newIdentity(ids()),
+    ) as unknown as Required<ElementFields>[];
+
+    expect(copy.map((one) => one.x)).toEqual([-100, 0]);
+    expect(copy.map((one) => one.y)).toEqual([-50, -50]);
+  });
+
+  it("makes every id, group, container and binding new and consistent", () => {
+    const copy = insertedElements(
+      item(
+        {
+          id: "box",
+          groupIds: ["g1"],
+          boundElements: [
+            { id: "label", type: "text" },
+            { id: "arrow", type: "arrow" },
+          ],
+        },
+        { id: "label", type: "text", containerId: "box", groupIds: ["g1"] },
+        {
+          id: "arrow",
+          type: "arrow",
+          startBinding: { elementId: "box", focus: 0, gap: 1 },
+          endBinding: null,
+        },
+      ),
+      { x: 0, y: 0 },
+      newIdentity(ids()),
+    ) as unknown as Required<ElementFields>[];
+
+    const [box, label, arrow] = copy;
+
+    expect(copy.map((one) => one.id)).toEqual(["new-1", "new-2", "new-3"]);
+    expect(box.groupIds).toEqual(label.groupIds);
+    expect(box.groupIds).not.toEqual(["g1"]);
+    expect(label.containerId).toBe(box.id);
+    expect(arrow.startBinding?.elementId).toBe(box.id);
+    expect(box.boundElements).toEqual([
+      { id: label.id, type: "text" },
+      { id: arrow.id, type: "arrow" },
+    ]);
+  });
+
+  it("takes an arrow from a file that never wrote its bindings, rather than throwing", () => {
+    const copy = insertedElements(
+      item({ id: "arrow", type: "arrow" }),
+      { x: 0, y: 0 },
+      newIdentity(ids()),
+    ) as unknown as Required<ElementFields>[];
+
+    expect(copy[0].startBinding).toBeNull();
+    expect(copy[0].endBinding).toBeNull();
+  });
+
+  it("gives two copies of one item nothing in common, so editing one leaves the other alone", () => {
+    const shape = item(
+      { id: "box", groupIds: ["g1"], boundElements: [{ id: "label", type: "text" }] },
+      { id: "label", type: "text", containerId: "box", groupIds: ["g1"] },
+    );
+    const next = ids();
+
+    const first = insertedElements(shape, { x: 0, y: 0 }, newIdentity(next));
+    const second = insertedElements(shape, { x: 400, y: 0 }, newIdentity(next));
+
+    const taken = (copy: SceneElements) =>
+      copy.flatMap((one) => [one.id, ...one.groupIds]) as string[];
+
+    expect(taken(first).some((id) => taken(second).includes(id))).toBe(false);
+  });
+
+  it("drops the place in the order it came with, so a copy cannot claim another's", () => {
+    const copy = insertedElements(
+      item({ id: "a" }, { id: "b" }),
+      { x: 0, y: 0 },
+      newIdentity(ids()),
+    );
+
+    expect(copy.every((one) => one.index === null)).toBe(true);
+  });
+});
+
+describe("selectionForLibrary", () => {
+  it("takes the label of a selected container, which the editor does not select on its own", () => {
+    const { copied } = selectionForLibrary(
+      scene(
+        element({ id: "box", boundElements: [{ id: "label", type: "text" }] }),
+        element({ id: "label", type: "text", containerId: "box" }),
+      ),
+      { box: true },
+    );
+
+    expect(copied.map((one) => one.id)).toEqual(["box", "label"]);
+  });
+
+  // Selecting a frame puts only the frame's own id in the selection, so a test whose frame is
+  // empty cannot tell "the frame element is left out" from "a frame contributes nothing".
+  it("takes what a selected frame holds, and leaves the frame element itself out", () => {
+    const { copied } = selectionForLibrary(
+      scene(frame("f1"), element({ id: "inside", frameId: "f1" }), element({ id: "outside" })),
+      { f1: true },
+    );
+
+    expect(copied.map((one) => one.id)).toEqual(["inside"]);
+  });
+
+  it("takes an element held by a selected frame once, not twice for being selected too", () => {
+    const { copied } = selectionForLibrary(
+      scene(frame("f1"), element({ id: "inside", frameId: "f1" })),
+      { f1: true, inside: true },
+    );
+
+    expect(copied.map((one) => one.id)).toEqual(["inside"]);
+  });
+
+  it("leaves out a deleted element, an unselected one, and what another frame holds", () => {
+    const { copied } = selectionForLibrary(
+      scene(
+        element({ id: "kept" }),
+        frame("f1"),
+        element({ id: "gone", isDeleted: true, frameId: "f1" }),
+        frame("f2"),
+        element({ id: "elsewhere", frameId: "f2" }),
+        element({ id: "loose" }),
+      ),
+      { kept: true, f1: true, gone: true },
+    );
+
+    expect(copied.map((one) => one.id)).toEqual(["kept"]);
+  });
+
+  it("reports an empty frame as nothing to add rather than as images left out", () => {
+    const { copied, images } = selectionForLibrary(scene(frame("f1")), { f1: true });
+
+    expect(copied).toEqual([]);
+    expect(images, "the caller would explain an empty frame with a message about images").toBe(0);
+  });
+
+  it("leaves images out and says how many, since a library item cannot carry one", () => {
+    const { copied, images } = selectionForLibrary(
+      scene(
+        element({ id: "box" }),
+        element({ id: "photo", type: "image" }),
+        element({ id: "other", type: "image" }),
+      ),
+      { box: true, photo: true, other: true },
+    );
+
+    expect(copied.map((one) => one.id)).toEqual(["box"]);
+    expect(images).toBe(2);
+  });
+});
+
+describe("frameForSelection", () => {
+  function newId() {
+    let at = 0;
+    return () => `added-${(at += 1)}`;
+  }
+
+  it("lands under everything already on the canvas, at the left edge of what is there", () => {
+    const [added] = frameForSelection({
+      selection: scene(element({ id: "a", x: 7, y: 9 })),
+      canvas: scene(frame("f1", { x: 0, y: 0 }), frame("f2", { x: 480, y: 0 })),
+      name: null,
+      created,
+      newId: newId(),
+    }) as unknown as Required<ElementFields>[];
+
+    expect([added.x, added.y]).toEqual([0, 380]);
+    expect(added.type).toBe("frame");
+  });
+
+  it("starts at the origin when the library canvas holds no frame yet", () => {
+    const [added] = frameForSelection({
+      selection: scene(element({ id: "a", x: 300, y: 200 })),
+      canvas: scene(),
+      name: "Arrowhead",
+      created,
+      newId: newId(),
+    }) as unknown as Required<ElementFields>[];
+
+    expect([added.x, added.y]).toEqual([0, 0]);
+    expect(added.name).toBe("Arrowhead");
+  });
+
+  it("puts every copied element inside the frame it appended, so the derivation finds them", () => {
+    const [added, ...held] = frameForSelection({
+      selection: scene(
+        element({ id: "a", x: 300, y: 200, width: 100, height: 50 }),
+        element({ id: "b", x: 420, y: 260, width: 100, height: 50 }),
+      ),
+      canvas: scene(frame("f1", { x: 20, y: 0 })),
+      name: null,
+      created,
+      newId: newId(),
+    }) as unknown as Required<ElementFields>[];
+
+    expect(held).toHaveLength(2);
+    for (const one of held) {
+      expect(one.frameId).toBe(added.id);
+      expect(one.x).toBeGreaterThanOrEqual(added.x);
+      expect(one.y).toBeGreaterThanOrEqual(added.y);
+      expect(one.x + one.width).toBeLessThanOrEqual(added.x + added.width);
+      expect(one.y + one.height).toBeLessThanOrEqual(added.y + added.height);
+    }
+  });
+
+  it("names nothing after the elements it copied, so the ids the canvas already holds stay free", () => {
+    const appended = frameForSelection({
+      selection: scene(element({ id: "a" }), element({ id: "b" })),
+      canvas: scene(frame("a"), element({ id: "b" })),
+      name: null,
+      created,
+      newId: newId(),
+    });
+
+    expect(appended.map((one) => one.id)).toEqual(["added-1", "added-2", "added-3"]);
   });
 });

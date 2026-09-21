@@ -135,3 +135,24 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* The editor package offers its own library two ways and 0.18.1's `UIOptions` hides neither: the
+   button in the top right, and a tab inside the default sidebar, which Ctrl+F still opens. The
+   tab trigger carries no class of its own, so it is addressed by the id Radix builds from the tab
+   name; `library-panel.spec.ts` counts what is on screen rather than what this rule matches, so it
+   fails if either half ever stops matching. The label goes rather than the button inside it, or
+   the checkbox the label wraps would stay in the tab order. See `modules/app/ard.md`. */
+.napkin-editor .sidebar-trigger__label-element:has(.default-sidebar-trigger),
+.napkin-editor .default-sidebar .sidebar-triggers [id$="-trigger-library"] {
+  display: none;
+}
+
+/* The third door: the canvas context menu's "Add to library" writes to the same store the panel
+   above is hidden, so it is a dead end, and it sits beside our own "Add selection to library"
+   doing something different under nearly the same name. The package renders each entry as
+   `<li data-testid={action.name}>`, which is why this selector is steadier than the one above;
+   `library-panel.spec.ts` asserts the entry is present and hidden, so neither a testid that
+   changes nor a rule that stops matching can pass. */
+.napkin-editor .context-menu li[data-testid="addToLibrary"] {
+  display: none;
+}

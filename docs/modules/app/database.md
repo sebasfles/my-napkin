@@ -40,6 +40,8 @@ None. This module is the only one that reads or writes the `diagrams` table and 
   `itemCount` is therefore the number of frames, and it moves only with a save.
 - `libraryIds` is a diagram's list of linked libraries, written whole by its own PATCH intent, accepted only for a diagram, and it never moves `updatedAt`, since linking is not an edit.
   Deleting a library leaves dangling ids behind: nothing that reads the list can find them, and the next link or unlink on that diagram writes the list without them, which is cheaper than a Scan and a patch per diagram on every delete.
+- `libraryIds` is the only reference a diagram holds to a library, and it is not a reference to anything inside one.
+  An item taken from the panel is copied into the drawing with new ids, groups, containers and bindings, so a diagram's scene names nothing a library owns, two inserts of one item share nothing, and deleting or editing a library cannot reach a drawing that already used it.
 - Every diagram has exactly one scene object at `scenes/{id}.json`.
   POST writes the empty scene first and the item second, so a diagram is never listed without its object; DELETE removes the item first and the object second, so a failure leaves an unreachable object rather than a diagram with no scene.
   A reader still treats a missing object as an empty scene.
