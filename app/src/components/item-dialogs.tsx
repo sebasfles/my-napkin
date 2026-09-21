@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Folder as FolderIcon, Home } from "lucide-react";
+import { Check, Folder as FolderIcon, Home, LibraryBig, Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import {
@@ -33,6 +33,7 @@ import {
   parentOf,
   type Diagram,
   type Item,
+  type Library,
   type ParentId,
 } from "@/lib/diagrams";
 import { folderChoices, pathTo, subtreeCounts } from "@/lib/tree";
@@ -118,6 +119,133 @@ function NameForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+export function AddToLibraryDialog({
+  libraries,
+  newName,
+  open,
+  onOpenChange,
+  onAdd,
+}: DialogProps & {
+  libraries: Library[];
+  newName: string;
+  onAdd: (library: Library | null, name: string) => void;
+}) {
+  const t = useTranslations("library");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="add-library-dialog">
+        <DialogHeader>
+          <DialogTitle>{t("addTitle")}</DialogTitle>
+          <DialogDescription>{t("addBody")}</DialogDescription>
+        </DialogHeader>
+
+        {open ? <AddToLibraryForm libraries={libraries} newName={newName} onAdd={onAdd} /> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddToLibraryForm({
+  libraries,
+  newName,
+  onAdd,
+}: {
+  libraries: Library[];
+  newName: string;
+  onAdd: (library: Library | null, name: string) => void;
+}) {
+  const t = useTranslations("library");
+  const s = useTranslations("sidebar");
+  const [target, setTarget] = useState<Library | null>(libraries[0] ?? null);
+  const [name, setName] = useState(newName);
+  const trimmed = name.trim();
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div
+        role="listbox"
+        aria-label={t("addTitle")}
+        className="-mx-1 max-h-64 overflow-y-auto"
+        data-testid="add-library-choices"
+      >
+        {libraries.map((library) => (
+          <AddChoice
+            key={library.id}
+            name={library.name}
+            icon={<LibraryBig aria-hidden className="size-4 text-muted-foreground" />}
+            selected={target?.id === library.id}
+            onSelect={() => setTarget(library)}
+          />
+        ))}
+        <AddChoice
+          name={t("addNew")}
+          icon={<Plus aria-hidden className="size-4 text-muted-foreground" />}
+          selected={target === null}
+          onSelect={() => setTarget(null)}
+        />
+      </div>
+
+      {target === null ? (
+        <Input
+          autoFocus
+          aria-label={s("nameLabel")}
+          data-testid="add-library-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      ) : null}
+
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline" data-testid="add-library-cancel">
+            {s("cancel")}
+          </Button>
+        </DialogClose>
+        <Button
+          type="button"
+          data-testid="add-library-submit"
+          disabled={target === null && trimmed.length === 0}
+          onClick={() => onAdd(target, trimmed)}
+        >
+          {t("addConfirm")}
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function AddChoice({
+  name,
+  icon,
+  selected,
+  onSelect,
+}: {
+  name: string;
+  icon: ReactNode;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      data-testid="add-library-choice"
+      onClick={onSelect}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-left text-sm transition-colors",
+        "hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+        selected && "bg-accent text-accent-foreground",
+      )}
+    >
+      {icon}
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      {selected ? <Check aria-hidden className="size-4 shrink-0" /> : null}
+    </button>
   );
 }
 

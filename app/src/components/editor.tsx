@@ -3,13 +3,13 @@
 import "@excalidraw/excalidraw/index.css";
 
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
-import type { AppState, BinaryFiles } from "@excalidraw/excalidraw/types";
+import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
+import type { DragEvent, RefObject } from "react";
 import { LibraryHints, libraryCanvasHint, sameHint } from "@/components/library-hints";
 import type { LibraryCanvasHint } from "@/components/library-hints";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -17,6 +17,8 @@ import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
 import { isDiagram, isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
 import { editorLangCode } from "@/lib/editor";
+import { librariesOf, libraryFileAmong, nextLibraryIds } from "@/lib/libraries";
+import { importLibraryFile } from "@/lib/library-io";
 import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
 import type { SceneSaver } from "@/lib/scene-save";
@@ -28,6 +30,18 @@ import { cn } from "@/lib/utils";
 const CanvasEditor = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
 });
+
+// The panel reaches the editor package at module scope, so it is loaded the same way the editor
+// itself is: never during server rendering.
+const LibraryPanel = dynamic(
+  async () => (await import("@/components/library-panel")).LibraryPanel,
+  { ssr: false },
+);
+
+const LibraryPanelTrigger = dynamic(
+  async () => (await import("@/components/library-panel")).LibraryPanelTrigger,
+  { ssr: false },
+);
 
 interface LoadedScene {
   id: string;
@@ -68,7 +82,7 @@ export function Editor({ itemId }: { itemId: string }) {
   const locked = cachedLock ?? shown?.urls.locked ?? true;
 
   return (
-    <div className="h-full w-full" data-testid="editor">
+    <div className="napkin-editor h-full w-full" data-testid="editor">
       {shown ? (
         <div
           className={cn("relative h-full w-full", stale && "pointer-events-none")}
@@ -106,7 +120,9 @@ function EditorCanvas({
   const locale = useLocale() as Locale;
   const { theme, systemTheme } = useTheme();
   const saverRef = useRef<SceneSaver | null>(null);
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const library = urls.items !== undefined;
+  const panel = !library && !locked;
   const [hint, setHint] = useState<LibraryCanvasHint | null>(() =>
     library ? libraryCanvasHint(scene) : null,
   );
@@ -124,6 +140,9 @@ function EditorCanvas({
     [library],
   );
 
+  const renderTopRightUI = useCallback(() => (panel ? <LibraryPanelTrigger /> : null), [panel]);
+  const onDropCapture = useLibraryFileDrop(itemId, api);
+
   return (
     <>
       {locked ? null : (
@@ -135,15 +154,67 @@ function EditorCanvas({
           saverRef={saverRef}
         />
       )}
-      <CanvasEditor
-        theme={resolveTheme(theme, systemTheme)}
-        langCode={editorLangCode(locale)}
-        initialData={scene}
-        viewModeEnabled={locked}
-        onChange={onChange}
-      />
+      <div className="h-full w-full" onDropCapture={onDropCapture}>
+        <CanvasEditor
+          theme={resolveTheme(theme, systemTheme)}
+          langCode={editorLangCode(locale)}
+          initialData={scene}
+          viewModeEnabled={locked}
+          onChange={onChange}
+          excalidrawAPI={setApi}
+          renderTopRightUI={renderTopRightUI}
+        >
+          {panel && api !== null ? <LibraryPanel diagramId={itemId} api={api} /> : null}
+        </CanvasEditor>
+      </div>
       {hint === null ? null : <LibraryHints hint={hint} />}
     </>
+  );
+}
+
+// A dropped `.excalidrawlib` is ours, because the package would answer it by merging the file
+// into its own library and opening its own panel, which this app hides and never reads from.
+// Every other dropped file, an image or an `.excalidraw` scene, is left to the editor untouched.
+function useLibraryFileDrop(itemId: string, api: ExcalidrawImperativeAPI | null) {
+  const t = useTranslations("library");
+  const { items, createLibrary, markSaved, setLibraryIds } = useWorkspace();
+
+  return useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      const file = libraryFileAmong(Array.from(event.dataTransfer.files));
+      if (file === null) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const libraries = librariesOf(items);
+      const open = items.find((item) => item.id === itemId) ?? null;
+      const diagram = open !== null && isDiagram(open) ? open : null;
+
+      const importing = async () => {
+        const library = await importLibraryFile(
+          file,
+          libraries.map((one) => one.name),
+          { create: createLibrary, saved: markSaved },
+        );
+
+        // The drop does not navigate, so the toast is the only account of what happened: which
+        // library it became, and whether it is linked and therefore in the panel already.
+        if (diagram === null) {
+          api?.setToast({ message: t("droppedImportedUnlinked", { name: library.name }) });
+          return;
+        }
+
+        await setLibraryIds(
+          diagram.id,
+          nextLibraryIds(diagram, [...libraries, library], library.id, true),
+        );
+        api?.setToast({ message: t("droppedImported", { name: library.name }) });
+      };
+
+      importing().catch(() => api?.setToast({ message: t("droppedImportFailed") }));
+    },
+    [api, createLibrary, itemId, items, markSaved, setLibraryIds, t],
   );
 }
 

@@ -18,6 +18,12 @@ export function defaultLibraryName(existingNames: readonly string[]): string {
   return `${prefix} (${suffix})`;
 }
 
+// Which of the dropped files this app claims. Everything else, an image or an `.excalidraw`
+// scene, stays the editor's to handle, so the claim has to be this narrow.
+export function libraryFileAmong(files: readonly File[]): File | null {
+  return files.find((file) => file.name.toLowerCase().endsWith(libraryFileExtension)) ?? null;
+}
+
 export function importedLibraryName(fileName: string, existingNames: readonly string[]): string {
   const stem = fileName.replace(/\.[^.]+$/, "").trim();
   return stem.length === 0 ? defaultLibraryName(existingNames) : stem;

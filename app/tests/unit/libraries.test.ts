@@ -4,6 +4,7 @@ import {
   defaultLibraryName,
   importedLibraryName,
   librariesOf,
+  libraryFileAmong,
   linksLibrary,
   nextLibraryIds,
 } from "@/lib/libraries";
@@ -49,6 +50,29 @@ describe("importedLibraryName", () => {
   it("falls back to the default name when the file has nothing to say", () => {
     expect(importedLibraryName(".excalidrawlib", ["Library"])).toBe("Library (2)");
     expect(importedLibraryName("   .excalidrawlib", [])).toBe("Library");
+  });
+});
+
+describe("libraryFileAmong", () => {
+  function file(name: string): File {
+    return new File(["{}"], name);
+  }
+
+  it("claims the library file among the dropped ones", () => {
+    expect(libraryFileAmong([file("photo.png"), file("Arrows.excalidrawlib")])?.name).toBe(
+      "Arrows.excalidrawlib",
+    );
+  });
+
+  it("claims it whatever the case of the extension", () => {
+    expect(libraryFileAmong([file("Arrows.ExcalidrawLib")])?.name).toBe("Arrows.ExcalidrawLib");
+  });
+
+  // The editor keeps every other drop, and an `.excalidraw` scene ending in the same letters is
+  // the one that would go wrong quietly.
+  it("claims nothing else, so an image and a scene stay the editor's", () => {
+    expect(libraryFileAmong([file("photo.png"), file("board.excalidraw")])).toBeNull();
+    expect(libraryFileAmong([])).toBeNull();
   });
 });
 

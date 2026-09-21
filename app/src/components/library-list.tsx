@@ -11,13 +11,12 @@ import { useWorkspace } from "@/components/workspace-provider";
 import { isDiagram, type Diagram } from "@/lib/diagrams";
 import {
   defaultLibraryName,
-  importedLibraryName,
   librariesOf,
   libraryFileExtension,
   linksLibrary,
   nextLibraryIds,
 } from "@/lib/libraries";
-import { exportLibrary, readLibraryFile, writeImportedLibrary } from "@/lib/library-io";
+import { exportLibrary, importLibraryFile } from "@/lib/library-io";
 
 export function LibraryList({
   activeId,
@@ -63,11 +62,12 @@ export function LibraryList({
 
   function onImport(file: File) {
     void attempt(async () => {
-      const imported = await readLibraryFile(file);
-      const created = await createLibrary(importedLibraryName(file.name, names));
+      const imported = await importLibraryFile(file, names, {
+        create: createLibrary,
+        saved: markSaved,
+      });
 
-      markSaved(await writeImportedLibrary(created.id, imported));
-      router.push(`/d/${created.id}`);
+      router.push(`/d/${imported.id}`);
     });
   }
 

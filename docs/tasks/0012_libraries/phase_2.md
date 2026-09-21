@@ -93,3 +93,25 @@ The earlier entry is untouched, since `ard.md` is a log.
 Nothing was appended that could have been a correction.
 
 ## Result
+
+Merged as `1be0124`, PR #25, one round, no findings, suite green on its first run.
+
+Delivered as scoped. The row menu (rename, link and unlink, export, delete), import of a `.excalidrawlib` as a new canvas, the linked glyph on the row, and a delete that leaves every diagram that linked it untouched.
+
+Decisions worth carrying, all in the PR's `Decisions`:
+
+- An imported file is never copied in. The canvas is written through the same port the saver uses, so `items.json` has one producer and the acceptance's round trip is a real one rather than the bytes that went in.
+- The import calls `loadLibraryFromBlob` alone, since it already applies `restoreLibraryItems`. The phase file had named all three functions because that line was written from the package's export list rather than its implementation.
+- The link menu item is plainly disabled when no diagram is open. This closed the revisit that `modules/app/ard.md` 2026-09-20 "aria-disabled, never disabled" had opened, narrowing that rule rather than generalising it.
+
+Debt created, both in the `Debt index`: the export is proved in Chromium only, since it clicks a detached anchor and revokes its object URL in the same turn; and a library whose row is created and whose first write then fails stays in the list as an empty library.
+
+What phase 3 must know:
+
+- `libraryIds` now has a real writer, `setLibraryIds` on the provider through `linkLibraries` in `api.ts`, and `nextLibraryIds` drops dangling ids on every link or unlink. The panel reads that list; it does not have to maintain it.
+- `library-io.ts` owns the three flows that reach S3 and `library-file.ts` is still the only module that touches the editor package, lazily. The panel's `exportToSvg` belongs behind that same boundary.
+- The suite's last `x-amz-content-sha256` is gone; no test code computes a payload hash. Do not bring one back.
+- The native `Library` button is still visible, in shots 1 and 3 of this phase. Hiding it is phase 3's, by one CSS rule scoped to the editor wrapper, and acceptance 5 as reworded in `Context & decisions` is what it has to satisfy.
+- `docs/PRD.md` is still unwritten, deliberately, across both phases. Phase 3's documentation commit writes the capability line, and it has to describe libraries whole rather than the panel alone, since a reader of that file has never heard of phases.
+- The four suite findings from phase 1 are unchanged and still belong to their own task: the 30s budget that `awsTimeout` consumes whole, `removeItemsCreatedHere` silently skipping anything inside a folder, and a local `verify-task` not being isolated from Sebastian using dev by hand.
+
