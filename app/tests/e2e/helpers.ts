@@ -603,15 +603,21 @@ export async function deleteFolder(page: Page, name: string) {
 
 // A save still in flight rewrites updatedAt, and childrenOf sorts diagrams by it, so the list
 // re-sorts under whatever menu the cleanup has open, which is how a delete loses its own menu
-// item mid-click. The open diagram's row carries the save status where its date would be, so
-// this waits for the last save to have landed before anything is deleted. It waits out the
-// saver's debounce first, with the same again as margin: until that window has elapsed, a change
-// made just before this still reads as Saved, because the upload it armed has not started yet.
+// item mid-click.
+//
+// The window is waited out before the indicator is read, never after. A change only arms the
+// saver's timer: until it fires, the saver has reported no status at all, so the row shows its
+// date and there is no indicator to find. Reading first therefore says "nothing is saving" in
+// exactly the case where something is about to. Only a diagram that is open can have armed one,
+// so a spec that opened nothing pays nothing.
 async function savesSettled(page: Page) {
+  if (!diagramUrl.test(page.url())) return;
+
+  await page.waitForTimeout(defaultDebounceMs * 2);
+
   const indicator = saveIndicator(page);
   if ((await indicator.count()) === 0) return;
 
-  await page.waitForTimeout(defaultDebounceMs * 2);
   await expect(indicator, "a save never landed, so the list is still moving").toHaveAttribute(
     "data-status",
     "saved",

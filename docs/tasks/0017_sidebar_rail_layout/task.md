@@ -152,3 +152,46 @@ Deferred, not done here.
   It belongs in the debt index at `document-task`, to revisit when someone reports the menu closing or the list stops sorting by `updatedAt`.
 - The e2e cleanup's wait for a settled save is skipped when the open diagram's row is not in the folder being cleaned, since there is no indicator to read.
   The om-reviewer accepted that guard; the case it covers is the one that failed.
+
+### Round 1, amended after the om-reviewer's e2e-worth finding
+
+- The rail's "not remounted" case no longer injects `data-marked` through `evaluate()`.
+  It focuses the Libraries rail icon, toggles the panel with Alt+B so nothing else can move the focus, and asserts the icon still has it.
+  A remounted rail loses the keyboard, so the assertion fails exactly when the defect exists, and what it asserts is something a person suffers: tabbing to Libraries and having the keyboard dropped when the panel opens.
+  `docs/conventions/e2e.md:24` forbids test-only handles and `:25` asks for what the user sees; the invariant was right and the instrument was not.
+  The `boundingBox` assertion beside it stays, since a width and a position are what the user sees.
+- The suite ran green on everything of this task before Playwright was paused: 91 passed, 1 failed, and the failure is `library-panel.spec.ts:93`'s shared cleanup hook, not a case of this task.
+  The six screenshots were captured and the first pass's stray row was removed inside that same pass.
+
+### Round 1, amended again on the om-reviewer's second reading of the screenshots
+
+- The settings popover is anchored to the rail, not to its own button.
+  `size-7` centred in `w-12` leaves the button's right edge about 10px short of the rail's, so the default 4px offset opened the popover on top of the rail's last pixels and hid its border, which is visible in the first good pair of screenshots.
+  A `PopoverAnchor` wrapping the trigger at the rail's full width fixes it with no literal at all: the popover clears whatever the rail measures, so a change to the rail's width or the button's size cannot reintroduce it.
+  Chosen over a larger `sideOffset`, which would have hard-coded the difference between two sizes declared elsewhere.
+- `savesSettled` waits the debounce window before it reads the indicator, and returns early only when no diagram is open.
+  Reading first was the defect: a change only arms the saver's timer, and until it fires nothing has been reported, so the row shows its date and the absence of an indicator is read as "nothing is saving" in exactly the case where something is about to.
+  Unverified until Playwright resumes.
+- `stray.spec.ts` names both leaked rows and treats an already-removed one as the expected outcome, since the first was taken by the pass that ran it; what it insists on is that neither name is left behind.
+
+Still open, and not fixed here.
+
+- `library-panel.spec.ts:93`'s cleanup is unproven either way: the fix above is the diagnosis acted on, not a verified repair, and only a pass can settle it.
+- Two rows may remain in the shared dev table until that pass runs `stray.spec.ts`: `e2e no context library mubfznnp-85` (removed in the second pass) and `e2e no context library mubhvsa0-85`.
+
+### Follow-up branch, after 0017 merged without the last amend
+
+`77258cd` reached `develop` and `main` while the amended twin `e1e78b1` did not, so four files' worth of work stayed behind.
+`fix/0017_settings_popover_anchor` branches from `origin/develop` at `b2f2331` and carries exactly that delta: the popover anchor, the cleanup guard, the `sidebar-panel.spec.ts` focus assertion and these notes.
+It is a fresh branch rather than the old one because `77258cd` and `e1e78b1` are twins whose common base is `9ac7479`, so a pull request from the old branch would re-propose the whole of 0017 instead of the 67 lines that are missing.
+Only one of the four is visible to a user, and it is in production: the settings popover opens on top of the rail's last pixels and hides its border.
+
+`stray.spec.ts` is deleted rather than committed, and the two rows it named are left for a person.
+
+- Committed, it would have run once in the `e2e-dev` job on this merge, removed `e2e no context library mubfznnp-85` and `e2e no context library mubhvsa0-85`, and then asserted for the rest of its life that two names which can never exist again are absent.
+  That is a test that cannot fail for a reason that matters, which is the same objection that retired `toPass` and the `data-marked` handle, and `docs/checks/e2e-worth.md` asks a spec to drive a flow and assert what the screen shows.
+- The alternative reading, that it is a migration rather than a test, is the honest one, and a migration does not belong in `tests/e2e/` where every future run pays for it and every future reader has to decode it.
+- The rows are cosmetic: every helper resolves a row by exact name and every count in the suite is relative, so nothing in the suite or the product is affected by their presence.
+  They cost two deletions through the row's own menu, which is the same action the spec performed.
+- What actually matters is that no new ones appear, and that is the cleanup guard in this same commit rather than anything a sweep could do.
+
