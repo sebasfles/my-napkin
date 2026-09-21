@@ -40,6 +40,8 @@ const LibraryPanelTrigger = dynamic(
   { ssr: false },
 );
 
+type SceneUpdate = Parameters<ExcalidrawImperativeAPI["updateScene"]>[0];
+
 interface LoadedScene {
   id: string;
   scene: Scene;
@@ -56,9 +58,27 @@ export function Editor({ itemId }: { itemId: string }) {
   const [loaded, setLoaded] = useState<LoadedScene | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [live, setLive] = useState<{ id: string; hint: LibraryCanvasHint } | null>(null);
+  const [fetchedFor, setFetchedFor] = useState(itemId);
+  const [painted, setPainted] = useState<LoadedScene | null>(null);
+
+  // `loaded` is the scene as it was when the canvas was opened, and the canvas has been drawn on
+  // since: kept across a navigation it would paint over newer work and then save what it painted.
+  // Every visit fetches.
+  if (fetchedFor !== itemId) {
+    setFetchedFor(itemId);
+    setLoaded(null);
+  }
 
   const shown = loaded !== null && loaded.id === itemId ? loaded : null;
   const failing = failed === itemId || listFailed;
+  const library = shown !== null && shown.urls.items !== undefined;
+
+  const open = items.find((item) => item.id === itemId) ?? null;
+  const openLock = open === null ? null : isDiagram(open) ? isLocked(open) : false;
+  const locked = openLock ?? shown?.urls.locked ?? true;
+  // Only a diagram inserts from a library, and the workspace list knows which kind this is before
+  // the scene lands, so the trigger settles on the click rather than on the fetch.
+  const panel = !locked && (open !== null ? isDiagram(open) : shown !== null && !library);
 
   useEffect(() => {
     let active = true;
@@ -95,12 +115,28 @@ export function Editor({ itemId }: { itemId: string }) {
     };
 
     // updateScene's public signature demands every AppState key it is given; a stored scene carries a few
-    api.updateScene(swap as Parameters<ExcalidrawImperativeAPI["updateScene"]>[0]);
+    api.updateScene(swap as SceneUpdate);
     api.addFiles(Object.values(shown.scene.files));
     api.history.clear();
+
+    // updateScene hands the scene over, the editor paints its canvas on a frame of its own, and
+    // lifting the cover before that paint lands leaves one frame of bare chrome over a canvas
+    // with nothing on it: the very frame this task exists to remove.
+    const frame = requestAnimationFrame(() => setPainted(shown));
+
+    return () => cancelAnimationFrame(frame);
   }, [api, shown]);
 
-  const library = shown !== null && shown.urls.items !== undefined;
+  // The package reads viewModeEnabled off the prop only when the prop itself changes, so the reset
+  // above, which restores the package's defaults, hands a locked canvas its tools back. Only while
+  // nothing is shown: that is where the reset happens, and the one window with no saver to hear
+  // the onChange this provokes.
+  useEffect(() => {
+    if (api === null || shown !== null) return;
+
+    const view: SceneData = { appState: { viewModeEnabled: locked } };
+    api.updateScene(view as SceneUpdate);
+  }, [api, locked, shown]);
 
   const onScene = useCallback((id: string, changed: Scene) => {
     setLive((current) => {
@@ -116,13 +152,6 @@ export function Editor({ itemId }: { itemId: string }) {
     [library, shown],
   );
   const hint = !library || shown === null ? null : live?.id === shown.id ? live.hint : stored;
-
-  const open = items.find((item) => item.id === itemId) ?? null;
-  const openLock = open === null ? null : isDiagram(open) ? isLocked(open) : false;
-  const locked = openLock ?? shown?.urls.locked ?? true;
-  // Only a diagram inserts from a library, and the workspace list knows which kind this is before
-  // the scene lands, so the trigger settles on the click rather than on the fetch.
-  const panel = !locked && (open !== null ? isDiagram(open) : shown !== null && !library);
 
   const renderTopRightUI = useCallback(() => (panel ? <LibraryPanelTrigger /> : null), [panel]);
   const onDropCapture = useLibraryFileDrop(itemId, api);
@@ -156,7 +185,7 @@ export function Editor({ itemId }: { itemId: string }) {
           />
         )}
         {hint === null ? null : <LibraryHints hint={hint} />}
-        {shown !== null ? null : (
+        {shown !== null && painted === shown ? null : (
           <CanvasCover testId={failing ? "canvas-failed" : "canvas-loading"}>
             {failing ? t("loadFailed") : t("loading")}
           </CanvasCover>

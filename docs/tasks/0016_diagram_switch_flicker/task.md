@@ -140,3 +140,91 @@ I will also check in review:
 - The new e2e fails on the unfixed component for the reason it names, the way phase 4's did.
 
 ## om-developer notes
+
+### Round 1, 2026-09-20
+
+Written and committed by the session before this one, at 72dc10b, and never verified: no `verify.log`, no build, no suite.
+What it changed is in its commit message.
+The three defects found in round 2 were all in it, and none of them is reachable by lint, typecheck or a unit test.
+
+### Round 2, 2026-09-21
+
+Rebased on `origin/develop` at 68f7cd4 (0012 phase 3).
+Only `editor.tsx` conflicted.
+Phase 3's library panel, its trigger, the drop wrapper and the `napkin-editor` class now live in the one editor instance that survives a switch.
+
+Decisions the plan did not record:
+
+- `panel` is derived from the workspace list (`isDiagram(open)`) rather than from the scene on screen, the same argument round 1 used for `locked`.
+  The list knows which kind of canvas this is at the click, so the trigger settles then instead of at the end of the fetch, and `LibraryPanel` is never mounted for a library canvas.
+- `LibraryPanel` is keyed by `diagramId`.
+  The remount used to reset everything inside it; now that the editor around it survives, its failure line and its open dialog would travel to the next diagram.
+  The key is that reset, made explicit, and nothing more.
+- Round 1's `import { CaptureUpdateAction } from "@excalidraw/excalidraw"` is replaced by the literal `captureUpdate: "NEVER"`, which is the same type (`CaptureUpdateActionType` is `ValueOf<typeof CaptureUpdateAction>`).
+  `editor.tsx` is server rendered (`/d/[id]` is `ƒ` in the build output), and `docs/modules/app/ard.md` 2026-09-17 "Excalidraw loaded client-side only" forbids reaching that package outside a `dynamic(ssr: false)`.
+  Line 27's lazy import is again the only path to it.
+- `docs/TRD.md` verification table: the app unit row is now `npx vitest run --no-file-parallelism`, approved by the om-manager, for Sebastian's standing rule that suites run serially so memory does not overflow.
+
+Three defects in round 1, each found by running it, each fixed and then green three runs in a row:
+
+- Switching to a locked canvas left it editable.
+  `resetScene` puts the whole appState back to the package's defaults, `viewModeEnabled` included, and the package copies that prop into state only when the prop itself changes, never when its state drifts from it.
+  With the remount gone nothing re-applied it.
+  View mode is asserted again after the reset and only while nothing is shown, which is where the wipe happens and the one window with no saver mounted: every `updateScene` provokes an `onChange`, and one that reaches a saver on open uploads a scene nobody edited.
+- The first shape drawn after a switch could wipe the canvas it was drawn on.
+  `loaded` is the scene as it was fetched when the canvas was opened, and it survived a navigation, so leaving a canvas and coming back inside the next fetch painted that old snapshot with no cover, and the next stroke saved it over everything drawn since.
+  One measured run fetched a rectangle at version 14 and uploaded a different rectangle at version 7: the stored shape was gone.
+  This is the stale-scene hazard `Context & decisions` rejected a cache for, arriving through a cache of one that nobody meant to keep.
+  `loaded` is now dropped when the route leaves the canvas.
+  The remount hid it, since `initialData` is read at mount only and a stale `loaded` was never applied.
+- One painted frame of bare chrome on a switch, about one run in three.
+  `updateScene` hands the scene over and the editor paints its canvas on a frame of its own, while the cover was lifted in the same commit as the swap.
+  The cover now lifts a frame after it.
+
+Round 1's own lock test is what caught the first of those, which is what a guard test is for: it was written to stop the fix buying a persistent instance at the cost of something else, and that is exactly what it found.
+
+A fourth thing, found by the suite rather than by the production build.
+`locale.spec.ts` drew a rectangle after a reload and waited for the save indicator, which was never created: the stroke never reached the canvas.
+`.excalidraw` is on screen now before the scene is fetched, where before this task the editor was not mounted until the scene was there, so "the editor is visible" has stopped meaning "you can draw on it".
+The spec had been racing the cover and winning until the cover began to last one frame longer.
+Fixed in `canvasBox()` in `helpers.ts` rather than in the spec, so every canvas gesture waits for the cover to go, which is the only thing a person can do too.
+Other specs were certainly winning that race by luck; this closes the class rather than the instance.
+
+What that fallout really is, and it belongs in the ARD entry rather than in a note about `canvasBox()`:
+this task changed what "the editor is visible" means for every spec in the suite.
+Before it, `.excalidraw` could not exist until the scene was there, so visible implied drawable.
+Now the chrome is up while the scene is still in flight, deliberately, because that is what Sebastian asked for.
+Every spec written from here inherits that, and the ones that get it wrong fail intermittently and read as flakes.
+
+Two consequences of those fixes, worth knowing before touching this again:
+
+- The cover is load-bearing, not decoration.
+  It holds the pointer off a canvas that is still being fetched, which is what stops a stroke landing on a scene about to be replaced.
+  Two specs were drawing into that window and now wait for the cover to go, the way a person would.
+- `inspect` in `editor-switch.spec.ts` gained one assertion: every switch shows the cover in at least one sampled frame.
+  That is "every switch fetches, nothing is kept from the last visit" made observable, and it is what goes red on the second defect.
+
+Verified on a local production build, out of `verify.log` and separate from the suite, because `npm run dev` and `next start` are not interchangeable for this measurement (0011 phase 4 measured 271ms in production against 367 to 441ms in dev):
+`editor-switch.spec.ts` against `npm run build && npm run start` with `BASE_URL=http://localhost:3000`, five tests, three consecutive green runs.
+That run is what `Approach` asked for and what this round nearly treated as a formality.
+It found three defects, none of them reachable by lint, typecheck or a unit test, one of them silent data loss.
+It has earned its place in the recipe.
+
+The one assertion in that spec never shown failing, checked once and kept out of `verify.log`:
+with the cover moved from `z-[3]` to `z-[50]`, above the package's `--zIndex-layerUI: 4`, the `covered` probe went red on all three switches and named both `.excalidraw .App-toolbar` and `.napkin-library-trigger`.
+Reverted, and `git diff` carries no z-index line.
+
+The library panel against the cover, which is what the check above was for:
+`.excalidraw .sidebar` is `z-index: 5` and the trigger rides the UI layer at 4, so neither can ever sit under a cover at 3.
+The panel cannot be open during a switch anyway, for two independent reasons in the package: its own outside-click handler closes it, and the tab bar and the app sidebar are both outside it; and `resetScene` resets `openSidebar` with the rest of the appState.
+It closed on every switch before this task too, through the remount.
+The probe carries `.napkin-library-panel` regardless, so it arms itself if the panel is ever made to survive one.
+
+Deferred, not this task:
+
+- `useCanvasSave`'s cleanup does `flush()` then `stop()`, and `stop()` mutes the success callback, so a saver recreated while dirty uploads correctly and leaves the save indicator reading "Saving" until the next edit.
+  The saver is rebuilt whenever `items` changes identity, which every save does, so this is reachable on develop today.
+  Deferred by the om-reviewer, who kept this pull request to the swap and its fallout rather than widening it into the saver's state machine.
+  It wants a task of its own rather than a queue position, for the reason that makes it worse than a wrong label: it *masked* the second defect, turning data loss into a stuck indicator.
+- Making the library panel survive a switch, which would need `openSidebar` restored after `resetScene`.
+  It is a change in behaviour rather than a repair, and the click that starts a switch closes the panel before any of our code runs.

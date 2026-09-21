@@ -2,9 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   activeTab,
   diagramItem,
+  drawFrame,
   drawRectangle,
   fixTab,
+  libraryItem,
   newDiagram,
+  newLibrary,
   openApp,
   openItemMenu,
   pasteImage,
@@ -24,7 +27,7 @@ interface SwitchFrame {
   splash: string | null;
   placeholder: string | null;
   chrome: boolean;
-  covered: boolean;
+  covered: string[];
   loader: boolean;
   ink: number;
 }
@@ -67,15 +70,24 @@ function sample() {
     return 64 * 64 - most;
   };
 
-  const covered = (): boolean => {
-    const toolbar = document.querySelector(".excalidraw .App-toolbar");
-    if (toolbar === null) return false;
+  // Every piece of editor chrome that has to stay reachable while the cover is up. The cover is
+  // kept under the package's UI layer by z-index alone, so a package bump or a raised cover would
+  // bury all of it at once; the panel is here for the day it survives a switch, and reads as
+  // absent until then.
+  const chrome = [".excalidraw .App-toolbar", ".napkin-library-trigger", ".napkin-library-panel"];
 
-    const box = toolbar.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  const covered = (): string[] =>
+    chrome.filter((selector) => {
+      const node = document.querySelector(selector);
+      if (node === null) return false;
 
-    return hit === null || !toolbar.contains(hit);
-  };
+      const box = node.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) return false;
+
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+
+      return hit === null || !node.contains(hit);
+    });
 
   const read = () => {
     const editor = document.querySelector('[data-testid="editor"]');
@@ -164,6 +176,45 @@ async function idOf(page: Page, name: string): Promise<string> {
   return page.url().split("/d/")[1] ?? "";
 }
 
+function inspect(label: string, seen: SwitchFrame[]) {
+  expect(seen.length, `${label}: the sampler watched the switch happen`).toBeGreaterThan(0);
+
+  expect
+    .soft(
+      seen.filter((frame) => frame.splash !== null),
+      `${label}: Excalidraw's own loading splash never paints on a switch`,
+    )
+    .toEqual([]);
+
+  expect
+    .soft(
+      seen.filter((frame) => frame.placeholder !== null),
+      `${label}: the app's full-area loading paragraph never paints on a switch`,
+    )
+    .toEqual([]);
+
+  expect
+    .soft(
+      seen.filter((frame) => frame.chrome && frame.ink === 0 && !frame.loader),
+      `${label}: no frame shows the editor chrome over an empty canvas without the canvas loader covering it`,
+    )
+    .toEqual([]);
+
+  expect
+    .soft(
+      seen.filter((frame) => frame.covered.length > 0),
+      `${label}: the canvas cover never sits over the editor's chrome, so the tools and the library trigger stay visible and clickable while a scene loads`,
+    )
+    .toEqual([]);
+
+  expect
+    .soft(
+      seen.filter((frame) => frame.loader).length,
+      `${label}: the cover was on screen while the scene was fetched, which is what says the canvas on screen was fetched for this visit and not kept from the last one`,
+    )
+    .toBeGreaterThan(0);
+}
+
 test.describe("switching between open canvases", () => {
   test.afterEach(async ({ page }) => {
     await removeItemsCreatedHere(page);
@@ -195,37 +246,10 @@ test.describe("switching between open canvases", () => {
       "the ink instrument reads nothing on a canvas that was just drawn on and saved: the measurement is broken, not the app",
     ).toBeGreaterThan(0);
 
-    const inspect = (label: string, seen: SwitchFrame[]) => {
-      expect(seen.length, `${label}: the sampler watched the switch happen`).toBeGreaterThan(0);
-
-      expect
-        .soft(
-          seen.filter((frame) => frame.splash !== null),
-          `${label}: Excalidraw's own loading splash never paints on a switch`,
-        )
-        .toEqual([]);
-
-      expect
-        .soft(
-          seen.filter((frame) => frame.placeholder !== null),
-          `${label}: the app's full-area loading paragraph never paints on a switch`,
-        )
-        .toEqual([]);
-
-      expect
-        .soft(
-          seen.filter((frame) => frame.chrome && frame.ink === 0 && !frame.loader),
-          `${label}: no frame shows the editor chrome over an empty canvas without the canvas loader covering it`,
-        )
-        .toEqual([]);
-
-      expect
-        .soft(
-          seen.filter((frame) => frame.covered),
-          `${label}: the canvas cover never sits over the toolbar, so the tools stay visible and clickable while a scene loads`,
-        )
-        .toEqual([]);
-    };
+    await expect(
+      page.locator(".napkin-library-trigger"),
+      "the library trigger is the chrome watched beside the toolbar: off screen, the cover probe would be matching nothing",
+    ).toBeVisible();
 
     const stillThere = async () =>
       before.evaluate((node) => node.isConnected && node === document.querySelector(".excalidraw"));
@@ -255,6 +279,67 @@ test.describe("switching between open canvases", () => {
       )
       .toBe(true);
     inspect("from the sidebar", frames.slice(fromSidebar));
+
+    // Away and back without waiting for the first scene. What was fetched for a canvas is not
+    // kept for the way back: the canvas would paint what it held when it was opened, and the
+    // next stroke would save that over everything drawn since.
+    const andBack = frames.length;
+    await tab(page, first).getByRole("link").click();
+    await expect(activeTab(page)).toContainText(first);
+    await tab(page, second).getByRole("link").click();
+    await expect(activeTab(page)).toContainText(second);
+    await page.waitForTimeout(settle);
+
+    expect
+      .soft(
+        await stillThere(),
+        "and the same node after leaving a canvas and coming straight back to it",
+      )
+      .toBe(true);
+    inspect("away and straight back", frames.slice(andBack));
+  });
+
+  // A library opens in this same editor surface, and only a diagram can be locked. Read the lock
+  // off the scene on screen instead of off the list and a switch to a library reads as locked for
+  // the length of its fetch, which puts the editor in view mode and takes the tools off screen and
+  // back: the flicker this task exists to remove, in a second place.
+  test("keeps the tools on screen across a switch between a diagram and a library", async ({
+    page,
+  }) => {
+    await openApp(page);
+
+    const diagram = await newDiagram(page, "switch kind diagram");
+    await drawRectangle(page, 0.3);
+    await expect(saveIndicator(page)).toHaveText(savedText, { timeout: awsTimeout });
+    await fixTab(page, diagram);
+
+    const library = await newLibrary(page, "switch kind library");
+    await drawRectangle(page, 0.55);
+    await drawFrame(page, 0.25);
+    await expect(
+      libraryItem(page, library),
+      "the library canvas holds a saved frame, so the switch back to it has something to paint",
+    ).toHaveAttribute("data-items", "1", { timeout: awsTimeout });
+    await fixTab(page, library.name);
+
+    const frames = await watchSwitch(page);
+
+    const toDiagram = frames.length;
+    await tab(page, diagram).getByRole("link").click();
+    await expect(activeTab(page)).toContainText(diagram);
+    await page.waitForTimeout(settle);
+    inspect("from a library to a diagram", frames.slice(toDiagram));
+
+    const toLibrary = frames.length;
+    await tab(page, library.name).getByRole("link").click();
+    await expect(activeTab(page)).toContainText(library.name);
+    await page.waitForTimeout(settle);
+    inspect("from a diagram to a library", frames.slice(toLibrary));
+
+    expect(
+      frames.filter((frame) => !frame.chrome),
+      "no frame of either switch is missing the toolbar: a library is never locked, so neither switch may read as locked while its scene loads",
+    ).toEqual([]);
   });
 
   test("binds the saver to the canvas that received the change, not the one left behind", async ({
@@ -278,6 +363,10 @@ test.describe("switching between open canvases", () => {
     await tab(page, second).getByRole("link").click();
     await expect(activeTab(page)).toContainText(second);
     await expect(page.locator(".excalidraw .App-toolbar")).toBeVisible({ timeout: awsTimeout });
+    await expect(
+      page.getByTestId("canvas-loading"),
+      "the scene is on screen before a stroke is drawn on it: the cover holds the pointer off a canvas that is still being fetched, as it does for a person",
+    ).toHaveCount(0, { timeout: awsTimeout });
 
     await drawRectangle(page, 0.75);
     await expect(saveIndicator(page)).toHaveText(savedText, { timeout: awsTimeout });
