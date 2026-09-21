@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: database
@@ -28,6 +28,8 @@ None. This module is the only one that reads or writes the `diagrams` table and 
 
 ## Invariants kept in code
 
+- A stored scene carries only the files its elements reference: `toScene` prunes the rest on the way out, so a scene object never holds a blob no drawing on it uses, and an image deleted from a canvas takes its blob with it on the next save.
+  The pruning is a pure function of the elements and files in the report it is given, which is what lets the saver rebase its baseline on the first report after opening without uploading anything.
 - One table holds three kinds of item, told apart by `kind`: absent or `"diagram"` means a diagram, `"folder"` a folder, `"library"` a library.
   `isDiagram` asks that question rather than meaning "not a folder", which is what keeps a library out of the folder listing, the pinned section, the Move dialog's choices and a folder's delete cascade.
   A folder owns no object of either kind, so POST writes none for it and `/urls` answers 404, which keeps the next invariant literally true.

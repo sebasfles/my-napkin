@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-09-21
+source: 0016_diagram_switch_flicker
 ---
 
 # app: product
@@ -67,6 +67,8 @@ The interface starts in the browser's language, Spanish or English, and in its l
 4. The keyboard reaches the tabs while the user is drawing: Alt and a digit jumps to that tab, Alt+Shift with an arrow moves to the next or the previous one, Alt+W closes.
    Nothing the editor binds is taken away.
 5. A tab whose diagram was deleted closes itself, including every tab a deleted folder took with it.
+6. Moving between two open canvases repaints the drawing and nothing else: the sidebar, the tab bar and the editor's own tools stay where they are, and while the next drawing is on its way a quiet loader covers the canvas area alone.
+   The user leaves the diagram he was on the moment he clicks, so no canvas is ever shown under another one's tab, and the loader is also what tells him the canvas is not his to draw on yet.
 
 ### Build a library
 

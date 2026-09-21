@@ -228,3 +228,12 @@ Deferred, not this task:
   It wants a task of its own rather than a queue position, for the reason that makes it worse than a wrong label: it *masked* the second defect, turning data loss into a stuck indicator.
 - Making the library panel survive a switch, which would need `openSidebar` restored after `resetScene`.
   It is a change in behaviour rather than a repair, and the click that starts a switch closes the panel before any of our code runs.
+
+Cut by the om-reviewer when Sebastian asked for the pull request, recorded here rather than left silent:
+
+- The heavier fixture for a before and after recording, so Acceptance 3 ships without a visually meaningful one.
+  The assertions are the proof; the recording would have shown a paint that is below the threshold the eye catches at these scene sizes.
+- Any further assertion, spec or run beyond the suite that produced the last block of `verify.log`.
+
+`verify.log` is written at `docs/tasks/0016_diagram_switch_flicker/verify.log` and is not in the commit: `.gitignore` carries `*.log`, so this repo has never tracked one.
+It lives in the workspace for the om-reviewer to audit.

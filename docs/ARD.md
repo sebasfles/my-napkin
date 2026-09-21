@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-20
+updated: 2026-09-21
 source: 0012_libraries
 ---
 
@@ -118,6 +118,11 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | A move is validated against a read of the table and then written without a condition, so two concurrent moves could build a cycle | A second writer appears, human or automated |
 | app | 2026-09-20 | An unknown id in the address is navigated away by both the editor's 404 branch and the tab reconciliation, so a stale bookmark can produce two replaces | A third place navigates on the workspace changing, or the double replace lands somewhere wrong |
 | app | 2026-09-20 | The palette is duplicated outside the tokens, in `theme-colors.ts`, `icon.svg` and `scripts/icons.mjs`, since a meta tag, a manifest and a favicon cannot reach a CSS variable | The palette is retuned, or a second brand colour appears outside the document |
+| app | 2026-09-21 | The editor instance outlives every scene it shows, so anything the package derives from mount is ours to reset, `resetScene` included | The package exposes a scene swap that resets what a remount resets |
+| app | 2026-09-21 | `viewModeEnabled` is asserted by hand after every reset, since the package follows the prop and not its state; a second prop-derived appState key needs the same | The package syncs a prop against state, or a second such key is added |
+| app | 2026-09-21 | The cover lifts on the next animation frame rather than on a paint the editor confirms, so a heavy enough scene could still show one bare frame | The package reports when it has painted, or a scene paints slowly enough to matter |
+| app | 2026-09-21 | `toScene` prunes files on write, which disagrees with the debt that a stored scene keeps the shape it was written in, about files alone | A second normalization on write is wanted |
+| app | 2026-09-21 | A saver recreated while dirty uploads and never reports it, so the indicator can read "Saving" for a save that has landed | Its own task, already asked for |
 | app | 2026-09-20 | `src/lib/api.ts` leaves for `/login` on a 401 with a full page `window.location.assign`, which can move the page while something else is driving it | `api.ts` gains a client boundary, or the lint warning is upgraded to an error |
 | app | 2026-09-20 | A library created and never opened has no `items.json`, so a reader must treat its absence as no items | A second writer needs the items file before the browser has saved |
 | app | 2026-09-20 | A scene-only PATCH carries no kind condition, so the API would take diagram counts on a library although no UI can send them | A second client writes to this API |
