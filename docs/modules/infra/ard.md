@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0013_e2e_dev_red
+updated: 2026-09-21
+source: 0018_lambda_libraries_grant
 ---
 
 # infra: architecture and debt
@@ -121,3 +121,15 @@ source: 0013_e2e_dev_red
 - Revisit when: the app needs a public file that cannot live under one prefix, or CloudFront gains a way to fall through to the origin on a bucket miss.
 - Source: 0013_e2e_dev_red
 
+## 2026-09-21: the Lambda's S3 grant is derived from one declared list of prefixes
+
+- Decision: `stacks/app/compute.tf` declares `scenes_bucket_prefixes = ["scenes", "libraries"]` and the role's S3 statement builds one `{bucket}/{prefix}/*` resource per entry, same three actions as before.
+  A prefix the app writes is granted by adding it to that list; nothing else in the bucket is reachable from the Lambda.
+- Alternatives rejected: a second statement per prefix, written by hand each time one appears; granting the whole bucket with `/*`.
+- Reason: 0012 added `libraries/{id}/` in the app and shipped without its grant, because locally the `personal` profile is an admin and the suite never meets the role.
+  On dev every library create failed: the server logged `AccessDenied` on `s3:PutObject` for `libraries/{id}/scene.json` (2026-09-20 22:12Z, `deploy-dev.yml` runs 35540680158 and 35542288597) and the suite timed out waiting for the library's URL.
+  One list gives the next prefix a single obvious place next to the statement it feeds, and task 0019 reads that same list from a unit test so `s3.ts` cannot build a key outside it.
+  The whole bucket is not granted because the grant is the one place that says what the app writes; a stray key builder should fail there, visibly, not succeed by accident.
+- Debt created: until 0019 lands, the list and the key builders in `s3.ts` are two copies of the same fact kept aligned by hand.
+- Revisit when: the app writes to a second bucket, or 0019 moves the list.
+- Source: 0018_lambda_libraries_grant
