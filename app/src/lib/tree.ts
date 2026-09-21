@@ -51,6 +51,19 @@ export function pathTo(items: Item[], folderId: ParentId): Folder[] | null {
   return path;
 }
 
+export interface Crumbs {
+  hidden: Folder[];
+  shown: Folder[];
+}
+
+const collapseFromDepth = 3;
+
+export function crumbs(path: Folder[]): Crumbs {
+  if (path.length < collapseFromDepth) return { hidden: [], shown: path };
+
+  return { hidden: path.slice(0, -1), shown: path.slice(-1) };
+}
+
 export function currentFolder(items: Item[], folderId: ParentId): ParentId {
   return pathTo(items, folderId) === null ? null : folderId;
 }

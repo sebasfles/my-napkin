@@ -295,7 +295,7 @@ function MoveForm({
         data-testid="move-choices"
       >
         <MoveChoice
-          name={t("diagrams")}
+          name={t("home")}
           icon={<Home aria-hidden className="size-4 text-muted-foreground" />}
           depth={0}
           selected={target === null}
@@ -388,7 +388,7 @@ export function InfoDialog({
             <Field
               label={t("infoPath")}
               testId="info-path"
-              value={folderPath(items, parentOf(diagram), t("diagrams"))}
+              value={folderPath(items, parentOf(diagram), t("home"))}
             />
             <Field
               label={t("infoCreated")}

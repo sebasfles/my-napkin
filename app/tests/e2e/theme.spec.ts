@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { newDiagram, openApp, removeItemsCreatedHere } from "./helpers";
+import { newDiagram, openApp, openSettings, removeItemsCreatedHere } from "./helpers";
 
 const names = {
   system: "Follow the system theme",
@@ -33,6 +33,7 @@ test.describe("theme", () => {
   }) => {
     await openApp(page);
     await newDiagram(page, "theme");
+    await openSettings(page);
 
     await expect(option(page, "system")).toBeVisible();
     await expect(option(page, "light")).toBeVisible();
@@ -56,6 +57,7 @@ test.describe("theme", () => {
 
     await page.reload();
     await expect(page.locator(".excalidraw")).toBeVisible();
+    await openSettings(page);
     await expect(option(page, "light")).toBeChecked();
     await expectLight(page);
 

@@ -113,3 +113,42 @@ Consolidated 2026-09-21 with Sebastian through the om-manager.
 - The rail neither remounts nor changes width when the panel opens.
 
 ## om-developer notes
+
+### Round 1
+
+Built the rail and the panel as `Context & decisions` sets them out.
+`sidebar.tsx` is now the shell alone: it reads the layout and places `sidebar-rail.tsx` beside `sidebar-panel.tsx`.
+One cookie, `napkin.shell-layout`, carries both the panel and the section, parsed by the pure `lib/shell-layout.ts` and read on the server in `(editor)/layout.tsx`; `use-sidebar-collapsed.ts`, `use-sidebar-section.ts` and `sidebar-cookie.ts` are gone.
+The settings popover, the HOME crumb and the new collapsing rule are in, with `crumbs()` in `tree.ts` as the rule and a unit test per level.
+
+Decisions this round took that `Approach` and `Context & decisions` did not already record.
+
+- The panel's diagrams section is ordered heading, then the pinned block when there is one, then the breadcrumb row and the list.
+  `Context & decisions` puts the breadcrumb on a row of its own below the heading row and says nothing about where pinned goes.
+  Putting pinned between them keeps the breadcrumb immediately above the list it names, which is the list it navigates; the alternative separates them by the whole pinned block.
+- The store's snapshot is the cookie string, not the parsed object.
+  `useSyncExternalStore` compares snapshots by identity, so returning a fresh object each read is an infinite render; the string is a primitive and the parse is a `useMemo` over it.
+- `shortcuts.ts` renames its variant `toggleSidebar` to `toggleSidebarPanel`.
+  The chord no longer toggles the sidebar, which never leaves; it toggles the panel, and the tagged table is the one place that says what a chord means.
+- `SidebarRail` takes no `panel` prop at all, so the rail cannot vary with the panel by construction rather than by care.
+  That is Acceptance 1, and the first pass proved it needs enforcing: the rail had been marking its section only while the panel was open, where `develop` marks it in both states.
+- The open and closed state reaches the suite as `data-section` beside `data-collapsed` on the shell, not as `aria-expanded` on the icon.
+  `aria-expanded` would have been repainted by the ghost variant's own `aria-expanded:bg-muted` (`ui/button.tsx:17`), which outranks `bg-sidebar-accent` by specificity, so an open section would have looked different from a closed one and reintroduced the defect above through styling.
+- `LogoutButton` is a labelled full-width row and lost its tooltip.
+  In a popover there is room for the word, and an icon with no label among labelled rows reads like an accident.
+- The two effects that keep the sidebar's folder following the open diagram live in the shell, not in the panel.
+  The panel unmounts while the rail stands alone, and the folder has to keep following whether or not anything is showing it.
+- `scene-save.ts` exports `defaultDebounceMs`.
+  The e2e cleanup has to wait out the saver's debounce before it can trust the "Saved" indicator, and an imported constant cannot drift from the value the product obeys the way a copy of `1500` in a helper would.
+- The root of the tree reads HOME in the Move and Info dialogs as well as in the breadcrumb.
+  Asked for live by Sebastian through the om-reviewer after the first pass, which also moved the two labels in `folders.spec.ts` that name it.
+- This round was committed on green lint, typecheck and unit, with the full suite still to run, so that the PR could be opened in draft while it ran.
+  Asked for live by Sebastian through the om-reviewer; the om-reviewer states the pending verification in the PR description, and the suite's block is appended to `verify.log` after it.
+
+Deferred, not done here.
+
+- A row's menu can jump or close under the user when the autosave lands, because the list sorts by `updatedAt` and the row moves beneath an open menu.
+  Deduced from the first pass's failure and from `childrenOf`, not observed in a browser.
+  It belongs in the debt index at `document-task`, to revisit when someone reports the menu closing or the list stops sorting by `updatedAt`.
+- The e2e cleanup's wait for a settled save is skipped when the open diagram's row is not in the folder being cleaned, since there is no indicator to read.
+  The om-reviewer accepted that guard; the case it covers is the one that failed.

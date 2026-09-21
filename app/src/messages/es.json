@@ -6,8 +6,7 @@
   "sidebar": {
     "title": "My Napkin",
     "diagrams": "Diagramas",
-    "collapse": "Contraer la barra lateral",
-    "expand": "Desplegar la barra lateral",
+    "home": "Inicio",
     "shortcut": "Alt+B",
     "libraries": "Bibliotecas",
     "pinned": "Fijados",
@@ -70,7 +69,9 @@
     "sections": "Secciones del espacio",
     "renameLibrary": "Renombrar biblioteca",
     "deleteLibraryTitle": "¿Eliminar esta biblioteca?",
-    "deleteLibraryBody": "{name} y sus elementos se eliminan definitivamente. Los diagramas conservan todo lo que ya insertaron de ella. Esto no se puede deshacer."
+    "deleteLibraryBody": "{name} y sus elementos se eliminan definitivamente. Los diagramas conservan todo lo que ya insertaron de ella. Esto no se puede deshacer.",
+    "settings": "Ajustes",
+    "language": "Idioma"
   },
   "tabs": {
     "label": "Diagramas abiertos",
