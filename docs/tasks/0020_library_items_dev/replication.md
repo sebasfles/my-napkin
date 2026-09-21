@@ -33,4 +33,34 @@ Locally, through `npm run dev` with the admin profile, both pass.
 
 ## om-developer confirmation
 
+2026-09-21, on `b2f2331` as deployed to dev. Reproduced.
+
+Not by re-running the steps: no agent on this machine may run Playwright against dev, and the
+reproduction did not need it, because run 35630985274 left the evidence behind and the scenes
+bucket is versioned, so the delete markers the suite's cleanup wrote hid nothing.
+
+For `2952a1f5-1aad-4f01-baa4-0f1106000916`, the library of `library-insert.spec.ts:29`:
+
+| time | object | bytes | what wrote it |
+|---|---|---|---|
+| 17:24:55 | `scene.json` | 40 | the POST, `libraryStore.createEmpty` |
+| 17:24:56 | `scene.json`, `items.json` | 2241, 2753 | the import, both correct |
+| 17:24:57 | `scene.json`, `items.json` | 128, 112 | a second save that emptied both |
+| 17:25:24 | both | delete markers | the suite's cleanup |
+
+The 112-byte file is `"libraryItems": []`. The same shape on the other three libraries of the run:
+`8042c921` 2755 then 112, `cca10d54` 2753 then 112, `b7b97fe3` 2755 then 112, each one to two
+seconds apart.
+
+So the steps' `Observed` is confirmed and its reading is not: the panel shows 0 items because the
+library really does hold 0 by then, not because anything failed to read it. The import writes
+correctly on dev and the app destroys what it wrote about a second later.
+
+Two details name the writer. Only `writeLibrary` writes `scene.json` and `items.json` together, so
+the second write came through the editor's saver. Its appState is `scrollX: 0, scrollY: 0,
+zoom: 1`, the package's defaults after `resetScene`, where `writeImportedLibrary` writes
+`libraryLayout.clearOfTheEditorChromeX/Y`, and it carries `viewBackgroundColor` and `gridSize`,
+which `emptyScene()` does not have. The scene that was saved is the editor's own empty one, read
+back out of the live instance by `toScene`, not an `emptyScene()` written by any route.
+
 ## om-reviewer verification

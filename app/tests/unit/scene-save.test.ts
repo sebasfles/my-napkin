@@ -518,3 +518,33 @@ describe("createSceneSaver", () => {
     expect(statuses).toEqual(["saving"]);
   });
 });
+
+// These pin the hazard, not its fix, which is upstream in `canSaveCanvas`. Do not relax them to
+// stop a real save being dropped without reading `docs/modules/app/ard.md` first.
+describe("what an emptied report costs, once it reaches the saver", () => {
+  const emptied: Scene = { elements: [], appState: { scrollX: 0, scrollY: 0 }, files: {} };
+
+  it("uploads over a non-empty baseline, on the opening report, with nothing to undo it", async () => {
+    const { saver, put } = setup();
+
+    saver.change(emptied);
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(put.mock.calls[0][1]).toBe(JSON.stringify(emptied));
+  });
+
+  it("uploads nothing on a canvas that was already empty, which is what spares a new diagram", async () => {
+    const { saver, put } = setup({
+      baseline: {
+        serialized: JSON.stringify({ elements: [], appState: {}, files: {} }),
+        version: 0,
+      },
+    });
+
+    saver.change(emptied);
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(put).not.toHaveBeenCalled();
+  });
+});
