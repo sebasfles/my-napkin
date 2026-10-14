@@ -151,3 +151,20 @@ Deferred:
 Verify: lint, typecheck and unit green; local e2e 89 of 90, with 0020's four green.
 The red is `library-panel.spec.ts:93`, timing out in its `afterEach` cleanup, which is 0021's defect and out of scope here.
 That timeout probably left its `no context library` diagram row in the dev table, so it goes into the sweep.
+
+### Round 2
+
+Findings applied, both:
+
+1. Sweep, through the row menu of the deployed dev app, of suite-generated names only (`/^e2e .+ [0-9a-z]+-\d+$/`), by an uncommitted spec in `evidence/sweep/` (log in `sweep.log`), run after this round's e2e so it caught what that run left too.
+   Removed 17: libraries `227fd052` (`e2e link mubswb2n-62`) and `b8ed3a7f` (`e2e insert from mubhg6rs-20`); diagrams `60033547`, `ea159ce3`, `33759d73`, `f045804e`, `54272f91`, `7b40d36b`, `3162dc0d`, `3704e94f`, `a74d159c`, `795a02f7`, `20e931b3`, `be3ddff2` (all `e2e no context library ...`, the one from my round 1 run included), `a504671f` (`e2e link elsewhere`), `c58b2a2d` (`e2e link into`), `2896ed46` (`e2e switch lock locked`).
+   Nothing the UI could not delete; 0 suite-named rows left.
+   `e2e locale-es mv7mlfgp-4`, listed before the slot, was already gone when the sweep ran.
+   Left untouched, for Sebastian: 44 default-named diagrams, 43 `Napkin 20092026` (bare and `(2)` to `(43)`, created 2026-09-20 15:26 to 2026-09-21 00:41 UTC) and 1 `Napkin 21092026` (created 2026-09-21 16:51 UTC). They are now the whole dev table.
+2. Rebased on `origin/develop` at `bc5ba67`: one conflict in `lib/editor.ts`, resolved by keeping 0021's `isInEditor` above this task's code; 0021's `data-editor-region` in `editor.tsx` merged clean.
+   The rebase brought in nothing beyond 0021's lines, so the probe pair was not rerun.
+
+Verify at the rebased sha: lint, typecheck, unit (327) and the full local e2e (96 of 96, `library-panel.spec.ts:93` included) green.
+
+Correction to round 1: `verify.log` is ignored by the root `.gitignore` (`*.log`), so it lives only in the worktree; round 1's amend carried the notes alone.
+The `api.ts:152` warning is the recorded `window.location.assign` decision (`docs/modules/app/ard.md`, 2026-09-20), not deferred work.
