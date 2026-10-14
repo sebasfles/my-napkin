@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+source: 0023_rename_dialog_focus
 ---
 
 # app: technical
@@ -156,7 +156,7 @@ Locale and theme are never configured; both are read from the browser and persis
   A local red is worth reading before it is re-run.
 - The repositories are tested with `aws-sdk-client-mock`, the saver with injected ports and fake timers, so the unit suite needs no credentials.
 - A spec removes what it created, through `removeItemsCreatedHere`, and the helpers wait for the sidebar to finish loading before they count anything in it.
-  Every one of those deletes goes through the row's own menu, so no test code computes a payload hash; a library is located by its id, since an import names it after its file and two rows can briefly share a name.
+  Every delete goes through the row's own menu, so the cleanup first closes any dialog of ours a failed case left open over it; a library is located by its id, since an import names it after its file.
 - A spec that means "the first row of the list" scopes its locator to `itemList`.
   The pinned section renders above that list from the same row component and carries the same `data-testid`, so an unscoped first match silently becomes "the first diagram row on the page" the moment anything is pinned.
   Counting a list that has not rendered answers zero, which makes a cleanup pass while leaving rows in the table every other spec and Sebastian share.
