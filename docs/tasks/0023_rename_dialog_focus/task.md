@@ -101,3 +101,37 @@ Review focus beyond the Pipeline: the case is red on `develop` as recorded, the 
 clearance: repo
 
 ## om-developer notes
+
+### Round 1
+
+Done:
+
+- Reproduced on `e0833a2`, with a canvas open and on `/` without one; the trace, the cause and the red runs are in `replication.md#om-developer confirmation`.
+  The lead in `Context & decisions` did not hold: focus never reaches the trigger.
+  The closing row menu focuses its own content when the dialog's overlay appears under the pointer (Radix `onItemLeave`), and the dialog's trap cannot pull focus back because `autoFocus` focused the input before the trap listened, so focus ends on `body`.
+- Fix in `item-dialogs.tsx`: `NameForm`'s input loses `autoFocus`, so the dialog's own focus scope gives it the initial focus with `select: true`.
+  The trap now knows the input and takes focus back (selected again) the moment the menu grabs it; a probe after the fix showed `input -> menu content -> input` within one event and the whole name selected, on both opens, for both suspects.
+  No timer, no `focus()` of ours, nothing in `RowMenu` or `src/components/ui/`; the menu stays `modal={false}` and `onFocusOutside` is untouched.
+- The new-folder dialog shares `NameForm` and gets its empty input focused the same way.
+- Move, Info and Delete never had `autoFocus`, so their trap already won focus back; nothing changed for them.
+- After the dialog closes, focus lands on `body`, as it did on `develop` (traced on both, after Escape and after Cancel).
+- E2E: one case in `item-menu.spec.ts`, run for diagram, folder and library, opening Rename twice per row (Acceptance 1's "every later one").
+  It asserts focus and `selectionStart === 0`, `selectionEnd === value.length` once the menu content is gone, types without a click, presses Enter and waits for the row to show the new name.
+  Red on `develop` for all three kinds at the focus assertion; green on the fix.
+- On the om-reviewer's finding, the case retracks a diagram or folder (new `renamedHere` in `helpers.ts`) and a library's name only once the row shows the new name.
+  The leftover row `e2e menu typed rename mv8bxtnx-1` came from a red run on `develop`: the failed focus assertion left the modal dialog open, so the cleanup could not click the row menu under it.
+  The red runs' leftovers (that diagram, a folder and a library) were deleted through the app, and a probe after the green run found no `e2e menu typed` row at the root or in the libraries.
+
+Decisions the plan did not record:
+
+- The fix sits at the dialog, not the menu: the dialog's focus scope owns initial focus, which is what lets its trap hold focus against any steal while it is open.
+  Stopping the menu's `onItemLeave` instead would need a handler on every item of every row menu and leave any other steal uncorrected.
+  ARD entry in `document-task`.
+
+Deferred:
+
+- `AddToLibraryDialog`'s name input keeps `autoFocus`: it renders after the user picks "new library", not at open, and that dialog is not opened from a row menu, so it does not share this cause.
+  When no library exists it does render at open, and would lose its focus to the same kind of steal; worth checking if it ever opens from a menu.
+- A red run of any case that leaves a modal dialog open leaks its rows, because `removeItemsCreatedHere` clicks row menus through the overlay; a cleanup that first presses Escape would close that gap for the whole suite.
+- Focus after a dialog closes lands on `body` rather than the row's menu trigger, here and on `develop`; returning it to the trigger is a keyboard improvement outside this task.
+- `npm run lint` keeps one warning, `@next/next/no-location-assign-relative-destination` in `src/lib/api.ts`, which is the 2026-09-20 ARD decision "a 401 in the browser still leaves through window.location.assign"; silencing it belongs in the ESLint config, not here.

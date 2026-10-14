@@ -102,7 +102,6 @@ function NameForm({
       }}
     >
       <Input
-        autoFocus
         aria-label={t("nameLabel")}
         data-testid="name-input"
         value={name}

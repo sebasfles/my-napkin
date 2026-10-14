@@ -32,4 +32,25 @@ Where the focus lands (nothing, the menu trigger, the canvas) is unknown and mus
 
 ## om-developer confirmation
 
+- Date: 2026-10-14.
+- Commit: `e0833a2` (develop at the start of the task), locally with `npm run dev` against dev's table, Chromium through Playwright.
+- Result: reproduced, on a diagram row with its canvas open and on a folder row at `/` with no canvas alike, so the editor is not involved.
+- Where the focus lands: neither on the trigger nor in the editor.
+  A focus trace after clicking Rename read, for the diagram row with the canvas open:
+
+  ```
+  130ms focusin  menu-rename
+  499ms focusin  name-input                 (autoFocus)
+  753ms focusout name-input -> dropdown-menu-content
+  775ms focusout dropdown-menu-content -> null
+  779ms menu content removed
+  active: body
+  ```
+
+  The folder row at `/` traced the same, input to menu content to body within 220 ms, and so did the second open of each.
+- Cause: the row menu is still mounted through its exit animation when the dialog's overlay appears under the pointer, so the pointer leaves the Rename item and Radix's menu runs `onItemLeave`, which focuses the menu content (`@radix-ui/react-menu` 2.1.24).
+  The dialog's focus trap would pull focus back to the last element it saw focused, but the input took focus through `autoFocus` while React committed, before the trap's `focusin` listener existed, so the trap has nothing to return to and focus falls to `body` when the menu content unmounts.
+  The lead in `Context & decisions` (the menu returning focus to its trigger) does not happen: the input's focus counts as an interaction outside the non-modal menu, which then skips its trigger.
+- The new case in `item-menu.spec.ts` fails on this commit for all three kinds at its focus assertion (`the first rename opened without focus in its input`, received `inactive`); the diagram run was confirmed on a second, warmed-up run after the first spent its budget on the dev server's cold compile.
+
 ## om-reviewer verification

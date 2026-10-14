@@ -552,6 +552,11 @@ function retrack(registry: Map<Page, string[]>, page: Page, from: string, to: st
   registry.set(page, names);
 }
 
+export function renamedHere(page: Page, from: string, to: string) {
+  retrack(createdByPage, page, from, to);
+  retrack(foldersByPage, page, from, to);
+}
+
 export async function renameDiagram(page: Page, from: string, to: string) {
   await renameThrough(page, diagramItem(page, from), to);
   await expect(diagramItem(page, to)).toBeVisible({ timeout: awsTimeout });
