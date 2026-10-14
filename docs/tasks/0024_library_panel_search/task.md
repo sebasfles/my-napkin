@@ -141,3 +141,15 @@ Pending:
   The first run overlapped the deploy-dev e2e on the shared table; the other two had no CI run alongside.
   Not fixed here, since it is outside Scope: it needs its own investigation of the row list under a shared table.
 - Left untouched in the dev table: "e2e menu typed rename mv8bxtnx-1", from 0023's suite, not this one.
+
+### Round 2
+
+Findings applied:
+
+1. Suite green: the three round 1 failures had environmental causes. None came from this change, and none of them needed a code change:
+   - Run 1, `diagram-list.spec.ts:61`: the top row was "e2e link into mv8celpx-75", created 16:47:08Z by deploy-dev's `e2e-dev` job (16:39:23Z to 16:52:26Z) on the same dev table, 5 s before this suite's row. The test stays as is; the reviewer now checks for a running `e2e-dev` job before granting the token.
+   - Run 3, `diagram-list.spec.ts:129` and `folders.spec.ts:82`: the host was suspended. The journal is empty from 12:38 to 13:26 and from 13:30 to 13:57 local (17:38Z to 18:26Z, 18:30Z to 18:57Z). Test 9 created its row at 17:38:34Z and died with "session closed"; test 25 created its row at 18:57:29Z, on resume. Playwright counted 16.3 min for a run whose wall clock spans about 75 min.
+   - Run 2, `folders.spec.ts:158`: the open row menu was remounted under the click on Delete ("not stable", then "detached"). It did not reproduce: 3 of 3 alone after run 2, then 10 of 10 with `--repeat-each=10 --trace retain-on-failure` on c46a341, 19:41Z to 19:43Z. It is recorded as a one-off. If it reappears it is a row-menu task after 0023, not this one.
+   - Develop baseline at a42a1f9 (origin/develop), full suite with traces kept, 19:26:50Z to 19:41:09Z: 96 of 96 green, no CI run, no journal gap.
+   The error-context files of round 1 were deleted after run 3, so this analysis rests on the call logs in `.verify/`, the timestamps in the e2e names and the journal; every run keeps its `test-results` from now on.
+2. `verify.log`: from this round the block names the round commit, and every artefact is newer than it.
