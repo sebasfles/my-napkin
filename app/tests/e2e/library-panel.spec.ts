@@ -269,3 +269,50 @@ test("typing in the search never reaches the canvas, and a filtered item still i
     "the drawn shape and two inserts are not all there: Backspace in the search deleted the shape, or an insert of a filtered item did not land",
   );
 });
+
+// Boxes are read before any click: Playwright scrolls a target into view before clicking it, and
+// that scroll is what once hid a trigger sitting past the editor's edge in the package's compact
+// layout.
+for (const { width, height, rail } of [
+  { width: 390, height: 844, rail: true },
+  { width: 768, height: 1024, rail: false },
+]) {
+  test(`at ${width}px the trigger sits inside the editor and the panel opens flush with its right edge`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    await openApp(page);
+    await newDiagram(page, `panel at ${width}`);
+
+    if (rail) {
+      await page.getByTestId("rail-diagrams").click();
+      await expect(page.getByTestId("sidebar")).toHaveAttribute("data-collapsed", "true");
+    }
+
+    const editor = page.getByTestId("editor");
+    const trigger = page.locator(".napkin-library-trigger");
+    await expect(trigger).toBeVisible({ timeout: awsTimeout });
+
+    const area = await editor.boundingBox();
+    const button = await trigger.boundingBox();
+    if (area === null || button === null) throw new Error("the editor or the trigger has no box");
+
+    expect(
+      button.x + button.width,
+      "the trigger sits past the editor's right edge, out of a person's reach",
+    ).toBeLessThanOrEqual(area.x + area.width);
+    expect(button.x, "the trigger sits past the editor's left edge").toBeGreaterThanOrEqual(area.x);
+
+    await trigger.click();
+    await expect(libraryPanel(page)).toBeVisible({ timeout: awsTimeout });
+
+    const surface = await editor.boundingBox();
+    const panel = await page.locator(".napkin-library-panel").boundingBox();
+    if (surface === null || panel === null) throw new Error("the editor or the panel has no box");
+
+    expect(
+      Math.round(panel.x + panel.width),
+      "the panel stops short of the editor's right edge: the editor surface was scrolled sideways",
+    ).toBe(Math.round(surface.x + surface.width));
+  });
+}

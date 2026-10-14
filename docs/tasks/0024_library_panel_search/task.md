@@ -160,3 +160,25 @@ Findings applied:
   The earlier 390 shots stay beside them as `*-sidebar-open.png`, evidence of the pre-existing layout where the open sidebar takes 336 of the 390 px.
 - Seen in the new shots: the editor package's sidebar stops about 35 px short of the right edge at 390, and the trigger shows through the gap. This is the same gap as at 768 and predates this task; deferred with the other layout item.
 - No code change; the round names 8812005 again, and these notes stay uncommitted until the docs commit.
+
+### Round 4
+
+Finding: the panel stopped short of the right edge at 390 and 768.
+
+- Cause, measured in the live DOM:
+  - The package's compact layout (`.excalidraw--mobile`, at 390 with the rail and at 768) caps its toolbar row at `98vw` of the viewport, not the editor this shell narrows. It appends our `renderTopRightUI` trigger to that row.
+  - The row overflowed `.excalidraw` (overflow-x hidden): 13..425 against 48..390, and 310..795 against 336..768.
+  - Clicking the trigger scrolled the surface: scrollLeft 0, then 35 and 27, exactly the gap, with every overlay shifted.
+  - A real user at 390 could not reach the trigger at all (389..425); at 768 only 9 px of it showed.
+- Fix, scoped under `.napkin-editor` in `globals.css`, no package patch:
+  - `overflow: clip` on `.excalidraw`, so the surface can never scroll sideways.
+  - In the compact layout the existing `Sidebar.Trigger`'s label is positioned as a second right-edge tab under the package's lock and hand tab, styled like it.
+  - An inset focus ring on the trigger, which had none: focus lands on the package's hidden checkbox.
+  - 1280 at rest is pixel-identical before and after (0 differing pixels, editor area, light).
+- Spec: `library-panel.spec.ts` gained one case at 390 (rail) and one at 768. Each reads the trigger's and editor's boxes before any click, then asserts the open panel's right edge equals the editor's.
+  - Red without the CSS: trigger right edge 425.5 > 390 and 794.5 > 768 (`.verify/round-4-red.out`, `test-results/round-4-red`).
+  - Green with it.
+- Keyboard: Tab from the previous tabbable reaches the trigger at 390, 768 and 1280, before and after, and the ring is fully visible in each.
+- Pre-existing, not changed: Space on the focused trigger does not open the panel at any width, before or after.
+- Pre-existing debt, recorded for `document-task`: the package's compact toolbar is wider than the editor narrowed by the shell. At 390 the selection tool is clipped on the left, and at 768 the last tool runs under the right-edge tab.
+- Screenshots: 390 and 768 retaken (filtered, no match, closed; light and dark); 1280 unchanged.
