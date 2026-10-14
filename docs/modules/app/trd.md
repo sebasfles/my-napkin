@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-21
-source: 0016_diagram_switch_flicker
+source: 0020_library_items_dev
 ---
 
 # app: technical
@@ -38,6 +38,7 @@ Nothing here is planned.
 | `app/src/lib/signed-fetch.ts` | Wraps `fetch` for same-origin calls, setting `x-amz-content-sha256` to the hex SHA-256 of the body | now |
 | `app/src/lib/dynamo.ts`, `s3.ts` | The two repositories, behind the interfaces in `diagrams.ts`; the only files that talk to AWS | now |
 | `app/src/lib/scene-save.ts` | The saver: debounce, one upload at a time, retry, and the ports it needs injected | now |
+| `app/src/lib/editor.ts` | The editor's pure rules: which language the package is given, and whether a canvas may save yet | now |
 | `app/src/lib/api.ts` | Every call the browser makes, to `/api` and to the presigned URLs | now |
 | `app/src/messages/{es,en}.json` | `next-intl` messages, one key set for both locales | now |
 | `app/src/proxy.ts` | The request gate: every path but the allowlist needs a valid cookie | now |

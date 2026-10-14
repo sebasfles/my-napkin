@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-21
-source: 0018_lambda_libraries_grant
+source: 0020_library_items_dev
 ---
 
 # infra: architecture and debt
@@ -133,3 +133,16 @@ source: 0018_lambda_libraries_grant
 - Debt created: until 0019 lands, the list and the key builders in `s3.ts` are two copies of the same fact kept aligned by hand.
 - Revisit when: the app writes to a second bucket, or 0019 moves the list.
 - Source: 0018_lambda_libraries_grant
+
+## 2026-09-21: noncurrent scene versions expire under `scenes/` only, and `libraries/` keeps every one
+
+- Decision: recorded as debt and left alone in this task.
+- Alternatives rejected: widening the existing rule's prefix here; adding a second lifecycle rule for `libraries/`; dropping the prefix so the rule covers the bucket.
+- Reason: `stacks/app/storage.tf` scopes `expire-old-scene-versions` to `prefix = "scenes/"`, and versioning is on for the whole bucket, so every version of `libraries/{id}/scene.json` and `items.json` is kept forever, including the ones a delete only hides behind a marker.
+  0012 added the `libraries/` prefix and did not extend the rule, the same shape of miss as the grant that 0018 fixed.
+  It is unbounded growth against the $0 target, small today and not bounded by anything.
+  It is not fixed here because this task's fix is app code, an infra change would put a `terraform apply` in Sebastian's path before the merge for a defect that is not this bug, and the same apply is better spent once the prefix list question is settled.
+  Worth saying plainly: this debt is why 0020 could be reproduced at all. The four libraries of run 35630985274 were deleted by the suite at 17:25:24 and their versions survived, which is what made the before-and-after bytes readable days later.
+- Debt created: `libraries/` keeps every version of both objects forever, and a delete leaves them behind a delete marker rather than reclaiming them.
+- Revisit when: the bucket's size is worth a line on the budget alert, or the next task touches `storage.tf` for another reason.
+- Source: 0020_library_items_dev

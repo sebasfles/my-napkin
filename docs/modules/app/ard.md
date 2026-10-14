@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-21
-source: 0016_diagram_switch_flicker
+source: 0020_library_items_dev
 ---
 
 # app: architecture decisions
@@ -785,3 +785,31 @@ source: 0016_diagram_switch_flicker
 - Debt created: the save indicator can read "Saving" for a save that has landed, until the next edit moves it.
 - Revisit when: its own task, which the om-reviewer has asked the om-manager to raise.
 - Source: 0016_diagram_switch_flicker
+
+## 2026-09-21: the saver is subscribed to a painted canvas, never to a loaded one
+
+- Decision: `canSaveCanvas(shown, painted, locked)` in `src/lib/editor.ts` decides whether `CanvasSaving` is mounted, and it requires `painted` to be the same reference as `shown`.
+  The saver therefore attaches only once the editor has been handed the scene and drawn it, which is the cover's own condition.
+- Alternatives rejected: guarding inside the saver, by refusing a report that empties a non-empty baseline; keying the saver by scene so a stale one cannot fire; lifting the cover and the saver in the same commit as the swap.
+- Reason: the package emits `onChange` from `componentDidUpdate` only, guarded by `!isLoading`, and it carries whatever the scene holds at that instant.
+  A saver attached before the swap therefore hears the canvas the editor is being swapped away from, or the empty one `resetScene` leaves, and uploads it over the scene the canvas was opened on.
+  On dev this emptied every imported library: `scene.json` and `items.json` were written correctly by the import and replaced one second later by a 128-byte and a 112-byte object whose appState is the package's post-reset default, measured on run 35630985274 across four libraries.
+  Guarding inside the saver was rejected because the saver is right to upload a scene the editor reports as emptied: a user who deletes everything means it, and dropping that write is a worse defect than this one.
+  The rule is the cover's condition on purpose, since `CanvasCover` is `absolute inset-0 z-[3]` with no `pointer-events-none`: the canvas is genuinely covered until the gate opens, so the saver starts at the first moment a stroke can land and no write that was previously made is lost.
+  This is not a library defect. A library was simply the only canvas the suite opens with a non-empty baseline and then leaves idle; a freshly created diagram survives only because its baseline is empty and `fire()`'s zero-version rebase absorbs the report, and a drawn diagram reopened has neither protection. `scenes/5027bda7-14c8-4c27-91b8-e3db5bbfa07a.json` went from 6415 bytes to the same 128-byte object on 2026-09-20, before this instance model landed, which is the loss the switch entry above describes.
+- Debt created: the gate now rides the same animation frame as the cover, so the debt recorded above about the cover lifting on a frame rather than on a paint the editor confirms now also delays the saver by that frame.
+  The editor's tools sit above the cover and stay reachable, so a keyboard paste before the gate opens mutates the scene with no saver mounted; the change is not lost, since the package reports on every re-render and any later interaction carries it, but it can sit unreported until one happens.
+- Revisit when: the package reports when it has painted, which would replace the frame for both the cover and this gate.
+- Source: 0020_library_items_dev
+
+## 2026-09-21: the rule that decides when a canvas may save is pure, and tested without an editor
+
+- Decision: the gate lives in `src/lib/editor.ts` as a pure function over three values and is tested in `tests/unit/editor.test.ts`.
+  The saver's own behaviour under an emptied report is pinned separately in `tests/unit/scene-save.test.ts`, labelled as pinning the hazard rather than the fix.
+- Alternatives rejected: a DOM harness (jsdom plus a `.tsx` include) rendering `Editor` and asserting no upload when the scene arrives late; a Playwright spec; stubbing the scene fetch to force the latency.
+- Reason: `trd.md` defines this suite as pure logic in a Node environment, and a bug fix does not rewrite that contract.
+  The debt recorded on 2026-09-20 about keeping the editor package out of the unit suite is the same wall: rendering `Editor` reaches the package and Vitest dies on its CSS, and mocking the package would leave the render test proving a boolean against a fake, which the pure rule proves directly.
+  A spec was rejected because the window only opens when the scene fetch is slower than the editor's mount, which cannot be made true against dev without stubbing the network, and `docs/TRD.md#Conventions` keeps e2e real.
+- Debt created: the rule's test does not prove that the JSX calls the rule, and the swap now carries three rules that only a rendered editor could check end to end: this gate, the `viewModeEnabled` resync and the cover's timing. Each is tested today only as the pure part of itself.
+- Revisit when: a fourth rule joins the swap, or one of the three is broken by a change that its pure test still passes.
+- Source: 0020_library_items_dev
