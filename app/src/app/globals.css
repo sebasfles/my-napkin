@@ -156,3 +156,35 @@
 .napkin-editor .context-menu li[data-testid="addToLibrary"] {
   display: none;
 }
+
+/* The package's compact layout sizes its toolbar to the viewport rather than to the editor this
+   shell narrows, and appends the panel trigger to that row, past the editor's edge. The trigger
+   becomes a tab on the right edge under the package's own lock and hand tab, and the surface
+   never scrolls sideways, so the open panel stays flush. The trigger's focus lands on a hidden
+   checkbox the package gives no ring, so the ring is drawn inside the button. See
+   `modules/app/ard.md`. */
+.napkin-editor .excalidraw {
+  overflow: clip;
+}
+
+.napkin-editor .excalidraw--mobile .sidebar-trigger__label-element:has(.napkin-library-trigger) {
+  position: absolute;
+  top: calc(5rem - var(--editor-container-padding) + 4rem + 2px + 0.5rem);
+  right: calc(var(--editor-container-padding) * -1);
+}
+
+.napkin-editor .excalidraw--mobile .napkin-library-trigger {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--sidebar-border-color);
+  border-right: 0;
+  border-radius: var(--border-radius-lg) 0 0 var(--border-radius-lg);
+  box-shadow: none;
+  background-color: var(--island-bg-color);
+}
+
+.napkin-editor input:focus-visible + .napkin-library-trigger {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}

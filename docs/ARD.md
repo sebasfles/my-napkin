@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0023_rename_dialog_focus
+source: 0024_library_panel_search
 ---
 
 # Architecture and Debt Record
@@ -124,6 +124,9 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-21 | `toScene` prunes files on write, which disagrees with the debt that a stored scene keeps the shape it was written in, about files alone | A second normalization on write is wanted |
 | app | 2026-09-21 | A saver recreated while dirty uploads and never reports it, so the indicator can read "Saving" for a save that has landed | Its own task, already asked for |
 | app | 2026-09-20 | `src/lib/api.ts` leaves for `/login` on a 401 with a full page `window.location.assign`, which can move the page while something else is driving it | `api.ts` gains a client boundary, or the lint warning is upgraded to an error |
+| app | 2026-10-14 | Escape at the panel's search is stopped only because React's root listener on `document` registers before the package's | Next stops hydrating on `document`, or the package moves its keydown listener to capture |
+| app | 2026-10-14 | The compact-layout trigger tab and `overflow: clip` are keyed on package classes and on the offset of its lock and hand tab | `@excalidraw/excalidraw` is upgraded |
+| app | 2026-10-14 | The package's compact toolbar is wider than the editor the shell narrows (selection tool clipped at 390, last tool under the tab at 768), and Space on the focused panel trigger does not open it | The shell stops narrowing the editor on phones, or the package fits its toolbar to its container |
 | app | 2026-09-20 | A library created and never opened has no `items.json`, so a reader must treat its absence as no items | A second writer needs the items file before the browser has saved |
 | app | 2026-09-20 | A scene-only PATCH carries no kind condition, so the API would take diagram counts on a library although no UI can send them | A second client writes to this API |
 | app | 2026-09-20 | Derived library element ids are positional, so an insert near the front of a frame renumbers the rest of `items.json` | Something starts diffing `items.json` between saves |
