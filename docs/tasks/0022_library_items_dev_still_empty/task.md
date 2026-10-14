@@ -168,3 +168,9 @@ Verify at the rebased sha: lint, typecheck, unit (327) and the full local e2e (9
 
 Correction to round 1: `verify.log` is ignored by the root `.gitignore` (`*.log`), so it lives only in the worktree; round 1's amend carried the notes alone.
 The `api.ts:152` warning is the recorded `window.location.assign` decision (`docs/modules/app/ard.md`, 2026-09-20), not deferred work.
+
+### Docs
+
+- No e2e: no spec added or changed. The user flows are the four library specs and `save-reload.spec.ts`, which already encode them and go red in `e2e-dev` without this fix. The window only opens when the scene arrives before the package mounts, which no committed spec can force without stubbing the network (`docs/TRD.md#Conventions`). The probe that forces it stays uncommitted in the workspace's `evidence/probe/`.
+- `ard.md` is append-only under `document-task`, so 0020's 2026-09-21 Reason is corrected by a new entry that names it, not rewritten in place.
+- `trd.md` and `flows.md` are corrected in place. `prd.md`, `database.md` and `README.md` are unchanged because nothing user-visible, stored or structural moved.

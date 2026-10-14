@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-13
-source: 0021_row_menu_autosave
+updated: 2026-10-14
+source: 0022_library_items_dev_still_empty
 ---
 
 # app: architecture decisions
@@ -835,3 +835,27 @@ source: 0021_row_menu_autosave
 - Revisit when: the list gets a sort order the user chooses.
 - Source: 0021_row_menu_autosave
 
+## 2026-10-14: a new editor instance is handed a scene only once the package has initialised, and the save gate is keyed by instance
+
+- Decision: `Editor` holds the package's API as `instance` and uses it, for the swap, the reset, the saver and the panel, only once `whenEditorReady` in `src/lib/editor.ts` has seen it initialised: `isLoading` already false, or its first `onChange`, which the package emits only after `isLoading` drops.
+  `painted` records the scene and the instance that drew it, and `isPainted` and `canSaveCanvas` require both, so the cover and the saver follow the instance as well as the scene.
+- Alternatives rejected: passing the first scene as `initialData`, which covers only the first canvas of an instance that outlives navigation and leaves the gate blind to every other order; a guard inside the saver, which would leave the editor showing an empty canvas for the first stroke to save; holding the scene fetch until the editor mounts, which serialises two waits that can overlap.
+- Reason: this corrects the Reason of the 2026-09-21 entry "the saver is subscribed to a painted canvas, never to a loaded one", whose account of the dev loss (a saver attached before the swap, hearing `resetScene`'s empty scene on a slow load) was argued, not measured, and is the opposite order to the one that happens.
+  The package hands its API out from its constructor, mounts only after `InitializeApp` has loaded the locale chunk, and ends `initializeScene` (after mount, behind a `setState` callback and an `await`) with `restore(null)`.
+  A canvas opened from `/` mounts a fresh `Editor`; next to us-east-1 its scene GET ends before the package mounts, so the swap lands on an editor still initialising, is wiped, and the first report after it is the empty scene: 128 and 112 bytes, a second or two after the import's own writes, on run 38497207353 and on a local run against dev whose trace has the scene GET ending at 27.16 and the locale chunk requested at 27.154.
+  The same order wipes a drawn diagram opened as the first canvas of a cold session; a probe that delays only the locale chunk showed both red on `develop` and green with this change.
+  0020's painted gate stays, since it is still what keeps a saver off the previous canvas during a switch, now keyed by instance.
+- Debt created: the rule rests on 0.18.1's lifecycle, namely that `isLoading` starts true in the constructor, that `initializeScene` ends by setting it false through `syncActionResult`, and that `onChange` is silent while it is true; none of that is public API.
+- Revisit when: `@excalidraw/excalidraw` is upgraded, or the package exposes an initialised callback or a per-swap equivalent of `initialData`.
+- Source: 0022_library_items_dev_still_empty
+
+## 2026-10-14: readiness joins the swap as a fourth rule, tested against a model of the package's lifecycle
+
+- Decision: the 2026-09-21 debt "three rules that only a rendered editor could check end to end" had "a fourth rule joins the swap" as its trigger, and readiness is that rule.
+  It is tested in `tests/unit/editor.test.ts` against a small model of the package (the API exists before initialisation, initialising replaces the scene with an empty one, reports are silent while loading), so the test fails if the scene is handed over before initialisation, which is the defect itself and not only its pure part.
+  End to end it is checked only by `e2e-dev` under Actions' timing, as the four library specs that went red there; locally it is visible only with the package's locale chunk delayed, a probe that stays uncommitted because `docs/TRD.md#Conventions` keeps committed e2e real.
+- Alternatives rejected: a DOM harness rendering `Editor`, for the reasons the 2026-09-21 entry gives; a committed spec that delays the chunk, which stubs the network.
+- Reason: the trigger fired, and what it changes is that the swap's ordering is now the defect class this module has paid for twice, so the rule that carries it is tested against the order and not against a boolean.
+- Debt created: the four rules (readiness, the painted gate, the `viewModeEnabled` resync and the cover's timing) still lack an end-to-end check that runs anywhere but `e2e-dev`, and the lifecycle model in the unit test is ours, so it can drift from the package without failing.
+- Revisit when: `@excalidraw/excalidraw` is upgraded, a fifth rule joins the swap, or one of the four breaks with its unit test still passing.
+- Source: 0022_library_items_dev_still_empty

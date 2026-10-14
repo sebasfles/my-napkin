@@ -44,3 +44,14 @@ The panel section is there with 0 items; the imported library canvas shows the e
   So the scene is in hand before the editor exists; the swap lands on the new instance before its own `initializeScene` ends with `restore(null)`, and the first report after that is the empty scene the saver writes.
 
 ## om-reviewer verification
+
+2026-10-14, on `32bcc97` (app code identical to `b334ae4`, rebased on `bc5ba67`).
+The steps cannot pass against dev before the merge, since no branch deploys there; they are proven by `e2e-dev` on the merge commit (Acceptance 2).
+What I checked instead, from the artefacts rather than the notes:
+
+- Before the fix, against dev: the 128/112 empty overwrite is in the bucket for `5173dbfe`, `b6d44f15` and `ed67f514` of run 38497207353, read by me in consolidation, and in the om-developer's own run (`6d88eb87`).
+- The probe delays one chunk only: both `proxy.log` files list `1k1sx753idt_k.js`, the editor's `en` locale, and nothing else.
+- On `develop`'s build, the cold-session diagram probe logs a PUT of `{"elements":[],"appState":{"viewBackgroundColor":"#ffffff","gridSize":20,...}` to `scenes/fce1cbf5...json`, the same writer and signature as on dev; `library-import.spec.ts:30` and `library-panel.spec.ts:27` are red.
+- On the fix's build, the same three are green and the cold open logs no PUT at all.
+- The probed sources in `evidence/probe/fix/` match `b334ae4` except for 0021's `isInEditor` and `data-editor-region`, so the build that went green is the code under review.
+- In the package (0.18.1), the constructor sets `isLoading: true`, `initializeScene` lifts it, and `componentDidUpdate` emits `onChange` whenever loading is over, with no early return. So `whenEditorReady` fires exactly once, at the first report after initialisation, and the swap can no longer land before `restore(null)`.
