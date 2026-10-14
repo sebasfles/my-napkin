@@ -135,3 +135,16 @@ Deferred:
 - A red run of any case that leaves a modal dialog open leaks its rows, because `removeItemsCreatedHere` clicks row menus through the overlay; a cleanup that first presses Escape would close that gap for the whole suite.
 - Focus after a dialog closes lands on `body` rather than the row's menu trigger, here and on `develop`; returning it to the trigger is a keyboard improvement outside this task.
 - `npm run lint` keeps one warning, `@next/next/no-location-assign-relative-destination` in `src/lib/api.ts`, which is the 2026-09-20 ARD decision "a 401 in the browser still leaves through window.location.assign"; silencing it belongs in the ESLint config, not here.
+
+### Round 2
+
+Done:
+
+- Finding 1: `removeItemsCreatedHere` closes any dialog of ours left open before it touches a row, pressing Escape once per open dialog and waiting for each to go; with none open it presses nothing.
+  It locates `[data-slot="dialog-content"]` and `[data-slot="alert-dialog-content"]` rather than `role="dialog"`: the editor package marks its color pickers `role="dialog"`, and they stay on screen while a shape is selected, so a role selector would send the editor a stray Escape (deselecting the shape) and miscount what closed.
+- Proof, run locally and not committed: the case's focus assertion forced to fail (`not.toBeFocused`) for all three kinds, so each run ended with the name dialog open.
+  Every `afterEach` cleanup passed, and a probe run right after found no `e2e menu typed` row at the root of the Diagrams list or among the libraries.
+
+Decisions the plan did not record:
+
+- The cleanup closes only the app's own dialogs, found by their shadcn slots; an editor modal left open by a failing case stays out of its reach.

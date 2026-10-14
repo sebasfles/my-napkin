@@ -623,6 +623,19 @@ async function savesSettled(page: Page) {
   ).toHaveAttribute("data-status", "saved", { timeout: awsTimeout });
 }
 
+// A case that fails with a dialog open leaves its overlay over every row menu the cleanup clicks.
+// Located by our own slots: the editor marks its always-on color pickers as role=dialog too.
+async function closeOpenDialogs(page: Page) {
+  const open = page
+    .locator('[data-slot="dialog-content"], [data-slot="alert-dialog-content"]')
+    .filter({ visible: true });
+
+  for (let count = await open.count(); count > 0; count -= 1) {
+    await page.keyboard.press("Escape");
+    await expect(open, "Escape did not close the dialog left open").toHaveCount(count - 1);
+  }
+}
+
 export async function removeItemsCreatedHere(page: Page) {
   const folders = foldersByPage.get(page) ?? [];
   const diagrams = createdByPage.get(page) ?? [];
@@ -632,6 +645,8 @@ export async function removeItemsCreatedHere(page: Page) {
   librariesByPage.delete(page);
 
   if (libraries.length === 0 && folders.length === 0 && diagrams.length === 0) return;
+
+  await closeOpenDialogs(page);
 
   await savesSettled(page);
 
