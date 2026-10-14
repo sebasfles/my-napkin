@@ -116,3 +116,38 @@ Consolidated 2026-10-13 with the om-manager and Sebastian.
 clearance: full (Playwright against dev with `APP_PASSWORD` and the om-manager's token; read-only `aws` with `AWS_PROFILE=personal` on the dev and prd buckets and dev CloudWatch).
 
 ## om-developer notes
+
+### Round 1
+
+Cause, by bytes and order (details in `replication.md`, evidence in `.workspaces/0022_library_items_dev_still_empty/evidence/`):
+
+- The package mounts its editor only after `InitializeApp` has loaded the locale chunk, hands its API out from the constructor, and ends `initializeScene` (after mount, behind a `setState` callback and an `await`) with `restore(null)`, reporting no change while `isLoading`.
+  When the scene's GET lands before that chunk, which is what Actions next to us-east-1 does and what my machine against deployed dev did too, the swap lands on an editor still initialising and is wiped; the first report afterwards is the empty scene and the saver writes it (128 / 112 bytes).
+- 0020's hypotheses: "the saver writes before the scene is painted" is dropped as the cause (the gate is deployed and the write still happens); its gate stays and is now keyed by instance.
+  "The panel reads 0 from a correct file" is dropped: the files are overwritten.
+  The reviewer's leads all hold: fresh `Editor` mount, constructor-time API, `restore(null)` in `initializeScene`, and a gate blind to `api` identity.
+- Not library specific: a drawn diagram opened as the first canvas of a cold session is wiped and saved empty on `develop` under the same timing (probe below).
+
+Done:
+
+- `lib/editor.ts`: `whenEditorReady` hands the editor over only once it has finished initialising (not loading at once, or its first change report, which the package only emits after `isLoading` drops); `isPainted` and `canSaveCanvas` take the instance the scene was painted on.
+- `editor.tsx`: the package's API is held as `instance`, and `api` (what swaps, resets, saves and the panel use) is that instance only once it is initialised; `painted` records the scene and the instance.
+  The editor therefore holds the scene it was handed, and the saver attaches only to the instance that drew it.
+- Unit tests over a model of the package's lifecycle: a scene that arrives before initialisation survives through `whenEditorReady`; ready once, unsubscribed, cancellable; the paint gate rejects another instance.
+
+Proof (uncommitted probe, `evidence/probe/`): a production build on :3000 behind a proxy that delays only the package's `en` locale chunk by 1.5 s.
+On `develop`'s build `library-import.spec.ts:30` and `library-panel.spec.ts:27` are red with the 128 / 104 byte PUTs in their traces, and the cold-session diagram probe is red with a 128 byte PUT over the drawing (`elementCount` 1 to 0).
+On the fix's build all three are green, the libraries PUT only the import's bytes and the cold open PUTs nothing.
+
+Decisions not in the plan:
+
+- Readiness is read from the package's own signals (`getAppState().isLoading` and the first `onChange`) rather than by passing `initialData`: the instance outlives navigation, so `initialData` would only cover the first canvas, and the readiness gate covers every order.
+
+Deferred:
+
+- `src/lib/api.ts:152` raises a lint warning (`no-location-assign-relative-destination`); not a file this task touches.
+- Sweep of leftover rows through the UI delete path: pending, needs the slot; my runs cleaned up after themselves through `removeItemsCreatedHere`.
+
+Verify: lint, typecheck and unit green; local e2e 89 of 90, with 0020's four green.
+The red is `library-panel.spec.ts:93`, timing out in its `afterEach` cleanup, which is 0021's defect and out of scope here.
+That timeout probably left its `no context library` diagram row in the dev table, so it goes into the sweep.
