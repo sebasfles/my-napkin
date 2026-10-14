@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-13
-source: 0021_row_menu_autosave
+updated: 2026-10-14
+source: 0022_library_items_dev_still_empty
 ---
 
 # app: flows
@@ -37,7 +37,7 @@ sequenceDiagram
 
 ## Save a diagram
 
-Runs on every `onChange`, debounced 1.5 seconds, from the moment the canvas is painted rather than from the moment it is open: before that the editor still holds the previous scene, and a report from there would be saved over the one being opened.
+Runs on every `onChange`, debounced 1.5 seconds, from the moment the canvas is painted by an initialised editor rather than from the moment it is open: before that the editor holds the previous scene or its own initial empty one, and a report from there would be saved over the one being opened.
 The presigned pair comes with the scene at open and is reused until it is close to expiring, so a save is one PUT and one PATCH.
 
 ```mermaid

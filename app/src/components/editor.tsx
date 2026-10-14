@@ -15,7 +15,13 @@ import { useWorkspace } from "@/components/workspace-provider";
 import type { Locale } from "@/i18n/locales";
 import { loadScene, NotFoundError } from "@/lib/api";
 import { isDiagram, isLocked, type SceneAccess, type SceneUrls } from "@/lib/diagrams";
-import { canSaveCanvas, editorLangCode } from "@/lib/editor";
+import {
+  canSaveCanvas,
+  editorLangCode,
+  isPainted,
+  whenEditorReady,
+  type Painted,
+} from "@/lib/editor";
 import { librariesOf, libraryFileAmong, nextLibraryIds } from "@/lib/libraries";
 import { importLibraryFile } from "@/lib/library-io";
 import type { SaveStatus } from "@/lib/save-state";
@@ -54,12 +60,16 @@ export function Editor({ itemId }: { itemId: string }) {
   const locale = useLocale() as Locale;
   const { theme, systemTheme } = useTheme();
   const { items, failed: listFailed } = useWorkspace();
-  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [instance, setInstance] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [initialised, setInitialised] = useState<ExcalidrawImperativeAPI | null>(null);
   const [loaded, setLoaded] = useState<LoadedScene | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [live, setLive] = useState<{ id: string; hint: LibraryCanvasHint } | null>(null);
   const [fetchedFor, setFetchedFor] = useState(itemId);
-  const [painted, setPainted] = useState<LoadedScene | null>(null);
+  const [painted, setPainted] = useState<Painted<LoadedScene, ExcalidrawImperativeAPI> | null>(
+    null,
+  );
+  const api = initialised !== null && initialised === instance ? instance : null;
 
   // `loaded` is the scene as it was when the canvas was opened, and the canvas has been drawn on
   // since: kept across a navigation it would paint over newer work and then save what it painted.
@@ -99,6 +109,12 @@ export function Editor({ itemId }: { itemId: string }) {
   }, [itemId, router]);
 
   useEffect(() => {
+    if (instance === null) return;
+
+    return whenEditorReady(instance, () => setInitialised(instance));
+  }, [instance]);
+
+  useEffect(() => {
     if (api === null) return;
 
     if (shown === null) {
@@ -122,7 +138,7 @@ export function Editor({ itemId }: { itemId: string }) {
     // updateScene hands the scene over, the editor paints its canvas on a frame of its own, and
     // lifting the cover before that paint lands leaves one frame of bare chrome over a canvas
     // with nothing on it: the very frame this task exists to remove.
-    const frame = requestAnimationFrame(() => setPainted(shown));
+    const frame = requestAnimationFrame(() => setPainted({ canvas: shown, instance: api }));
 
     return () => cancelAnimationFrame(frame);
   }, [api, shown]);
@@ -161,7 +177,7 @@ export function Editor({ itemId }: { itemId: string }) {
       <div className="relative h-full w-full" data-testid="editor-scene">
         <div className="h-full w-full" onDropCapture={onDropCapture}>
           <CanvasEditor
-            excalidrawAPI={setApi}
+            excalidrawAPI={setInstance}
             theme={resolveTheme(theme, systemTheme)}
             langCode={editorLangCode(locale)}
             viewModeEnabled={locked}
@@ -175,7 +191,7 @@ export function Editor({ itemId }: { itemId: string }) {
           </CanvasEditor>
         </div>
         {/* the cover's own condition, so the saver starts exactly when a stroke can first land */}
-        {shown === null || !canSaveCanvas(shown, painted, locked) ? null : (
+        {shown === null || !canSaveCanvas(shown, api, painted, locked) ? null : (
           <CanvasSaving
             api={api}
             itemId={shown.id}
@@ -186,7 +202,7 @@ export function Editor({ itemId }: { itemId: string }) {
           />
         )}
         {hint === null ? null : <LibraryHints hint={hint} />}
-        {shown !== null && painted === shown ? null : (
+        {isPainted(shown, api, painted) ? null : (
           <CanvasCover testId={failing ? "canvas-failed" : "canvas-loading"}>
             {failing ? t("loadFailed") : t("loading")}
           </CanvasCover>

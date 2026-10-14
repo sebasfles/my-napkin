@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-13
-source: 0021_row_menu_autosave
+updated: 2026-10-14
+source: 0022_library_items_dev_still_empty
 ---
 
 # Architecture and Debt Record
@@ -130,6 +130,8 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | Keeping the editor package out of the unit suite rests on `library-file.ts` being the only module that reaches it, by convention rather than by a rule | A unit test reaches that module and Vitest dies on the package's CSS |
 | app | 2026-09-21 | The editor's tools stay above the cover, so a keyboard paste before the saver mounts is unreported until a later interaction carries it | A change made in that window is seen to sit unsaved |
 | app | 2026-09-21 | The swap carries three rules that only a rendered editor could check end to end, each tested only as the pure part of itself | A fourth rule joins the swap, or one breaks with its pure test still passing |
+| app | 2026-10-14 | A new editor instance waits for the package's `isLoading` to drop, which rests on 0.18.1's lifecycle and no public API | `@excalidraw/excalidraw` is upgraded, or it exposes an initialised callback |
+| app | 2026-10-14 | The three-rule trigger fired: readiness is a fourth swap rule, and the four still have no end-to-end check outside `e2e-dev`, with the unit test's package model able to drift | The package is upgraded, a fifth rule joins, or one breaks with its unit test still passing |
 | infra | 2026-09-21 | `libraries/` keeps every noncurrent version forever, since the lifecycle rule is scoped to `scenes/` | The bucket's size is worth a line on the budget alert, or `storage.tf` is touched again |
 | app | 2026-09-20 | The library export is proved in Chromium only: it clicks an anchor that is not in the document and revokes its object URL in the same turn | A second browser is supported, or an export is reported as not saving |
 | app | 2026-09-20 | A library whose row is created and whose first write then fails stays in the list as an empty library | A second flow creates a library with content, or the leftover is seen often |

@@ -116,3 +116,61 @@ Consolidated 2026-10-13 with the om-manager and Sebastian.
 clearance: full (Playwright against dev with `APP_PASSWORD` and the om-manager's token; read-only `aws` with `AWS_PROFILE=personal` on the dev and prd buckets and dev CloudWatch).
 
 ## om-developer notes
+
+### Round 1
+
+Cause, by bytes and order (details in `replication.md`, evidence in `.workspaces/0022_library_items_dev_still_empty/evidence/`):
+
+- The package mounts its editor only after `InitializeApp` has loaded the locale chunk, hands its API out from the constructor, and ends `initializeScene` (after mount, behind a `setState` callback and an `await`) with `restore(null)`, reporting no change while `isLoading`.
+  When the scene's GET lands before that chunk, which is what Actions next to us-east-1 does and what my machine against deployed dev did too, the swap lands on an editor still initialising and is wiped; the first report afterwards is the empty scene and the saver writes it (128 / 112 bytes).
+- 0020's hypotheses: "the saver writes before the scene is painted" is dropped as the cause (the gate is deployed and the write still happens); its gate stays and is now keyed by instance.
+  "The panel reads 0 from a correct file" is dropped: the files are overwritten.
+  The reviewer's leads all hold: fresh `Editor` mount, constructor-time API, `restore(null)` in `initializeScene`, and a gate blind to `api` identity.
+- Not library specific: a drawn diagram opened as the first canvas of a cold session is wiped and saved empty on `develop` under the same timing (probe below).
+
+Done:
+
+- `lib/editor.ts`: `whenEditorReady` hands the editor over only once it has finished initialising (not loading at once, or its first change report, which the package only emits after `isLoading` drops); `isPainted` and `canSaveCanvas` take the instance the scene was painted on.
+- `editor.tsx`: the package's API is held as `instance`, and `api` (what swaps, resets, saves and the panel use) is that instance only once it is initialised; `painted` records the scene and the instance.
+  The editor therefore holds the scene it was handed, and the saver attaches only to the instance that drew it.
+- Unit tests over a model of the package's lifecycle: a scene that arrives before initialisation survives through `whenEditorReady`; ready once, unsubscribed, cancellable; the paint gate rejects another instance.
+
+Proof (uncommitted probe, `evidence/probe/`): a production build on :3000 behind a proxy that delays only the package's `en` locale chunk by 1.5 s.
+On `develop`'s build `library-import.spec.ts:30` and `library-panel.spec.ts:27` are red with the 128 / 104 byte PUTs in their traces, and the cold-session diagram probe is red with a 128 byte PUT over the drawing (`elementCount` 1 to 0).
+On the fix's build all three are green, the libraries PUT only the import's bytes and the cold open PUTs nothing.
+
+Decisions not in the plan:
+
+- Readiness is read from the package's own signals (`getAppState().isLoading` and the first `onChange`) rather than by passing `initialData`: the instance outlives navigation, so `initialData` would only cover the first canvas, and the readiness gate covers every order.
+
+Deferred:
+
+- `src/lib/api.ts:152` raises a lint warning (`no-location-assign-relative-destination`); not a file this task touches.
+- Sweep of leftover rows through the UI delete path: pending, needs the slot; my runs cleaned up after themselves through `removeItemsCreatedHere`.
+
+Verify: lint, typecheck and unit green; local e2e 89 of 90, with 0020's four green.
+The red is `library-panel.spec.ts:93`, timing out in its `afterEach` cleanup, which is 0021's defect and out of scope here.
+That timeout probably left its `no context library` diagram row in the dev table, so it goes into the sweep.
+
+### Round 2
+
+Findings applied, both:
+
+1. Sweep, through the row menu of the deployed dev app, of suite-generated names only (`/^e2e .+ [0-9a-z]+-\d+$/`), by an uncommitted spec in `evidence/sweep/` (log in `sweep.log`), run after this round's e2e so it caught what that run left too.
+   Removed 17: libraries `227fd052` (`e2e link mubswb2n-62`) and `b8ed3a7f` (`e2e insert from mubhg6rs-20`); diagrams `60033547`, `ea159ce3`, `33759d73`, `f045804e`, `54272f91`, `7b40d36b`, `3162dc0d`, `3704e94f`, `a74d159c`, `795a02f7`, `20e931b3`, `be3ddff2` (all `e2e no context library ...`, the one from my round 1 run included), `a504671f` (`e2e link elsewhere`), `c58b2a2d` (`e2e link into`), `2896ed46` (`e2e switch lock locked`).
+   Nothing the UI could not delete; 0 suite-named rows left.
+   `e2e locale-es mv7mlfgp-4`, listed before the slot, was already gone when the sweep ran.
+   Left untouched, for Sebastian: 44 default-named diagrams, 43 `Napkin 20092026` (bare and `(2)` to `(43)`, created 2026-09-20 15:26 to 2026-09-21 00:41 UTC) and 1 `Napkin 21092026` (created 2026-09-21 16:51 UTC). They are now the whole dev table.
+2. Rebased on `origin/develop` at `bc5ba67`: one conflict in `lib/editor.ts`, resolved by keeping 0021's `isInEditor` above this task's code; 0021's `data-editor-region` in `editor.tsx` merged clean.
+   The rebase brought in nothing beyond 0021's lines, so the probe pair was not rerun.
+
+Verify at the rebased sha: lint, typecheck, unit (327) and the full local e2e (96 of 96, `library-panel.spec.ts:93` included) green.
+
+Correction to round 1: `verify.log` is ignored by the root `.gitignore` (`*.log`), so it lives only in the worktree; round 1's amend carried the notes alone.
+The `api.ts:152` warning is the recorded `window.location.assign` decision (`docs/modules/app/ard.md`, 2026-09-20), not deferred work.
+
+### Docs
+
+- No e2e: no spec added or changed. The user flows are the four library specs and `save-reload.spec.ts`, which already encode them and go red in `e2e-dev` without this fix. The window only opens when the scene arrives before the package mounts, which no committed spec can force without stubbing the network (`docs/TRD.md#Conventions`). The probe that forces it stays uncommitted in the workspace's `evidence/probe/`.
+- `ard.md` is append-only under `document-task`, so 0020's 2026-09-21 Reason is corrected by a new entry that names it, not rewritten in place.
+- `trd.md` and `flows.md` are corrected in place. `prd.md`, `database.md` and `README.md` are unchanged because nothing user-visible, stored or structural moved.
