@@ -157,7 +157,7 @@ export function Editor({ itemId }: { itemId: string }) {
   const onDropCapture = useLibraryFileDrop(itemId, api);
 
   return (
-    <div className="napkin-editor h-full w-full" data-testid="editor">
+    <div className="napkin-editor h-full w-full" data-testid="editor" data-editor-region>
       <div className="relative h-full w-full" data-testid="editor-scene">
         <div className="h-full w-full" onDropCapture={onDropCapture}>
           <CanvasEditor

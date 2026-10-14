@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isLocked, isPinned, type Diagram, type Folder, type Library } from "@/lib/diagrams";
+import { isInEditor } from "@/lib/editor";
 import { saveIndicator, type SaveStatus } from "@/lib/save-state";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,7 @@ export function DiagramRow({
   onMove,
   onInfo,
   onDelete,
+  onMenuChange,
 }: {
   diagram: Diagram;
   active: boolean;
@@ -58,6 +60,7 @@ export function DiagramRow({
   onMove: () => void;
   onInfo: () => void;
   onDelete: () => void;
+  onMenuChange: (open: boolean) => void;
 }) {
   const t = useTranslations("sidebar");
   const locked = isLocked(diagram);
@@ -96,7 +99,7 @@ export function DiagramRow({
       {pinned ? <Glyph label={t("pinnedGlyph")} testId="diagram-pinned" icon={<Pin />} /> : null}
       {locked ? <Glyph label={t("lockedGlyph")} testId="diagram-locked" icon={<Lock />} /> : null}
 
-      <RowMenu label={t("menu", { name: diagram.name })}>
+      <RowMenu label={t("menu", { name: diagram.name })} onOpenChange={onMenuChange}>
         <DropdownMenuItem data-testid="menu-rename" onSelect={onRename}>
           <Pencil aria-hidden />
           {t("rename")}
@@ -133,12 +136,14 @@ export function FolderRow({
   onRename,
   onMove,
   onDelete,
+  onMenuChange,
 }: {
   folder: Folder;
   onOpen: () => void;
   onRename: () => void;
   onMove: () => void;
   onDelete: () => void;
+  onMenuChange: (open: boolean) => void;
 }) {
   const t = useTranslations("sidebar");
 
@@ -158,7 +163,7 @@ export function FolderRow({
         />
       </button>
 
-      <RowMenu label={t("menu", { name: folder.name })}>
+      <RowMenu label={t("menu", { name: folder.name })} onOpenChange={onMenuChange}>
         <DropdownMenuItem data-testid="menu-rename" onSelect={onRename}>
           <Pencil aria-hidden />
           {t("rename")}
@@ -259,9 +264,19 @@ export function LibraryRow({
   );
 }
 
-function RowMenu({ label, children }: { label: string; children: ReactNode }) {
+// The editor pulls focus back into itself when its own context menu closes, and that close is
+// triggered by the very pointerdown that opens this menu. A pointerdown outside still dismisses.
+function RowMenu({
+  label,
+  onOpenChange,
+  children,
+}: {
+  label: string;
+  onOpenChange?: (open: boolean) => void;
+  children: ReactNode;
+}) {
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -274,7 +289,13 @@ function RowMenu({ label, children }: { label: string; children: ReactNode }) {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent
+        align="end"
+        className="w-48"
+        onFocusOutside={(event) => {
+          if (isInEditor(event.target)) event.preventDefault();
+        }}
+      >
         {children}
       </DropdownMenuContent>
     </DropdownMenu>

@@ -101,6 +101,91 @@ Correction to `replication.md`, om-reviewer: B has to be a row sitting above A b
 A jumping to the top moves only the rows between the top and A's old slot, so with B below A the steps pass on a healthy app and a broken one alike.
 The Observed line is sharpened the same way: the menu closes.
 
-In `review-task`, beyond the Pipeline, I check that the new case cannot pass unless the save lands during the open menu, that the freeze is released on every close path (select, Escape, outside click), and that no row menu became modal.
+
+### After delegation
+
+clearance: full, limited to what the task names: AWS dev through the `personal` profile (the `napkin-dev-diagrams` table and the dev scenes bucket, which every Playwright run reads and writes) and `napkin.dev.sdfles.com` for a `BASE_URL` run. No Terraform apply, nothing in prd.
+
+Adjustment to Acceptance 3, Sebastian through the om-manager: it read "Suite green", which 0021 cannot deliver while specs it does not own are red.
+It becomes `library-panel.spec.ts:93` and the new case green, and no spec that passed before the change failing after it; whole-suite green stays in 0020.
+
+Operational, om-manager: one suite at a time on this machine, e2e token granted per run and not per task, every run requested through the om-reviewer and waited for, the reproduction included.
+
+The footprint in `napkin-dev-diagrams` is recorded at https://github.com/sebasfles/my-napkin/pull/34#issuecomment-5768613016, reading 3, which `om-developer confirmation` cites.
+Cite reading 3 alone: that comment's intro and reading 2 carry counts its own table contradicts.
+
+The reproduction is four cases rather than one, and the reason is a finding.
+`library-browser.spec.ts:49`, `item-menu.spec.ts` "a locked diagram asks to be unlocked before it can be deleted" and `editor-switch.spec.ts:434` all carry `:93`'s signature, and the first is a name-sorted list of one row with no autosave anywhere in the spec, so the cause named in Goal cannot be the cause there.
+Standing instruction: if a row menu detaches with no re-sort available to blame, no fix is written and it comes back as a redirect rather than a wider patch.
+
+### Relaunch, 2026-10-13
+
+A relaunch: the previous om-reviewer and om-developer are both gone and nothing had been committed or pushed.
+Their four instrumented reproduction cases were inherited from the worktree rather than rewritten.
+The branch is rebased onto `origin/develop` at `7a717e3`, which carries 0020.
+
+0020's fix `52270d3` changed when the saver arms (`app/src/components/editor.tsx`, `app/src/lib/editor.ts`), so every timing conclusion the previous session reached against `4b7a50b` was re-tested rather than carried over.
+The premise was verified on the new base instead of assumed: `deploy-dev` run `38497207353` on `7a717e3` still fails `library-panel.spec.ts:93` in `afterEach` on the `menu-delete` path.
+The Acceptance 3 pre-existing list is 0020's four (`library-import:30`, `library-insert:29`, `library-insert:73`, `library-panel:27`), still red after 0020 merged and now owned by task 0022; they are not to be touched or chased.
+
+The reproduction ran on `7a717e3` and established the cause by experiment, with a control.
+Clicking a row-menu trigger while the editor's own context menu is open is the pointerdown that closes that context menu, whose close callback calls `focusContainer()` (`@excalidraw/excalidraw` 0.18.1, `dist/dev/index.js:30020`).
+Focus leaves our non-modal row menu, `dismissableLayer.focusOutside` fires with target `excalidraw`, and the menu is dismissed; `Presence` and its `duration-100` exit are only how it leaves, which is what the logs' "not stable", then "not visible", then "detached" had been showing all along.
+The control, the same case with Escape pressed on the context menu first, produces no `focusOutside` and the click lands.
+So the close, which is what breaks the suite, is not the re-sort named in Goal, and freezing the order fixes none of it.
+The jump is real and separate: the open menu moves one row, y 172 to y 222, while staying open on the same trigger. Cosmetic.
+The first figure recorded here was y 168.6, taken while the menu was still playing its own open animation; the cases now measure after `getAnimations()` settles, and the earlier number was an artefact of the test rather than of the product.
+`library-browser:49` is still unexplained; its case could not meet a precondition of one library row against a shared table holding three, and has been amended to assert only its own row. Only its red will be conclusive.
+
+### Re-scope, approved by Sebastian 2026-10-13
+
+Goal unchanged: "stays put and open" was always two requirements and the run separated them.
+What was wrong is the diagnosis under Goal, which named the `updatedAt` sort, and the Approach built on it.
+
+The primary fix is the close: the row menu refuses `onFocusOutside` when focus lands inside the editor container, and only then.
+A blanket refusal is not acceptable, because a genuine click away must still dismiss the menu.
+The order freeze stays in scope as the second, smaller half, for the jump case 1 measured.
+`replication.md` gains the close's precondition, a shape right-clicked so the editor's context menu is open before the row menu is opened; its current steps reproduce the jump alone and would pass on an app still broken in the way that matters.
+The `library-browser:49` case asserts only its own row, since the shared table holds other libraries.
+
+In `review-task`, beyond the Pipeline, I check five things.
+That the refusal is scoped to the editor container and nothing wider.
+That a test proves a real outside click, an Escape and an item select all still dismiss the menu, because the way this fix fails is by leaving menus stuck open, and no suite failure would reveal it.
+That `library-panel.spec.ts:93` is green for the reason intended, not because a timing changed.
+That the freeze releases on every close path.
+That no row menu became modal, per `docs/modules/app/ard.md` 2026-09-20.
+`library-browser:49` stays unexplained until something shows it; only its red is conclusive.
+
 
 ## om-developer notes
+
+### Round 1
+
+Done.
+
+- The close: `RowMenu` refuses `onFocusOutside` only when `isInEditor(event.target)`, which is `closest("[data-editor-region]")`, an attribute on our own editor wrapper in `editor.tsx`. `pointerDownOutside` and Escape are untouched. In the package's dist, canvas pointerdown reaches the document (only the wysiwyg textarea stops it), and Radix reads Escape on the document in the capture phase, so neither depends on focus.
+- The jump: `holdOrder(rows, held, items)` in `tree.ts`, pure, with 5 unit tests. `SidebarPanel` holds `{ menu, order }` from a row menu's open to that row's own close.
+- e2e in `item-menu.spec.ts`. The proof that menus still close is the three split cases "a row menu opened over the editor's context menu stays open, until Escape | a click on the canvas | an item is chosen". Each asserts that the editor took focus, that the menu is still `data-state="open"`, and then, after the close, that the trigger reads `data-state="closed"` and the menu is gone. The three autosave cases cover the same close paths and assert that the list takes the save's order after each.
+- `replication.md` leads with the close's steps.
+
+Evidence, all local against AWS dev.
+
+- Red without the fix (`app/src` at `7a717e3`, tests kept): the 3 autosave cases failed on "the save moved the open row menu". The 3 editor cases each failed on the `data-state="open"` check.
+- Green with `savesSettled` removed (Acceptance 2): the 3 autosave cases passed with the menu at x 127, y 172, 192 by 185 before and after the save on every close path. Earlier, in the same configuration, `item-menu`, `library-panel` and `library-browser` passed in full, `:93` and `:49` included.
+- Full suite with `savesSettled` restored: 96 of 96, `verify.log`. 0020's four (`library-import:30`, `library-insert:29`, `library-insert:73`, `library-panel:27`) passed locally and are still red in `e2e-dev`; owned by 0022.
+- The row "e2e repro link into mv7khc00-5", leaked by the reproduction's case 3 cleanup, was deleted through the app. `repro-0021.spec.ts` is gone.
+
+Decisions not recorded above.
+
+- The editor is recognised by an attribute we own, not by a package class, so no package-name debt is created.
+- After a refused focus move, focus stays in the editor, so the open menu needs a pointer to be navigated; arrows go to the editor until then. Accepted: the refusal only happens on a pointer path.
+- The panel's state is `{ menu, order }` rather than only which menu is open, because the order to hold cannot be derived once the save has landed.
+- A diagram created while a menu is open is appended below the held rows, so the target does not move. The hold lets go when the row that owns the menu is gone, since that menu can then never report its close.
+- The hold covers diagram and folder row menus in the panel, pinned ones included. Library rows get the refusal but no hold, since `byNameAsc` and `pinnedAt` do not move on a save.
+- `isInEditor` reaches the DOM, so it is outside the Node unit suite, and its correctness rests on the three editor cases.
+- Test instruments: a menu's openness is asserted through `data-state`, never visibility, since a dismissed menu stays visible through its 100 ms exit. A menu's box is measured after its open animation. Each close path is its own test, so each can be seen red.
+
+Deferred.
+
+- The comment above `savesSettled` in `app/tests/e2e/helpers.ts` still names the re-sort as how a delete loses its menu, which this task disproved. The file is outside this diff.
+- `library-browser:49` stays unexplained, a residual the om-reviewer records.
