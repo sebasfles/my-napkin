@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0020_library_items_dev
+updated: 2026-10-13
+source: 0021_row_menu_autosave
 ---
 
 # Architecture and Debt Record
@@ -135,3 +135,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | A library whose row is created and whose first write then fails stays in the list as an empty library | A second flow creates a library with content, or the leftover is seen often |
 | app | 2026-09-20 | The rule that hides the package's library tab is keyed on an id Radix composes from a generated base and the tab name, which no contract covers | The editor package is upgraded, or `UIOptions` gains a flag for the library |
 | app | 2026-09-20 | A person meets the "a library item carries no image" limit through a toast after trying, rather than before | The format carries files, or a library item is stored in a shape of ours |
+| app | 2026-10-13 | After a row menu refuses the editor's focus return, it cannot be walked with the arrow keys until clicked | The package stops taking focus on close, or a keyboard user needs it |

@@ -55,3 +55,15 @@ The jump: when the save lands, A moves to the top and B's row and its open menu 
 - Footprint: reading 3 of https://github.com/sebasfles/my-napkin/pull/34#issuecomment-5768613016 (the `e2e no context library` pairs are `:93`'s failed cleanups). This run's own afterEach hooks all completed.
 
 ## om-reviewer verification
+
+2026-10-13, on `5e8f46a`. Both halves now match Expected.
+
+Verified by auditing the automated evidence at this commit, not by driving the app by hand, and the distinction matters so it is recorded rather than glossed.
+Each half of the steps above is automated verbatim and ran green in `verify.log`'s block on `5e8f46a` (e2e exit 0, 96 of 96), with every artefact in `.verify/` ending `EXIT=0` and timestamped after the commit.
+
+- The close: `app/tests/e2e/item-menu.spec.ts`, "a row menu opened over the editor's context menu stays open, until Escape | a click on the canvas | an item is chosen". Three tests, one per close path, each asserting the editor's context menu closed, `.excalidraw-container` focused (so the refusal was exercised rather than skipped), the row menu reading `data-state="open"`, and then after the close the trigger reading `closed` and the menu gone. Each was proven red without the fix in its own run.
+- The jump: the three "an open row menu stays put while an autosave lands under it" tests. The menu's box is identical before and after the save lands, measured once its own open animation has settled, and the row's index is unchanged while the menu is open and changed once it closes, so the case cannot pass on a row the save was never going to move.
+
+Two things I did not establish and will not claim.
+I did not drive the app as a person: the suite occupies port 3000 under a rationed slot, the cases assert `data-state`, focus and box identity more exactly than an eye can, and `CLAUDE.md` says UI is validated from the PR rather than by an agent starting the app.
+`library-browser.spec.ts:49` passed here but stays unexplained: its reproduction case never ran to its question, and a green on the fix is not evidence that the fix covers it.
