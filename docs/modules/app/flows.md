@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-10-14
+source: 0022_library_items_dev_still_empty
 ---
 
 # app: flows
@@ -37,7 +37,7 @@ sequenceDiagram
 
 ## Save a diagram
 
-Runs on every `onChange`, debounced 1.5 seconds, while the editor is open.
+Runs on every `onChange`, debounced 1.5 seconds, from the moment the canvas is painted by an initialised editor rather than from the moment it is open: before that the editor holds the previous scene or its own initial empty one, and a report from there would be saved over the one being opened.
 The presigned pair comes with the scene at open and is reused until it is close to expiring, so a save is one PUT and one PATCH.
 
 ```mermaid
@@ -56,7 +56,7 @@ sequenceDiagram
   E->>S3: PUT scene JSON (elements, appState subset, files)
   S3-->>E: 200 OK
   E->>P: PATCH with the element count and the byte size just uploaded
-  P-->>E: 200 OK, updatedAt moves and the list reorders
+  P-->>E: 200 OK, updatedAt moves and the list reorders once no row menu is open
 ```
 
 One upload runs at a time, and the editor never loses a change made during one.
