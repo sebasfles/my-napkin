@@ -153,3 +153,10 @@ Findings applied:
    - Develop baseline at a42a1f9 (origin/develop), full suite with traces kept, 19:26:50Z to 19:41:09Z: 96 of 96 green, no CI run, no journal gap.
    The error-context files of round 1 were deleted after run 3, so this analysis rests on the call logs in `.verify/`, the timestamps in the e2e names and the journal; every run keeps its `test-results` from now on.
 2. `verify.log`: from this round the block names the round commit, and every artefact is newer than it.
+
+### Round 3
+
+- Screenshots at 390 retaken with the app sidebar collapsed to its rail (cookie `napkin.shell-layout=closed:diagrams`, as a phone user would leave it): the search input, the counts and the no-match line are on screen in light and dark.
+  The earlier 390 shots stay beside them as `*-sidebar-open.png`, evidence of the pre-existing layout where the open sidebar takes 336 of the 390 px.
+- Seen in the new shots: the editor package's sidebar stops about 35 px short of the right edge at 390, and the trigger shows through the gap. This is the same gap as at 768 and predates this task; deferred with the other layout item.
+- No code change; the round names 8812005 again, and these notes stay uncommitted until the docs commit.
