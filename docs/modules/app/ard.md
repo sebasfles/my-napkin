@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+source: 0024_library_panel_search
 ---
 
 # app: architecture decisions
@@ -859,3 +859,65 @@ source: 0022_library_items_dev_still_empty
 - Debt created: the four rules (readiness, the painted gate, the `viewModeEnabled` resync and the cover's timing) still lack an end-to-end check that runs anywhere but `e2e-dev`, and the lifecycle model in the unit test is ours, so it can drift from the package without failing.
 - Revisit when: `@excalidraw/excalidraw` is upgraded, a fifth rule joins the swap, or one of the four breaks with its unit test still passing.
 - Source: 0022_library_items_dev_still_empty
+
+## 2026-10-14: a dialog's first focus is the dialog's, never `autoFocus`
+
+- Decision: an input inside a Radix dialog takes its first focus from the dialog's own focus scope, which focuses the first tabbable element with its text selected; no field inside a dialog declares `autoFocus` at open.
+- Alternatives rejected: keeping `autoFocus` and stopping the row menu from taking focus, which needs a handler on every item of every row menu and leaves any other steal uncorrected; a timed or deferred `focus()`; a modal row menu, ruled out by the 2026-09-20 entry.
+- Reason: a row menu is still mounted through its exit animation when the dialog's overlay slides under the pointer, and Radix's menu answers the pointer leaving its item by focusing its own content.
+  The dialog's trap returns focus only to an element its `focusin` listener saw, and an `autoFocus` input is focused while React commits, before that listener exists, so focus fell to `body` and the rename took no typing.
+  Owned by the scope, the input is recorded, won back and reselected the moment the menu takes it.
+- Debt created: `AddToLibraryDialog` keeps `autoFocus` on its new-library name, which renders after a choice and is not opened from a row menu; when no library exists it renders at open and is exposed to the same kind of steal.
+- Revisit when: a dialog with `autoFocus` at open is opened from a menu, or Radix stops focusing a closing menu's content.
+- Source: 0023_rename_dialog_focus
+
+## 2026-10-14: the suite's cleanup closes our open dialogs first, found by their slots
+
+- Decision: `removeItemsCreatedHere` presses Escape once per visible `[data-slot="dialog-content"]` or `[data-slot="alert-dialog-content"]` and waits for each to go before it touches a row; with none open it presses nothing.
+- Alternatives rejected: locating by `role="dialog"`, because the editor package marks its color pickers that way and they stay on screen while a shape is selected, so the cleanup would send the editor a stray Escape and miscount what closed.
+- Reason: a case that fails with a modal dialog open leaves its overlay over every row menu the cleanup clicks, which leaked a red run's rows into the table every spec and Sebastian share.
+- Debt created: none; an editor modal left open by a failing case stays out of the cleanup's reach.
+- Revisit when: a spec leaves an editor modal open, or the dialogs stop being shadcn's.
+- Source: 0023_rename_dialog_focus
+
+## 2026-10-14: Escape at the panel's search is stopped at the input, immediately
+
+- Decision: with a query, Escape at the Libraries panel's search clears it and calls both `stopPropagation` and `nativeEvent.stopImmediatePropagation()`; with an empty query it falls through and the package closes the panel.
+  The add-selection dialog stops Escape with `stopPropagation` in `onEscapeKeyDown`, which runs in Radix's document capture phase, so the key never reaches the bubble listeners.
+- Alternatives rejected: React's `stopPropagation` alone, which leaves the panel closing; a `document` or `window` listener of our own, against the single listener rule in `trd.md#Keyboard`.
+- Reason: Next 16 hydrates on `document`, so React's root listener and the package's `Sidebar` and `App` keydown listeners are bubble listeners on the same node, and `stopPropagation` never stops a listener on the node it is called from.
+  Both cases were shown red without their stop: the panel closed with the search, and with the dialog.
+- Debt created: it holds only because React registers its root listener at hydration, before any package effect adds its own.
+- Revisit when: Next stops hydrating on `document`, or the package moves its keydown listener to the capture phase.
+- Source: 0024_library_panel_search
+
+## 2026-10-14: the panel's search lives above the package's `Sidebar`
+
+- Decision: the query is state of `LibraryPanel`, outside the `Sidebar` it renders, and item loading moved from each section to one hook in the panel, so the panel knows when every section has settled.
+- Alternatives rejected: state inside the sidebar's content, which the package unmounts on close; storing the query, which the plan left out of scope.
+- Reason: a search should survive closing the panel to draw and opening it again, and go with a diagram switch, which the panel's key by diagram already does.
+  Non-matching thumbnails stay mounted and hidden, so typing never exports a thumbnail again.
+- Debt created: none.
+- Revisit when: the query should persist across diagrams or reloads.
+- Source: 0024_library_panel_search
+
+## 2026-10-14: in the compact layout the panel trigger is a right-edge tab, and the editor surface never scrolls
+
+- Decision: under `.napkin-editor`, `.excalidraw` takes `overflow: clip`, and in the package's compact layout (`.excalidraw--mobile`) the existing `Sidebar.Trigger` is positioned as a second right-edge tab under the package's lock and hand tab.
+  The trigger also gets an inset focus ring, since its focus lands on a hidden checkbox the package gives none.
+- Alternatives rejected: fitting the package's toolbar row to the editor, whose tools neither shrink nor wrap and spill over the trigger; a second trigger or a portal; patching the package.
+- Reason: the compact layout caps its toolbar at `98vw` and appends our trigger to it, so in an editor narrowed by the shell the trigger sat past the edge, out of reach on a phone, and Playwright's scroll into view shifted the whole surface, the open panel 35 px short of the edge.
+  The 1280 layout is pixel-identical; `library-panel.spec.ts` measures the trigger before any click at 390 and 768 and was red without the rules.
+- Debt created: the rules are keyed on package classes and on the height of the lock and hand tab.
+- Revisit when: `@excalidraw/excalidraw` is upgraded.
+- Source: 0024_library_panel_search
+
+## 2026-10-14: the package's compact toolbar is wider than the editor the shell narrows
+
+- Decision: left as is, recorded.
+- Alternatives rejected: hiding package tools to make the row fit.
+- Reason: the toolbar's natural width exceeds the editor once the shell's sidebar or rail takes its share, so at 390 the selection tool is clipped on the left and at 768 the last tool runs under the trigger tab.
+  Separately, Space on the focused panel trigger does not open the panel at any width, before this task and after.
+- Debt created: both, as described.
+- Revisit when: the shell stops narrowing the editor on phones, or the package fits its toolbar to its container.
+- Source: 0024_library_panel_search

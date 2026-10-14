@@ -6,6 +6,7 @@ import {
   expectElements,
   insertFromPanel,
   libraryItem,
+  libraryPanel,
   linkLibrary,
   newDiagram,
   newLibrary,
@@ -108,4 +109,23 @@ test("a selection added to a brand new library links it to the diagram it came f
 
   await openLibraryPanel(page);
   await expect(panelItems(page, library)).toHaveCount(1, { timeout: awsTimeout });
+});
+
+test("Escape closes the add dialog and leaves the panel open behind it", async ({ page }) => {
+  await openApp(page);
+  await newDiagram(page, "add escape");
+  await drawRectangle(page);
+  await selectEverything(page);
+
+  await openLibraryPanel(page);
+  await page.getByTestId("library-panel-add").click();
+  const dialog = page.getByTestId("add-library-dialog");
+  await expect(dialog).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(
+    libraryPanel(page),
+    "the Escape that closed the dialog also reached the package's sidebar and closed the panel",
+  ).toBeVisible();
 });

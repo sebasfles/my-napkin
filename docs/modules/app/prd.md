@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-13
-source: 0021_row_menu_autosave
+updated: 2026-10-14
+source: 0024_library_panel_search
 ---
 
 # app: product
@@ -41,7 +41,7 @@ The interface starts in the browser's language, Spanish or English, and in its l
 3. User draws; changes are saved on their own a second or two after the user stops.
 4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
 5. Every diagram carries a menu: rename it, pin it, move it, lock it, read what it holds, or delete it. It stays open where it is until the user picks an item or dismisses it.
-6. Renaming happens in a dialog and does not count as editing: the diagram keeps its place in the list.
+6. Renaming happens in a dialog that opens with the current name selected, so the user types the new one at once; it does not count as editing, and the diagram keeps its place in the list.
 7. Info tells the user the name, the folder it sits in, when it was created, when it was last edited, since when it is pinned and locked, how many elements it holds and what its drawing weighs; a diagram not saved since these existed shows a dash rather than a guess.
 8. Deleting asks for confirmation naming the diagram and cannot be undone.
 
@@ -86,8 +86,10 @@ The interface starts in the browser's language, Spanish or English, and in its l
 
 ### Draw with a library
 
-1. The editor carries a Libraries panel of its own, opened from an icon in the top right of the canvas, with one collapsible section per library the open diagram links and nothing from the libraries it does not.
-2. Each section shows the library's name, its item count and a thumbnail of every item, drawn in the theme the user is reading in.
+1. The editor carries a Libraries panel of its own, opened from an icon in the top right of the canvas (on a phone or a narrow window, a tab on its right edge), with one collapsible section per library the open diagram links, each showing its name, its item count and a thumbnail of every item in the theme the user is reading in.
+2. One search box at the top filters every linked library at once by item name, ignoring case and accents; each section says how many of its items match ("2 of 9"), a section with none keeps only its header, and one line says so when nothing matches anywhere.
+   An unnamed item never matches.
+   Escape or the clear button gives the panel back as it was, and the search survives closing and reopening the panel on the same diagram.
 3. Clicking a thumbnail inserts that item at the middle of the canvas; dragging one out of the panel inserts it where it is dropped, and a release anywhere but the drawing surface inserts nothing.
 4. An inserted item is a copy: it carries none of the library's identity, so two inserts of the same item are two independent drawings and neither changes if the library is later edited or deleted.
 5. "Add selection to library" takes what the user has selected and appends it to a linked library, or to a new one he names there, as one more frame below what that library already holds.

@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+source: 0024_library_panel_search
 ---
 
 # app: technical
@@ -30,7 +30,8 @@ Nothing here is planned.
 | `app/src/lib/library-file.ts` | The only module that reaches the editor package outside a component, lazily: the package's own `.excalidrawlib` envelope on the way out, its own loader on the way in | now |
 | `app/src/lib/library-io.ts` | The library flows that leave the browser: read a file, write it as a new library's canvas and items, export one back, read a library's items, append a selection to one, and the single import producer both doors use | now |
 | `app/src/lib/library-cache.ts` | One in-memory entry per library, replaced when its `updatedAt` moves, so every tab linking it reads what the last save derived and a library with no items is never fetched | now |
-| `app/src/components/library-panel.tsx` | The editor's own Libraries panel through the package's `Sidebar`: sections, thumbnails, the pointer-capture insert gesture, add selection, browse | now |
+| `app/src/components/library-panel.tsx` | The editor's own Libraries panel through the package's `Sidebar`: the search, sections, thumbnails, the pointer-capture insert gesture, add selection, browse | now |
+| `app/src/lib/library-search.ts` | Which library items a search keeps: names only, case and accent folded | now |
 | `app/src/lib/tabs.ts` | The tab list, pure: open as preview, keep, close, reconcile against the table, jump and cycle | now |
 | `app/src/lib/shortcuts.ts` | Every key chord the app claims, pure and in one table: which chord means which command, and nothing about how it is delivered | now |
 | `app/src/lib/use-sidebar-folder.ts`, `use-tabs.ts` | Where the sidebar is and which diagrams are open, as stores over `localStorage` rather than state seeded by an effect | now |
@@ -108,6 +109,9 @@ The match reads `event.code`, never `event.key`, because Alt rewrites `key` on s
 `shortcuts.ts` holds the matching as one pure table and `<Shortcuts />`, mounted in the `(editor)` layout, holds the only listener: a new chord is a line in that table, never a second listener, because two listeners on the same event decide in mount order and that order is not a thing anyone reasons about.
 A chord that drives the shell calls a store function that reads its own source at call time, so the listener holds no state of its own and registers once.
 
+The one key the app stops on its way out is Escape, at the Libraries panel's search and in the add-selection dialog, so that clearing a search or closing the dialog does not also close the panel.
+React's `stopPropagation` alone does not reach the package's listeners: Next hydrates on `document`, so React's root and the package's keydown listeners share that node, and the search adds `nativeEvent.stopImmediatePropagation()`; the dialog stops it in Radix's capture phase through `onEscapeKeyDown`.
+
 ## Page metadata
 
 The head is the metadata API's alone: `title`, `description`, `application-name`, `robots: noindex, nofollow` for a private site, and a `theme-color` per colour scheme, plus the file conventions that emit the icon and manifest links.
@@ -156,7 +160,7 @@ Locale and theme are never configured; both are read from the browser and persis
   A local red is worth reading before it is re-run.
 - The repositories are tested with `aws-sdk-client-mock`, the saver with injected ports and fake timers, so the unit suite needs no credentials.
 - A spec removes what it created, through `removeItemsCreatedHere`, and the helpers wait for the sidebar to finish loading before they count anything in it.
-  Every one of those deletes goes through the row's own menu, so no test code computes a payload hash; a library is located by its id, since an import names it after its file and two rows can briefly share a name.
+  Every delete goes through the row's own menu, so the cleanup first closes any dialog of ours a failed case left open over it; a library is located by its id, since an import names it after its file.
 - A spec that means "the first row of the list" scopes its locator to `itemList`.
   The pinned section renders above that list from the same row component and carries the same `data-testid`, so an unscoped first match silently becomes "the first diagram row on the page" the moment anything is pinned.
   Counting a list that has not rendered answers zero, which makes a cleanup pass while leaving rows in the table every other spec and Sebastian share.

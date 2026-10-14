@@ -102,7 +102,6 @@ function NameForm({
       }}
     >
       <Input
-        autoFocus
         aria-label={t("nameLabel")}
         data-testid="name-input"
         value={name}
@@ -137,7 +136,10 @@ export function AddToLibraryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="add-library-dialog">
+      <DialogContent
+        data-testid="add-library-dialog"
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle>{t("addTitle")}</DialogTitle>
           <DialogDescription>{t("addBody")}</DialogDescription>

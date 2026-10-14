@@ -2,15 +2,21 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   diagramItem,
   drawRectangle,
+  e2eName,
+  folderItem,
   itemList,
+  libraryItem,
+  libraryName,
   newDiagram,
   newFolder,
+  newLibrary,
   openApp,
   openDiagram,
   openFolder,
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
+  renamedHere,
   rightClickDrawnShape,
   savedText,
   saveFailedText,
@@ -70,6 +76,60 @@ const closings: {
   },
 ];
 
+const landed = "the typed rename never reached the row";
+
+interface Renamable {
+  row: () => Locator;
+  renamed: (to: string) => Promise<void>;
+}
+
+const renamings: { kind: string; create: (page: Page) => Promise<Renamable> }[] = [
+  {
+    kind: "diagram",
+    create: async (page) => {
+      let name = await newDiagram(page, "menu typed rename");
+
+      return {
+        row: () => diagramItem(page, name),
+        renamed: async (to) => {
+          await expect(diagramItem(page, to), landed).toBeVisible({ timeout: 30_000 });
+          renamedHere(page, name, to);
+          name = to;
+        },
+      };
+    },
+  },
+  {
+    kind: "folder",
+    create: async (page) => {
+      let name = await newFolder(page, "menu typed rename");
+
+      return {
+        row: () => folderItem(page, name),
+        renamed: async (to) => {
+          await expect(folderItem(page, to), landed).toBeVisible({ timeout: 30_000 });
+          renamedHere(page, name, to);
+          name = to;
+        },
+      };
+    },
+  },
+  {
+    kind: "library",
+    create: async (page) => {
+      const library = await newLibrary(page, "menu typed rename");
+
+      return {
+        row: () => libraryItem(page, library),
+        renamed: async (to) => {
+          await expect(libraryName(page, library), landed).toHaveText(to, { timeout: 30_000 });
+          library.name = to;
+        },
+      };
+    },
+  },
+];
+
 function watchWrites(page: Page): string[] {
   const writes: string[] = [];
 
@@ -110,6 +170,45 @@ test.describe("diagram item menu", () => {
     ).toContainText(newer);
     await expect(diagramItem(page, renamed)).toBeVisible();
   });
+
+  // Asserted once the row menu is gone: the closing menu takes focus into itself when the dialog's
+  // overlay slides under the pointer, and the dialog has to win it back. Opened twice, because the
+  // dialog stays mounted between opens.
+  for (const renaming of renamings) {
+    test(`renaming a ${renaming.kind} takes the typed name without a click, on every open`, async ({
+      page,
+    }) => {
+      await openApp(page);
+      const item = await renaming.create(page);
+
+      for (const open of ["first", "second"]) {
+        await openItemMenu(page, item.row());
+        await page.getByTestId("menu-rename").click();
+        await expect(rowMenu(page), "the row menu never finished closing").toHaveCount(0);
+
+        const input = page.getByTestId("name-input");
+        await expect(input, `the ${open} rename opened without focus in its input`).toBeFocused();
+        const selection = await input.evaluate((field: HTMLInputElement) => ({
+          start: field.selectionStart,
+          end: field.selectionEnd,
+          length: field.value.length,
+        }));
+        expect(selection.length, "the rename opened without the current name").toBeGreaterThan(0);
+        expect(selection, `the ${open} rename did not select the whole current name`).toEqual({
+          start: 0,
+          end: selection.length,
+          length: selection.length,
+        });
+
+        const to = e2eName(`menu typed ${renaming.kind}`);
+        await page.keyboard.type(to);
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("name-dialog")).toBeHidden();
+
+        await item.renamed(to);
+      }
+    });
+  }
 
   // The save is held at its own PATCH and released once the menu is open, so the list is re-sorted
   // while the menu is demonstrably on screen instead of racing the saver's debounce. Delaying the
