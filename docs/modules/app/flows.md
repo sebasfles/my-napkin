@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0020_library_items_dev
+updated: 2026-10-13
+source: 0021_row_menu_autosave
 ---
 
 # app: flows
@@ -56,7 +56,7 @@ sequenceDiagram
   E->>S3: PUT scene JSON (elements, appState subset, files)
   S3-->>E: 200 OK
   E->>P: PATCH with the element count and the byte size just uploaded
-  P-->>E: 200 OK, updatedAt moves and the list reorders
+  P-->>E: 200 OK, updatedAt moves and the list reorders once no row menu is open
 ```
 
 One upload runs at a time, and the editor never loses a change made during one.
