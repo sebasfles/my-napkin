@@ -54,3 +54,13 @@ Where the focus lands (nothing, the menu trigger, the canvas) is unknown and mus
 - The new case in `item-menu.spec.ts` fails on this commit for all three kinds at its focus assertion (`the first rename opened without focus in its input`, received `inactive`); the diagram run was confirmed on a second, warmed-up run after the first spent its budget on the dev server's cold compile.
 
 ## om-reviewer verification
+
+2026-10-14, on `e0da69b`: the steps now match Expected for diagram, folder and library rows.
+
+Checked from the evidence, not by driving the app by hand; the suite holds port 3000 under a rationed slot, and the case asserts focus and selection more exactly than an eye can.
+
+- The steps are automated verbatim in `app/tests/e2e/item-menu.spec.ts`, "renaming a {diagram, folder, library} takes the typed name without a click, on every open": Rename from the row menu twice per row, focus and `selectionStart === 0`, `selectionEnd === value.length` asserted once the menu is gone, typed without a click, Enter, the row shows the new name.
+- The case failed on `develop` (`e0833a2`) at its focus assertion for all three kinds, as recorded above, so it can fail for the reason that matters.
+- It passed on `e0da69b` in `verify.log`'s block at that commit (e2e exit 0, 99 of 99), with every `.verify/` artefact ending `EXIT=0` and timestamped after the commit.
+- The cause matches the installed sources: `@radix-ui/react-menu` 2.1.24 focuses its content on `onItemLeave`, and `@radix-ui/react-focus-scope` 1.1.2 refocuses only an element its `focusin` listener recorded, which an `autoFocus` input committed before the listener never is.
+  Without `autoFocus`, the scope's mount effect focuses the input after the listener exists, with `select: true`, and its trap re-selects it when the menu takes focus.

@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-13
-source: 0021_row_menu_autosave
+updated: 2026-10-14
+source: 0023_rename_dialog_focus
 ---
 
 # app: product
@@ -41,7 +41,7 @@ The interface starts in the browser's language, Spanish or English, and in its l
 3. User draws; changes are saved on their own a second or two after the user stops.
 4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
 5. Every diagram carries a menu: rename it, pin it, move it, lock it, read what it holds, or delete it. It stays open where it is until the user picks an item or dismisses it.
-6. Renaming happens in a dialog and does not count as editing: the diagram keeps its place in the list.
+6. Renaming happens in a dialog that opens with the current name selected, so the user types the new one at once; it does not count as editing, and the diagram keeps its place in the list.
 7. Info tells the user the name, the folder it sits in, when it was created, when it was last edited, since when it is pinned and locked, how many elements it holds and what its drawing weighs; a diagram not saved since these existed shows a dash rather than a guess.
 8. Deleting asks for confirmation naming the diagram and cannot be undone.
 

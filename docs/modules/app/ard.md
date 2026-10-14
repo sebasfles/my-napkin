@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+source: 0023_rename_dialog_focus
 ---
 
 # app: architecture decisions
@@ -859,3 +859,23 @@ source: 0022_library_items_dev_still_empty
 - Debt created: the four rules (readiness, the painted gate, the `viewModeEnabled` resync and the cover's timing) still lack an end-to-end check that runs anywhere but `e2e-dev`, and the lifecycle model in the unit test is ours, so it can drift from the package without failing.
 - Revisit when: `@excalidraw/excalidraw` is upgraded, a fifth rule joins the swap, or one of the four breaks with its unit test still passing.
 - Source: 0022_library_items_dev_still_empty
+
+## 2026-10-14: a dialog's first focus is the dialog's, never `autoFocus`
+
+- Decision: an input inside a Radix dialog takes its first focus from the dialog's own focus scope, which focuses the first tabbable element with its text selected; no field inside a dialog declares `autoFocus` at open.
+- Alternatives rejected: keeping `autoFocus` and stopping the row menu from taking focus, which needs a handler on every item of every row menu and leaves any other steal uncorrected; a timed or deferred `focus()`; a modal row menu, ruled out by the 2026-09-20 entry.
+- Reason: a row menu is still mounted through its exit animation when the dialog's overlay slides under the pointer, and Radix's menu answers the pointer leaving its item by focusing its own content.
+  The dialog's trap returns focus only to an element its `focusin` listener saw, and an `autoFocus` input is focused while React commits, before that listener exists, so focus fell to `body` and the rename took no typing.
+  Owned by the scope, the input is recorded, won back and reselected the moment the menu takes it.
+- Debt created: `AddToLibraryDialog` keeps `autoFocus` on its new-library name, which renders after a choice and is not opened from a row menu; when no library exists it renders at open and is exposed to the same kind of steal.
+- Revisit when: a dialog with `autoFocus` at open is opened from a menu, or Radix stops focusing a closing menu's content.
+- Source: 0023_rename_dialog_focus
+
+## 2026-10-14: the suite's cleanup closes our open dialogs first, found by their slots
+
+- Decision: `removeItemsCreatedHere` presses Escape once per visible `[data-slot="dialog-content"]` or `[data-slot="alert-dialog-content"]` and waits for each to go before it touches a row; with none open it presses nothing.
+- Alternatives rejected: locating by `role="dialog"`, because the editor package marks its color pickers that way and they stay on screen while a shape is selected, so the cleanup would send the editor a stray Escape and miscount what closed.
+- Reason: a case that fails with a modal dialog open leaves its overlay over every row menu the cleanup clicks, which leaked a red run's rows into the table every spec and Sebastian share.
+- Debt created: none; an editor modal left open by a failing case stays out of the cleanup's reach.
+- Revisit when: a spec leaves an editor modal open, or the dialogs stop being shadcn's.
+- Source: 0023_rename_dialog_focus

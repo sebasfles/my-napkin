@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+source: 0023_rename_dialog_focus
 ---
 
 # Architecture and Debt Record
@@ -139,3 +139,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-20 | A person meets the "a library item carries no image" limit through a toast after trying, rather than before | The format carries files, or a library item is stored in a shape of ours |
 | app | 2026-10-13 | After a row menu refuses the editor's focus return, it cannot be walked with the arrow keys until clicked | The package stops taking focus on close, or a keyboard user needs it |
 | app | 2026-10-13 | The row menu's refusal of the editor's focus return reaches the DOM, so it is proved by e2e only | The unit suite gains a DOM environment |
+| app | 2026-10-14 | `AddToLibraryDialog` keeps `autoFocus` on its name input, which loses focus to a closing menu if it renders at open | A dialog with `autoFocus` at open is opened from a menu |
