@@ -189,3 +189,9 @@ Deferred.
 
 - The comment above `savesSettled` in `app/tests/e2e/helpers.ts` still names the re-sort as how a delete loses its menu, which this task disproved. The file is outside this diff.
 - `library-browser:49` stays unexplained, a residual the om-reviewer records.
+
+### Round 2
+
+- Rebased onto `origin/develop` at `4a6502b` (0022's planning commit, docs only); round 1 is now `ccc2d87`.
+- The `savesSettled` comment in `app/tests/e2e/helpers.ts` no longer names the re-sort as the cause of the close. It says what the belt does, why it is kept, and that it does nothing in the libraries section; its assertion message no longer claims the list is moving. This closes round 1's deferred item.
+- `verify.log` is run at this round's own commit, after the notes, so the commit reported is the commit verified.

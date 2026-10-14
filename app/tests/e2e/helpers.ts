@@ -601,22 +601,21 @@ export async function deleteFolder(page: Page, name: string) {
   await deleteItem(page, folderItem(page, name), name);
 }
 
-// A save still in flight rewrites updatedAt, and childrenOf sorts diagrams by it, so the list
-// re-sorts under whatever menu the cleanup has open, which is how a delete loses its own menu
-// item mid-click. The open diagram's row carries the save status where its date would be, so
-// this waits for the last save to have landed before anything is deleted. It waits out the
-// saver's debounce first, with the same again as margin: until that window has elapsed, a change
-// made just before this still reads as Saved, because the upload it armed has not started yet.
+// A belt, kept: the cleanup starts deleting only once the open diagram's last save has landed,
+// so nothing a spec drew is still uploading while its rows go. It waits out the saver's debounce
+// first, with the same again as margin: until that window has elapsed, a change made just before
+// this still reads as Saved, because the upload it armed has not started yet. It reads the status
+// the open diagram's row shows in the Diagrams section, so it does nothing while the sidebar shows
+// the libraries, where no indicator renders.
 async function savesSettled(page: Page) {
   const indicator = saveIndicator(page);
   if ((await indicator.count()) === 0) return;
 
   await page.waitForTimeout(defaultDebounceMs * 2);
-  await expect(indicator, "a save never landed, so the list is still moving").toHaveAttribute(
-    "data-status",
-    "saved",
-    { timeout: awsTimeout },
-  );
+  await expect(
+    indicator,
+    "the last save never landed, so the cleanup would delete under it",
+  ).toHaveAttribute("data-status", "saved", { timeout: awsTimeout });
 }
 
 export async function removeItemsCreatedHere(page: Page) {
