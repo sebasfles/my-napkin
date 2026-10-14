@@ -103,4 +103,41 @@ Review focus beyond the Pipeline: `library-panel.spec.ts` covers filtering acros
 
 clearance: repo (workspace commands, plus the local e2e against dev through `.env.local` as `docs/TRD.md` defines)
 
+Decided before round 1, om-reviewer, on the om-developer's question: React's `stopPropagation` alone does not reach the Sidebar's listener, because Next 16 hydrates on `document` (`next/dist/client/app-index.js:33`), so React's root and the package's keydown listeners share that node.
+The input stops Escape with `stopPropagation` plus `nativeEvent.stopImmediatePropagation()`, which holds because React registers at hydration, before the package's effects; the add-selection dialog stops it in `DialogContent`'s `onEscapeKeyDown`, in Radix's document capture phase.
+Both e2e cases are shown red once without the stop, and the listener-order dependency goes to `docs/modules/app/ard.md` as debt through `document-task`.
+
 ## om-developer notes
+
+### Round 1
+
+Did:
+
+- `src/lib/library-search.ts`: `itemMatcher` (NFD, marks stripped, lowercase, trimmed query, blank query is no query, an absent or blank name never matches) and `matchingIds`; unit tests in `tests/unit/library-search.test.ts`.
+- `library-panel.tsx`: the query lives in `LibraryPanel`, outside the `Sidebar`; the search input sits between the header and the scroll area, hidden with no linked library, not autofocused, with a clear button that returns focus to the input.
+  Item loading moved from each section to one `useLinkedItems` hook in the panel, so the panel knows when every section has settled and can show the one panel-wide empty line.
+  Non-matching thumbnails stay mounted with `hidden`; a section with no match keeps its grid mounted and hidden.
+- Escape: with a non-empty query the input calls `stopPropagation` and `nativeEvent.stopImmediatePropagation()` and clears; with an empty query it falls through and the package closes the panel.
+- Add-selection dialog: confirmed by e2e on develop's code that Escape closed the panel along with the dialog (`library-add-selection.spec.ts`, red: panel not found); fixed with `onEscapeKeyDown={(event) => event.stopPropagation()}` on its `DialogContent`.
+- Both Escape cases were run red once without their stop: the panel case failed with the panel closed, the dialog case with the panel closed. Green with them.
+- e2e: `panelItems` now counts visible items only; three new cases in `library-panel.spec.ts`, fixture `tests/e2e/fixtures/search.excalidrawlib` (Arrow, Señal, Toolbox, one unnamed).
+- Screenshots: 12 in `{{WORKSPACE}}/screenshots/` from `{{WORKSPACE}}/screenshots.mjs`, mocked API and S3, never committed.
+
+Decisions not in the plan:
+
+- Escape clears whenever the input holds any text, whitespace included, so a blank query is cleared rather than closing the panel with it hidden in the input.
+- A failed section counts as settled for the panel-wide empty line, since it can never load a match; it keeps its own error line.
+- The header of a section carries `aria-disabled` and ignores clicks while a query is active, rather than becoming a non-button, so focus order does not change while typing.
+
+Observed, not fixed:
+
+- The first red run's cleanup failed (a row menu detached while another workspace's suite reordered the shared list) and left one diagram; it was removed through the UI.
+- Deferred, pre-existing: at 390 px the app sidebar keeps its full width and leaves the editor a sliver, and at 768 px the panel sits with a gap to its right; both predate this task (sidebar layout, 0017), visible in the screenshots.
+- Deferred, pre-existing: the lint warning on `window.location.assign` in `src/lib/api.ts` is the documented 401 decision.
+
+Pending:
+
+- e2e is red at this commit, three full runs, a different failure each time, all in the diagram list and folders (row menus and renamed rows not appearing), none in the Libraries panel; details in `verify.log`.
+  The first run overlapped the deploy-dev e2e on the shared table; the other two had no CI run alongside.
+  Not fixed here, since it is outside Scope: it needs its own investigation of the row list under a shared table.
+- Left untouched in the dev table: "e2e menu typed rename mv8bxtnx-1", from 0023's suite, not this one.

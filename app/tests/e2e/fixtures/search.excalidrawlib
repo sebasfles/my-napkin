@@ -1,0 +1,146 @@
+{
+  "type": "excalidrawlib",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "libraryItems": [
+    {
+      "id": "fixture-arrow",
+      "status": "unpublished",
+      "created": 1758326400000,
+      "name": "Arrow",
+      "elements": [
+        {
+          "id": "fixture-arrow-1",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 140,
+          "height": 40,
+          "angle": 0,
+          "strokeColor": "#1e1e1e",
+          "backgroundColor": "transparent",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "strokeStyle": "solid",
+          "roughness": 1,
+          "opacity": 100,
+          "groupIds": [],
+          "frameId": null,
+          "roundness": null,
+          "seed": 1234567,
+          "version": 12,
+          "versionNonce": 7654321,
+          "isDeleted": false,
+          "boundElements": null,
+          "updated": 1758326400000,
+          "link": null,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "fixture-signal",
+      "status": "unpublished",
+      "created": 1758326400000,
+      "name": "Señal",
+      "elements": [
+        {
+          "id": "fixture-signal-1",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "width": 80,
+          "height": 80,
+          "angle": 0,
+          "strokeColor": "#1e1e1e",
+          "backgroundColor": "transparent",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "strokeStyle": "solid",
+          "roughness": 1,
+          "opacity": 100,
+          "groupIds": [],
+          "frameId": null,
+          "roundness": null,
+          "seed": 1234567,
+          "version": 12,
+          "versionNonce": 7654321,
+          "isDeleted": false,
+          "boundElements": null,
+          "updated": 1758326400000,
+          "link": null,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "fixture-toolbox",
+      "status": "unpublished",
+      "created": 1758326400000,
+      "name": "Toolbox",
+      "elements": [
+        {
+          "id": "fixture-toolbox-1",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 100,
+          "angle": 0,
+          "strokeColor": "#1e1e1e",
+          "backgroundColor": "transparent",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "strokeStyle": "solid",
+          "roughness": 1,
+          "opacity": 100,
+          "groupIds": [],
+          "frameId": null,
+          "roundness": null,
+          "seed": 1234567,
+          "version": 12,
+          "versionNonce": 7654321,
+          "isDeleted": false,
+          "boundElements": null,
+          "updated": 1758326400000,
+          "link": null,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "fixture-unnamed",
+      "status": "unpublished",
+      "created": 1758326400000,
+      "elements": [
+        {
+          "id": "fixture-unnamed-1",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 60,
+          "angle": 0,
+          "strokeColor": "#1e1e1e",
+          "backgroundColor": "transparent",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "strokeStyle": "solid",
+          "roughness": 1,
+          "opacity": 100,
+          "groupIds": [],
+          "frameId": null,
+          "roundness": null,
+          "seed": 1234567,
+          "version": 12,
+          "versionNonce": 7654321,
+          "isDeleted": false,
+          "boundElements": null,
+          "updated": 1758326400000,
+          "link": null,
+          "locked": false
+        }
+      ]
+    }
+  ]
+}

@@ -333,7 +333,15 @@ export function panelSection(page: Page, library: E2eLibrary): Locator {
 }
 
 export function panelItems(page: Page, library: E2eLibrary): Locator {
-  return panelSection(page, library).getByTestId("panel-item");
+  return panelSection(page, library).getByTestId("panel-item").filter({ visible: true });
+}
+
+export function panelCount(page: Page, library: E2eLibrary): Locator {
+  return panelSection(page, library).getByTestId("panel-library-count");
+}
+
+export function panelSearch(page: Page): Locator {
+  return libraryPanel(page).getByTestId("library-panel-search");
 }
 
 export async function insertFromPanel(page: Page, library: E2eLibrary, at: number) {
