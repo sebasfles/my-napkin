@@ -13,7 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isDiagram, isLocked, isPinned, openItemId } from "@/lib/diagrams";
 import type { SidebarSection } from "@/lib/shell-layout";
-import { childrenOf, currentFolder, pathTo, pinnedDiagrams } from "@/lib/tree";
+import {
+  childrenOf,
+  currentFolder,
+  holdOrder,
+  pathTo,
+  pinnedDiagrams,
+  type HeldOrder,
+} from "@/lib/tree";
 import { useSidebarFolder } from "@/lib/use-sidebar-folder";
 import { useTabs } from "@/lib/use-tabs";
 
@@ -44,6 +51,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
   const [open, setOpen] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [held, setHeld] = useState<HeldOrder | null>(null);
 
   const activeId = openItemId(pathname);
   const ready = !loading && !failed;
@@ -53,10 +61,16 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
   const target =
     dialog && "id" in dialog ? (items.find((item) => item.id === dialog.id) ?? null) : null;
   const contents = childrenOf(items, here);
+  const diagrams = holdOrder(contents.diagrams, held, items);
   const pinned = pinnedDiagrams(items);
 
   function statusOf(id: string) {
     return id === activeId && saveStatus?.id === id ? saveStatus.status : null;
+  }
+
+  function onMenuChange(id: string, open: boolean) {
+    if (open) setHeld({ menu: id, order: diagrams.map((diagram) => diagram.id) });
+    else setHeld((current) => (current?.menu === id ? null : current));
   }
 
   function show(kind: Exclude<OpenDialog["kind"], "newFolder">, id: string) {
@@ -159,6 +173,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                         onMove={() => show("move", diagram.id)}
                         onInfo={() => show("info", diagram.id)}
                         onDelete={() => show("delete", diagram.id)}
+                        onMenuChange={(open) => onMenuChange(diagram.id, open)}
                         onToggleLock={() =>
                           void attempt(() => setLock(diagram.id, !isLocked(diagram)))
                         }
@@ -204,10 +219,11 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                         onRename={() => show("name", folder.id)}
                         onMove={() => show("move", folder.id)}
                         onDelete={() => show("delete", folder.id)}
+                        onMenuChange={(open) => onMenuChange(folder.id, open)}
                       />
                     </li>
                   ))}
-                  {contents.diagrams.map((diagram) => (
+                  {diagrams.map((diagram) => (
                     <li key={diagram.id}>
                       <DiagramRow
                         diagram={diagram}
@@ -221,6 +237,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                         onMove={() => show("move", diagram.id)}
                         onInfo={() => show("info", diagram.id)}
                         onDelete={() => show("delete", diagram.id)}
+                        onMenuChange={(open) => onMenuChange(diagram.id, open)}
                         onToggleLock={() =>
                           void attempt(() => setLock(diagram.id, !isLocked(diagram)))
                         }

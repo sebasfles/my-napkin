@@ -25,6 +25,27 @@ export function childrenOf(items: Item[], parentId: ParentId): FolderContents {
   };
 }
 
+export interface HeldOrder {
+  menu: string;
+  order: string[];
+}
+
+export function holdOrder<Row extends Item>(
+  rows: Row[],
+  held: HeldOrder | null,
+  items: Item[],
+): Row[] {
+  if (held === null || !items.some((item) => item.id === held.menu)) return rows;
+
+  const slot = new Map(held.order.map((id, index) => [id, index]));
+  const known = rows
+    .filter((row) => slot.has(row.id))
+    .sort((a, b) => (slot.get(a.id) ?? 0) - (slot.get(b.id) ?? 0));
+  const arrived = rows.filter((row) => !slot.has(row.id));
+
+  return [...known, ...arrived];
+}
+
 export function pinnedDiagrams(items: Item[]): Diagram[] {
   return items
     .filter(isDiagram)

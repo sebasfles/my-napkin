@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0016_diagram_switch_flicker
+updated: 2026-10-13
+source: 0021_row_menu_autosave
 ---
 
 # app: product
@@ -36,11 +36,11 @@ The interface starts in the browser's language, Spanish or English, and in its l
 
 ### Browse and edit diagrams
 
-1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first, each with the time since it was last drawn on, which keeps ageing and never runs ahead of the edit it describes.
+1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first (held still while one of their menus is open, re-sorted when it closes), each with the time since it was last drawn on, which keeps ageing and never runs ahead of the edit it describes.
 2. User opens one; its drawing, pasted images included, comes back as it was left.
 3. User draws; changes are saved on their own a second or two after the user stops.
 4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
-5. Every diagram carries a menu: rename it, pin it, move it, lock it, read what it holds, or delete it.
+5. Every diagram carries a menu: rename it, pin it, move it, lock it, read what it holds, or delete it. It stays open where it is until the user picks an item or dismisses it.
 6. Renaming happens in a dialog and does not count as editing: the diagram keeps its place in the list.
 7. Info tells the user the name, the folder it sits in, when it was created, when it was last edited, since when it is pinned and locked, how many elements it holds and what its drawing weighs; a diagram not saved since these existed shows a dash rather than a guess.
 8. Deleting asks for confirmation naming the diagram and cannot be undone.

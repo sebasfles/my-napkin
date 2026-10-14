@@ -1,13 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   diagramItem,
   drawRectangle,
   itemList,
   newDiagram,
+  newFolder,
   openApp,
+  openDiagram,
+  openFolder,
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
+  rightClickDrawnShape,
   savedText,
   saveFailedText,
   saveIndicator,
@@ -20,10 +24,51 @@ async function openInfo(page: Page, name: string) {
   await expect(page.getByTestId("info-dialog")).toBeVisible();
 }
 
+// Where a diagram sits in the rendered list. The menu case needs it twice: to prove the row did
+// not move while the menu was open, and to prove it would have moved, which is what stops the case
+// passing for free on a row the save was never going to touch.
+async function rowIndex(page: Page, name: string): Promise<number> {
+  const rows = await itemList(page).getByTestId("diagram-item").allTextContents();
+
+  return rows.findIndex((row) => row.includes(name));
+}
+
 async function closeInfo(page: Page) {
   await page.getByTestId("info-close").click();
   await expect(page.getByTestId("info-dialog")).toBeHidden();
 }
+
+// Scoped to the row menu's own popover rather than any role=menu: the editor is open on these pages
+// and the package renders menus of its own.
+function rowMenu(page: Page): Locator {
+  return page.locator('[role="menu"][data-slot="dropdown-menu-content"]');
+}
+
+// Well clear of the rectangle drawRectangle leaves and of the editor's own chrome.
+async function clickEmptyCanvas(page: Page) {
+  const canvas = page.locator("canvas.excalidraw__canvas.interactive");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("the editor canvas has no layout box");
+
+  await canvas.click({ position: { x: box.width * 0.75, y: box.height * 0.7 } });
+}
+
+const closings: {
+  name: string;
+  run: (page: Page) => Promise<void>;
+  settle: (page: Page) => Promise<void>;
+}[] = [
+  { name: "Escape", run: (page) => page.keyboard.press("Escape"), settle: async () => {} },
+  { name: "a click on the canvas", run: clickEmptyCanvas, settle: async () => {} },
+  {
+    name: "an item is chosen",
+    run: (page) => page.getByTestId("menu-info").click(),
+    settle: async (page) => {
+      await expect(page.getByTestId("info-dialog")).toBeVisible();
+      await closeInfo(page);
+    },
+  },
+];
 
 function watchWrites(page: Page): string[] {
   const writes: string[] = [];
@@ -65,6 +110,150 @@ test.describe("diagram item menu", () => {
     ).toContainText(newer);
     await expect(diagramItem(page, renamed)).toBeVisible();
   });
+
+  // The save is held at its own PATCH and released once the menu is open, so the list is re-sorted
+  // while the menu is demonstrably on screen instead of racing the saver's debounce. Delaying the
+  // browser's own request and continuing it is the one exception this spec takes; nothing is faked.
+  // Once per way a menu closes, since each of them has to hand the list back its order.
+  for (const close of closings) {
+    test(`an open row menu stays put while an autosave lands under it, until ${close.name}`, async ({
+      page,
+    }) => {
+      let release = () => {};
+      let caught = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const inFlight = new Promise<void>((resolve) => {
+        caught = resolve;
+      });
+      let holding = false;
+
+      await page.route("**/api/diagrams/*", async (route) => {
+        const request = route.request();
+        const saving = (request.postData() ?? "").includes("elementCount");
+
+        if (!holding || request.method() !== "PATCH" || !saving) {
+          await route.continue();
+          return;
+        }
+
+        holding = false;
+        caught();
+        await held;
+        await route.continue();
+      });
+
+      await openApp(page);
+      const folder = await newFolder(page, "menu autosave");
+      await openFolder(page, folder);
+
+      const edited = await newDiagram(page, "menu autosave edited");
+      const above = await newDiagram(page, "menu autosave above");
+
+      const rows = itemList(page).getByTestId("diagram-item");
+      await expect(
+        rows.first(),
+        "the row with the menu has to sit above the edited one",
+      ).toContainText(above);
+
+      await openDiagram(page, edited);
+      holding = true;
+      await drawRectangle(page);
+      await inFlight;
+
+      await openItemMenu(page, diagramItem(page, above));
+      const trigger = diagramItem(page, above).getByTestId("item-menu");
+      await expect(trigger).toHaveAttribute("data-state", "open");
+
+      // Measured once the menu's own open animation has finished, or the box is a frame of it.
+      await rowMenu(page).evaluate((menu) =>
+        Promise.all(menu.getAnimations().map((animation) => animation.finished)),
+      );
+      const before = await rowMenu(page).boundingBox();
+      const indexBefore = await rowIndex(page, above);
+      expect(
+        indexBefore,
+        "the menu has to be on a row sitting above the one being saved, or the save would not move it",
+      ).toBe(0);
+
+      release();
+      await expect(
+        saveIndicator(page),
+        "the save never landed, so the menu was never put through one",
+      ).toHaveText(savedText, { timeout: 30_000 });
+
+      await expect(rowMenu(page), "the save closed the open row menu").toHaveAttribute(
+        "data-state",
+        "open",
+      );
+      await expect(
+        trigger,
+        "the open menu no longer belongs to the row it was opened on",
+      ).toHaveAttribute("data-state", "open");
+      expect(await rowMenu(page).boundingBox(), "the save moved the open row menu").toEqual(before);
+      expect(await rowIndex(page, above), "the row under the open menu moved").toBe(indexBefore);
+
+      await close.run(page);
+      await expect(trigger, `${close.name} did not close the menu`).toHaveAttribute(
+        "data-state",
+        "closed",
+      );
+      await expect(rowMenu(page), `${close.name} left the menu on screen`).toHaveCount(0);
+      await expect(
+        rows.first(),
+        "the list has to take the save's order once the menu is closed",
+      ).toContainText(edited, { timeout: 30_000 });
+      expect(
+        await rowIndex(page, above),
+        "the row under the menu was never going to move, so holding it still proved nothing",
+      ).not.toBe(indexBefore);
+      await close.settle(page);
+    });
+  }
+
+  // The editor takes focus back into itself when its own context menu closes, and the pointerdown
+  // that opens a row menu is the one that closes it, so the row menu used to be dismissed as soon
+  // as it opened. The menu has to survive that, and still close every way a person closes it.
+  // One test per way, so each of them is proven on its own rather than behind the one before it.
+  for (const close of closings) {
+    test(`a row menu opened over the editor's context menu stays open, until ${close.name}`, async ({
+      page,
+    }) => {
+      await openApp(page);
+      const name = await newDiagram(page, "menu over context menu");
+      await drawRectangle(page);
+      await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
+
+      await rightClickDrawnShape(page);
+      const contextMenu = page.locator(".excalidraw .context-menu");
+      await expect(contextMenu).toBeVisible();
+
+      await openItemMenu(page, diagramItem(page, name));
+      const trigger = diagramItem(page, name).getByTestId("item-menu");
+      await expect(
+        contextMenu,
+        "the click on the row menu has to be what closes the editor's context menu",
+      ).toHaveCount(0);
+      await expect(
+        page.locator(".excalidraw-container"),
+        "the editor never took focus back, so nothing here tested the refusal",
+      ).toBeFocused();
+      // data-state rather than visibility: a dismissed menu stays visible through its exit.
+      await expect(rowMenu(page), "the editor taking focus closed the row menu").toHaveAttribute(
+        "data-state",
+        "open",
+      );
+
+      await close.run(page);
+      await expect(trigger, `${close.name} did not close the menu`).toHaveAttribute(
+        "data-state",
+        "closed",
+      );
+      await expect(rowMenu(page), `${close.name} left the menu on screen`).toHaveCount(0);
+      await close.settle(page);
+    });
+  }
 
   test("info reports what the saved scene holds", async ({ page }) => {
     await openApp(page);

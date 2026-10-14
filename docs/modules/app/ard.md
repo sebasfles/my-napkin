@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0020_library_items_dev
+updated: 2026-10-13
+source: 0021_row_menu_autosave
 ---
 
 # app: architecture decisions
@@ -813,3 +813,25 @@ source: 0020_library_items_dev
 - Debt created: the rule's test does not prove that the JSX calls the rule, and the swap now carries three rules that only a rendered editor could check end to end: this gate, the `viewModeEnabled` resync and the cover's timing. Each is tested today only as the pure part of itself.
 - Revisit when: a fourth rule joins the swap, or one of the three is broken by a change that its pure test still passes.
 - Source: 0020_library_items_dev
+
+## 2026-10-13: a row menu ignores focus landing in the editor, and nothing else
+
+- Decision: a row menu refuses its focus-outside dismissal when the newly focused element sits inside `[data-editor-region]`, an attribute on our own editor wrapper. A pointerdown outside, Escape and choosing an item still close it.
+- Alternatives rejected: keying on a package class such as `.excalidraw`; refusing focus-outside dismissal in general; a modal menu.
+- Reason: the editor's context menu closes on the same document pointerdown that opens a row menu, and its close hands focus back to the editor's container, which dismissed the non-modal menu a frame after it opened.
+  A reproduction with a control showed this, not the list's re-sort, was why `library-panel.spec.ts:93`'s cleanup could not click `menu-delete` and leaked its rows.
+  An attribute we own survives a package rename; a general refusal would leave menus no click dismisses; a modal menu is ruled out by the 2026-09-20 entry above.
+- Debt created: after a refusal focus stays in the editor, so the open menu cannot be walked with the arrow keys until it is clicked; Escape and clicks work. The rule reaches the DOM, so only the e2e cases prove it.
+- Revisit when: the package stops taking focus when its context menu closes, or a keyboard user needs a row menu after a right-click.
+- Source: 0021_row_menu_autosave
+
+## 2026-10-13: the Diagrams list holds its order while a row menu is open
+
+- Decision: `holdOrder` in `src/lib/tree.ts`, pure, keeps a folder's diagrams in the order on screen when a row menu opened, and the panel holds that row's id and that order until the same row's menu closes.
+  The order is held, never the set: a diagram created meanwhile goes below, a deleted one leaves, and the hold lets go if the row with the menu disappears.
+- Alternatives rejected: holding only which menu is open, since the order cannot be derived once a save has landed; holding the library and pinned lists, which a save does not reorder.
+- Reason: a save moves `updatedAt`, so the list re-sorted under an open menu and moved it one row.
+- Debt created: none.
+- Revisit when: the list gets a sort order the user chooses.
+- Source: 0021_row_menu_autosave
+

@@ -6,6 +6,7 @@ import {
   crumbs,
   currentFolder,
   folderChoices,
+  holdOrder,
   pathTo,
   pinnedDiagrams,
   subtree,
@@ -79,6 +80,45 @@ describe("childrenOf", () => {
 
     expect(folders.map((item) => item.id)).toEqual(["japan"]);
     expect(diagrams.map((item) => item.id)).toEqual(["itinerary"]);
+  });
+});
+
+describe("holdOrder", () => {
+  const before = [diagram("c", "C", at(3)), diagram("b", "B", at(2)), diagram("a", "A", at(1))];
+  const held = { menu: "b", order: ["c", "b", "a"] };
+  const saved = (id: string) =>
+    before.map((item) => (item.id === id ? { ...item, updatedAt: at(9) } : item));
+  const ids = (items: Item[]) => items.map((item) => item.id);
+  const listed = (items: Item[]) => childrenOf(items, null).diagrams;
+
+  it("lets a save re-sort the list while no menu is open", () => {
+    const items = saved("a");
+
+    expect(ids(holdOrder(listed(items), null, items))).toEqual(["a", "c", "b"]);
+  });
+
+  it("keeps the order on screen when a save lands while a menu is open", () => {
+    const items = saved("a");
+
+    expect(ids(holdOrder(listed(items), held, items))).toEqual(["c", "b", "a"]);
+  });
+
+  it("drops a diagram deleted while the menu is open, and moves no other", () => {
+    const items = before.filter((item) => item.id !== "c");
+
+    expect(ids(holdOrder(listed(items), held, items))).toEqual(["b", "a"]);
+  });
+
+  it("shows a diagram created while the menu is open below the held rows", () => {
+    const items = [diagram("d", "D", at(9)), ...before];
+
+    expect(ids(holdOrder(listed(items), held, items))).toEqual(["c", "b", "a", "d"]);
+  });
+
+  it("lets go once the row whose menu was open is gone", () => {
+    const items = saved("a").filter((item) => item.id !== "b");
+
+    expect(ids(holdOrder(listed(items), held, items))).toEqual(["a", "c"]);
   });
 });
 
