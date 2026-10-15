@@ -1,12 +1,13 @@
 locals {
   ### General ##################################################################
-  project    = "my-napkin"
-  env        = "dev"
-  aws_region = "us-east-1"
+  project        = "my-napkin"
+  env            = "dev"
+  aws_region     = "us-east-1"
+  aws_account_id = "372303522225"
 
   ### DNS ######################################################################
-  base_domain = "dev.sdfles.com"
-  hosted_zone = "sdfles.com"
+  hostname    = "dev.napkin.fless.dev"
+  hosted_zone = "napkin.fless.dev"
 
   ### GitHub ###################################################################
   github_owner               = "sebasfles"

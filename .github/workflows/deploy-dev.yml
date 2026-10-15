@@ -112,7 +112,7 @@ jobs:
       - name: Run the suite against deployed dev
         working-directory: app
         env:
-          BASE_URL: https://napkin.dev.sdfles.com
+          BASE_URL: https://dev.napkin.fless.dev
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
         run: npx playwright test --workers=1
 

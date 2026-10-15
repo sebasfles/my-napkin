@@ -113,3 +113,17 @@ Consolidated 2026-10-14 by the om-devops with the om-manager.
 - clearance: full; AWS account 372303522225 with `fless-napkin` (create and apply), the old account 975050033628 with `personal` read only (tables and scenes buckets), GitHub `sebasfles/my-napkin` through the Terraform App and `gh` as `sebasfles`, the root `app/.env.local` as above.
 
 ## om-devops notes
+
+### Round 1 (2026-10-14)
+
+- Done: backends on `napkin-terraform-state-372303522225`, `allowed_account_ids` on every provider and backend, `stacks/app` takes `hostname`, `core/budget.tf` and its variable gone, `infra/scripts/copy-data.sh`, workflow and test origin on `dev.napkin.fless.dev`, every doc rewritten.
+- Applied, all with `fless-napkin` in 372303522225, every plan read first, 0 destroys anywhere:
+  - state bucket by hand (`create-bucket`, versioning, AES256, public access block), as `infra/docs/setup.md` section 1.
+  - `core`: 3 imported (workflow permissions, rulesets 23691457 and 23691458), 1 added (OIDC provider); plan empty after.
+  - `dev`: 7 imported, 30 added, 4 changed (3 variables to the new account, secret value); plan empty after.
+  - `prd`: 7 imported, 30 added, 4 changed; plan empty after.
+- Copy (`personal` read, `fless-napkin` write): dev 44 items, 45 objects; prd 30 items, 19 objects; compare matched every item and object (attributes, size, ETag, content type, cache control, metadata).
+- Proved: both hostnames answer the placeholder 503 over valid TLS; GitHub `dev` and `prd` variables name the new role, Lambda, bucket and distribution; `napkin.sdfles.com` and `napkin.dev.sdfles.com` still 200.
+- Root `app/.env.local`: `SCENES_BUCKET` and `AWS_PROFILE` rewritten in place, never printed.
+- Decided: the decommission note uses `terraform state rm module.app.module.actions_environment` per environment rather than seven addresses.
+- Pending: final copy run before `PRs ready`.
