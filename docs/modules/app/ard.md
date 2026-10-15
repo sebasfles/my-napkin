@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-14
-source: 0025_sidebar_sort
+updated: 2026-10-15
+source: 0027_save_indicator_stuck
 ---
 
 # app: architecture decisions
@@ -151,6 +151,7 @@ source: 0025_sidebar_sort
 
 ## 2026-09-18: The saver ends in two ways, `stop()` and `abandon()`
 
+- Superseded by: 2026-10-15: a stopped saver drains what it was handed and reports it to the end
 - Decision: `stop()` starts no further upload and lets one already running finish, `abandon()` writes nothing ever, and the editor abandons when the diagram was deleted and stops otherwise.
   The saver also reads a `deleted` marker the provider sets before the DELETE leaves, checked before the debounce advances and before the upload writes.
   Both are undone by `resume()`, which the effect calls on setup, because the saver lives in a `useMemo` and the stop lives in an effect cleanup, and an effect cleanup has to be undoable by the next effect run.
@@ -783,6 +784,7 @@ source: 0025_sidebar_sort
   The saver is rebuilt whenever the workspace list changes identity, which every save does, so this is reachable on develop and is not this task's doing.
   It is worse than a wrong label: it masked the data loss above, turning it into a stuck indicator, and a bug that disguises other bugs earns a task rather than a queue position.
 - Debt created: the save indicator can read "Saving" for a save that has landed, until the next edit moves it.
+- Resolved by: 0027_save_indicator_stuck, 2026-10-15
 - Revisit when: its own task, which the om-reviewer has asked the om-manager to raise.
 - Source: 0016_diagram_switch_flicker
 
@@ -951,3 +953,32 @@ source: 0025_sidebar_sort
 - Debt created: the guard lives in two components, `item-row.tsx` and `diagram-sort-menu.tsx`.
 - Revisit when: a third sidebar menu appears, at which point the guarded content becomes one component.
 - Source: 0025_sidebar_sort
+
+## 2026-10-15: a stopped saver drains what it was handed and reports it to the end
+
+- Supersedes: 2026-09-18: The saver ends in two ways, `stop()` and `abandon()`
+- Decision: `stop()` hands the pending change over, accepts no input after that and arms no timer, then lets every upload it holds finish, a queued scene included, reporting each status. A failure after stop reads "not saved" and is not retried. It returns a promise that settles once drained, and the beforeunload warning stays until then. `abandon()` now also silences reports. The saver remembers the scene it already holds (`handed`), so a flush or a debounce for that same scene is a no-op.
+- Alternatives rejected: muting reports after stop, which is what left the indicator on "Saving"; dropping the queued scene at stop, which silently lost the last edit made during an upload; flushing before stopping, which made the handover report a live one that reopened a closed tab.
+- Reason: the bytes a user drew are never dropped, and what the indicator says is what reached S3. It also corrects the 2026-09-21 entry "a saver recreated while dirty": the memo's dependencies are stable across saves, and the real trigger is `CanvasSaving` unmounting when the address leaves the canvas. Without `handed`, a flush during an upload moved `saving` to `queued`, the upload then found nothing pending, and the status stuck on "saving" with no save outstanding.
+- Debt created: coming back to a diagram before its stopped saver has drained loads the scene from before that upload, so the next edit uploads over the newer one. A lock right after leaving a diagram does not wait for its stopped saver, because `registerSaver` unregisters on unmount, so the drained upload can be refused (409) and read "not saved".
+- Revisit when: a returning user's last edit is seen to vanish, or a lock is seen to refuse a save made just before it; the load and the lock would then wait for the stopped saver of the same id.
+- Source: 0027_save_indicator_stuck
+
+## 2026-10-15: the save indicator keeps the report of the newest saver
+
+- Decision: every saver numbers itself at creation, and `nextSaveReport` in `save-state.ts` lets a report replace the slot unless the slot holds one from a newer saver.
+- Alternatives rejected: refusing any late report about another diagram, which would hide a left diagram's save in flight behind a stale report about a diagram left earlier; resetting the indicator on remount, which the task's Approach rejected for the same reason.
+- Reason: the indicator is one `{id, status}` slot, and a saver that has stopped keeps reporting while it drains. Only one saver runs at a time and it is always the newest, so ordering by creation is enough to protect both the open diagram's saver and a newer saver of the same diagram. The counter lives in the factory because the React compiler's lint forbids mutating a module value during render.
+- Debt created: none.
+- Revisit when: two savers can run at once, for example two editors on one page.
+- Source: 0027_save_indicator_stuck
+
+## 2026-10-15: a save report promotes an open tab and never opens one
+
+- Decision: `CanvasSaving` calls `promoteTab` on every report, a stopped saver's included: it fixes the diagram's tab if it is the preview and does nothing if the tab is fixed or closed. The sidebar's double click keeps `fixTab`, which opens.
+- Alternatives rejected: `fixTab`, which goes through `openTab` and reopened a tab closed within the debounce; promoting only on reports from a running saver, which lost the promotion of a preview tab edited just before opening another diagram.
+- Reason: this refines the 2026-09-20 entry "an edit fixes a preview tab through the saver's own status report". The handover report runs in the editor's unmount cleanup, before the tab bar's effect opens the next diagram, so the edited tab is still open and is kept, and the next one becomes the preview. A tab the user closed is already gone, and nothing a save reports brings it back.
+- Debt created: none.
+- Revisit when: tab promotion gets a second source besides the save report.
+- Source: 0027_save_indicator_stuck
+

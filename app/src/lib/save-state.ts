@@ -4,6 +4,12 @@ export type SaveEvent = "change" | "success" | "failure";
 
 export type SaveIndicator = "saved" | "saving" | "failed";
 
+export interface SaveReport {
+  id: string;
+  status: SaveStatus;
+  saver: number;
+}
+
 export interface SaveTransition {
   status: SaveStatus;
   upload: boolean;
@@ -44,4 +50,8 @@ export function saveIndicator(status: SaveStatus): SaveIndicator {
   if (status === "failed") return "failed";
   if (status === "idle") return "saved";
   return "saving";
+}
+
+export function nextSaveReport(current: SaveReport | null, report: SaveReport): SaveReport {
+  return current !== null && current.saver > report.saver ? current : report;
 }

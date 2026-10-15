@@ -6,6 +6,7 @@ import {
   noTabs,
   openTab,
   parseTabs,
+  promoteTab,
   tabAt,
   tabBeside,
   type TabsState,
@@ -51,6 +52,24 @@ describe("fixTab", () => {
 
   it("opens a diagram that has no tab as a fixed one", () => {
     expect(fixTab(tabs(["a"]), "b")).toEqual(tabs(["a", "b"]));
+  });
+});
+
+describe("promoteTab", () => {
+  it("keeps the preview tab, without moving it", () => {
+    expect(promoteTab(tabs(["a", "b", "c"], "b"), "b")).toEqual(tabs(["a", "b", "c"]));
+  });
+
+  it("never opens a diagram that has no tab, so a closed tab stays closed", () => {
+    const state = tabs(["a"], "a");
+
+    expect(promoteTab(state, "b")).toBe(state);
+  });
+
+  it("leaves a tab that is already fixed alone", () => {
+    const state = tabs(["a", "b"], "b");
+
+    expect(promoteTab(state, "a")).toBe(state);
   });
 });
 

@@ -3,9 +3,13 @@ import { fetchSceneUrls, putObject, saveDiagram, saveLibrary } from "@/lib/api";
 import type { Canvas, SceneUrls } from "@/lib/diagrams";
 import { libraryFile } from "@/lib/library-file";
 import { libraryItemsFromFrames } from "@/lib/library-items";
-import type { SaveStatus } from "@/lib/save-state";
 import { sceneStats, sceneVersion, type Scene } from "@/lib/scene";
-import { createSceneSaver, type SceneSaver, type WritableSceneUrls } from "@/lib/scene-save";
+import {
+  createSceneSaver,
+  type SaverReport,
+  type SceneSaver,
+  type WritableSceneUrls,
+} from "@/lib/scene-save";
 
 export type WriteCanvas = (
   id: string,
@@ -37,7 +41,7 @@ interface UseCanvasSaveOptions {
   scene: Scene;
   urls: SceneUrls;
   write: WriteCanvas;
-  onStatus: (status: SaveStatus) => void;
+  onStatus: (report: SaverReport) => void;
   onSaved: (item: Canvas) => void;
   isDeleted: (id: string) => boolean;
 }
@@ -80,15 +84,13 @@ export function useCanvasSave({
 
     window.addEventListener("beforeunload", warnWhileDirty);
     return () => {
-      window.removeEventListener("beforeunload", warnWhileDirty);
-
       if (isDeleted(itemId)) {
+        window.removeEventListener("beforeunload", warnWhileDirty);
         saver.abandon();
         return;
       }
 
-      saver.flush();
-      saver.stop();
+      void saver.stop().then(() => window.removeEventListener("beforeunload", warnWhileDirty));
     };
   }, [itemId, isDeleted, saver]);
 

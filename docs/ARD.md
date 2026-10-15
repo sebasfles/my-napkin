@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-14
-source: 0029_old_account_teardown
+updated: 2026-10-15
+source: 0027_save_indicator_stuck
 ---
 
 # Architecture and Debt Record
@@ -132,7 +132,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-21 | `viewModeEnabled` is asserted by hand after every reset, since the package follows the prop and not its state; a second prop-derived appState key needs the same | The package syncs a prop against state, or a second such key is added |
 | app | 2026-09-21 | The cover lifts on the next animation frame rather than on a paint the editor confirms, so a heavy enough scene could still show one bare frame, and since 0020 that frame delays the saver as well | The package reports when it has painted, or a scene paints slowly enough to matter |
 | app | 2026-09-21 | `toScene` prunes files on write, which disagrees with the debt that a stored scene keeps the shape it was written in, about files alone | A second normalization on write is wanted |
-| app | 2026-09-21 | A saver recreated while dirty uploads and never reports it, so the indicator can read "Saving" for a save that has landed | Its own task, already asked for |
+| app | 2026-10-15 | Coming back to a diagram before its stopped saver drains loads the older scene, and a lock right after leaving does not wait for that saver | A returning user's last edit vanishes, or a lock refuses a save made just before it |
 | app | 2026-09-20 | `src/lib/api.ts` leaves for `/login` on a 401 with a full page `window.location.assign`, which can move the page while something else is driving it | `api.ts` gains a client boundary, or the lint warning is upgraded to an error |
 | app | 2026-10-14 | Escape at the panel's search is stopped only because React's root listener on `document` registers before the package's | Next stops hydrating on `document`, or the package moves its keydown listener to capture |
 | app | 2026-10-14 | The compact-layout trigger tab and `overflow: clip` are keyed on package classes and on the offset of its lock and hand tab | `@excalidraw/excalidraw` is upgraded |

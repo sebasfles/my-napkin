@@ -70,7 +70,7 @@ function setup(overrides: Partial<SceneSaverOptions> = {}) {
     now: () => now,
     urls: requestUrls,
     write: writeWith(put, save),
-    onStatus: (status) => statuses.push(status),
+    onStatus: ({ status }) => statuses.push(status),
     onSaved: (item) => saved.push(item),
     ...overrides,
   });
@@ -97,6 +97,20 @@ function createExpiringSaver({
     onStatus: () => {},
     onSaved: () => {},
   });
+}
+
+function held(put: ReturnType<typeof vi.fn<Put>>) {
+  let release = () => {};
+  let fail: (reason: Error) => void = () => {};
+  put.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        release = resolve;
+        fail = reject;
+      }),
+  );
+
+  return { release: () => release(), fail: (reason: Error) => fail(reason) };
 }
 
 beforeEach(() => {
@@ -362,15 +376,9 @@ describe("createSceneSaver", () => {
     expect(put.mock.calls[0][1]).toBe(JSON.stringify(scene(2)));
   });
 
-  it("starts no upload once stopped, so a queued change cannot outlive the editor", async () => {
+  it("drains a change queued behind the upload in flight once stopped, and reports it", async () => {
     const { saver, put, statuses } = setup();
-    let release = () => {};
-    put.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          release = resolve;
-        }),
-    );
+    const first = held(put);
 
     saver.change(scene(2));
     await vi.advanceTimersByTimeAsync(1_500);
@@ -378,33 +386,112 @@ describe("createSceneSaver", () => {
     await vi.advanceTimersByTimeAsync(1_500);
     expect(statuses).toEqual(["saving", "queued"]);
 
-    saver.stop();
-    release();
-    await vi.advanceTimersByTimeAsync(1_500);
+    const drained = vi.fn();
+    void saver.stop().then(drained);
+    first.release();
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(put).toHaveBeenCalledTimes(1);
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(put.mock.calls[1][1], "the last edit is not dropped").toBe(JSON.stringify(scene(3)));
+    expect(statuses).toEqual(["saving", "queued", "saving", "idle"]);
+    expect(drained).toHaveBeenCalled();
+    expect(saver.dirty()).toBe(false);
   });
 
-  it("starts no upload once stopped, not even the retry a failed upload would have made", async () => {
-    const { saver, put } = setup();
-    let fail: (reason: Error) => void = () => {};
-    put.mockImplementationOnce(
-      () =>
-        new Promise<void>((_resolve, reject) => {
-          fail = reject;
-        }),
-    );
+  it("drains a queued change after the upload in flight fails once stopped, and retries nothing", async () => {
+    const { saver, put, statuses } = setup();
+    const first = held(put);
+    put.mockRejectedValueOnce(new Error("scene upload failed with 403"));
 
     saver.change(scene(2));
     await vi.advanceTimersByTimeAsync(1_500);
     saver.change(scene(3));
     await vi.advanceTimersByTimeAsync(1_500);
 
-    saver.stop();
-    fail(new Error("scene upload failed with 403"));
-    await vi.advanceTimersByTimeAsync(1_500);
+    void saver.stop();
+    first.fail(new Error("scene upload failed with 403"));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(put.mock.calls[1][1]).toBe(JSON.stringify(scene(3)));
+    expect(statuses).toEqual(["saving", "queued", "saving", "failed"]);
+    expect(saver.dirty()).toBe(true);
+  });
+
+  it("uploads the change pending when stopped and reports every status it reaches", async () => {
+    const { saver, put, statuses } = setup();
+
+    saver.change(scene(2));
+    const drained = vi.fn();
+    void saver.stop().then(drained);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(put).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(["saving", "idle"]);
+    expect(drained).toHaveBeenCalled();
+  });
+
+  it("reads failed when the upload handed over on stop fails, and retries nothing", async () => {
+    const { saver, put, statuses } = setup();
+    put.mockRejectedValue(new Error("scene upload failed with 403"));
+
+    saver.change(scene(2));
+    void saver.stop();
+    await vi.advanceTimersByTimeAsync(0);
+    saver.change(scene(3));
+    saver.flush();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(["saving", "failed"]);
+  });
+
+  it("accepts no change once stopped and arms no timer", async () => {
+    const { saver, put, statuses } = setup();
+
+    void saver.stop();
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(put).not.toHaveBeenCalled();
+    expect(statuses).toEqual([]);
+    expect(saver.dirty()).toBe(false);
+  });
+
+  it("sends nothing twice and ends idle when flushed while its upload is in flight", async () => {
+    const { saver, put, statuses } = setup();
+    const first = held(put);
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.flush();
+    first.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(["saving", "idle"]);
+    expect(saver.dirty()).toBe(false);
+  });
+
+  it("ends idle when the debounce fires for a change a queued upload already took", async () => {
+    const { saver, put, statuses } = setup();
+    const first = held(put);
+    const second = held(put);
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.change(scene(3));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.change(scene(4));
+    first.release();
+    await vi.advanceTimersByTimeAsync(1_500);
+    second.release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(put.mock.calls[1][1]).toBe(JSON.stringify(scene(4)));
+    expect(statuses).toEqual(["saving", "queued", "saving", "idle"]);
+    expect(saver.dirty()).toBe(false);
   });
 
   it("uploads nothing for a diagram deleted while the debounce was still running", async () => {
@@ -506,16 +593,50 @@ describe("createSceneSaver", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("stops reporting once stopped, but still finishes the save it started", async () => {
+  it("keeps reporting once stopped, until the save it started has landed", async () => {
     const { saver, put, statuses } = setup();
 
     saver.change(scene(2));
     saver.flush();
-    saver.stop();
+    void saver.stop();
     await vi.advanceTimersByTimeAsync(0);
 
     expect(put).toHaveBeenCalledTimes(1);
-    expect(statuses).toEqual(["saving"]);
+    expect(statuses).toEqual(["saving", "idle"]);
+  });
+
+  it("numbers every report with its saver, a saver created later always numbering higher", async () => {
+    const earlierNumbers: number[] = [];
+    const laterNumbers: number[] = [];
+    const earlier = setup({ onStatus: ({ saver }) => earlierNumbers.push(saver) });
+    const later = setup({ onStatus: ({ saver }) => laterNumbers.push(saver) });
+
+    earlier.saver.change(scene(2));
+    later.saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(earlierNumbers).toHaveLength(2);
+    expect(laterNumbers).toHaveLength(2);
+    expect(new Set(earlierNumbers).size).toBe(1);
+    expect(new Set(laterNumbers).size).toBe(1);
+    expect(laterNumbers[0]).toBeGreaterThan(earlierNumbers[0]);
+  });
+
+  it("reports nothing once abandoned, even when the upload in flight fails", async () => {
+    const { saver, put, statuses } = setup();
+    const first = held(put);
+
+    saver.change(scene(2));
+    await vi.advanceTimersByTimeAsync(1_500);
+    saver.change(scene(3));
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    saver.abandon();
+    first.fail(new Error("scene upload failed with 404"));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(["saving", "queued"]);
   });
 });
 

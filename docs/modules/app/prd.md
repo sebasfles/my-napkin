@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-14
-source: 0025_sidebar_sort
+updated: 2026-10-15
+source: 0027_save_indicator_stuck
 ---
 
 # app: product
@@ -113,7 +113,7 @@ That is where a new browser starts, where closing the last tab returns, and wher
 A folder with nothing in it says so.
 A new diagram is named after the day, `Napkin DDMMYYYY`, and repeats that day get `(2)`, `(3)`.
 The open diagram shows a passive save indicator where its date would be: saved, saving, or not saved.
-A failed save says so and goes through on the next change; the user is warned before leaving with work still unsaved.
+A failed save says so and goes through on the next change; a save started on a diagram the user then leaves still finishes, and the indicator shows how it ended when he returns; the user is warned before leaving the page with work still unsaved.
 A list that cannot be loaded offers to try again rather than pretending to be empty.
 
 ## Rules
