@@ -40,7 +40,7 @@ The app's shell is built; everything else is the design the code must converge t
 ### deploy
 
 - Stack: GitHub Actions, `aws-actions/configure-aws-credentials` over OIDC, AWS CLI.
-- Layout: `ci.yml` (pull requests and pushes to `develop`: lint, typecheck, unit, Terraform, actionlint; no e2e, no secrets), `deploy-dev.yml` (push to `develop`: deploy dev, run the suite against it, open the promotion PR), `deploy-prd.yml` (push to `main`), `reusable-deploy.yml` (the deploy steps both callers share).
+- Layout: `ci.yml` (pull requests and pushes to `develop`: lint, typecheck, unit, Terraform, actionlint; no e2e, no secrets), `deploy-dev.yml` (push to `develop`: deploy dev and run the suite against it unless the push is docs-only, open the promotion PR), `deploy-prd.yml` (push to `main`), `reusable-deploy.yml` (the deploy steps both callers share).
 - Install: none.
 - Workspace files: none.
 - Delivery: see `modules/deploy/trd.md`.

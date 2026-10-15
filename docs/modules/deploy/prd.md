@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0007_deploy_workflows
+updated: 2026-10-14
+source: 0026_deploy_dev_skips_docs
 ---
 
 # deploy: product
@@ -25,6 +25,7 @@ This module ships his pushes to `main` to `napkin.sdfles.com` without him runnin
 4. Sebastian reads that pull request: `ci` and `e2e-dev` on its head commit are the proof the change works deployed. A red suite leaves it blocked by the `main` ruleset.
 5. He merges it with a merge commit, and the same deploy runs against prd. Within 3 to 5 minutes the change is live at `napkin.sdfles.com`.
 
+A push that changes only `docs/**` or root Markdown files, after a green run of the previous commit, deploys nothing and runs no suite; the promotion pull request is still opened and is not blocked by the skipped `e2e-dev`.
 No browser test ever runs against prd. The proof for those commits is the `e2e-dev` run they already passed on dev.
 
 Errors and empty states: a failing `ci` check blocks merge; a failing deploy step leaves the previous Lambda code and assets in place, so the site keeps serving the last successful deploy.
