@@ -154,3 +154,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-10-13 | After a row menu refuses the editor's focus return, it cannot be walked with the arrow keys until clicked | The package stops taking focus on close, or a keyboard user needs it |
 | app | 2026-10-13 | The row menu's refusal of the editor's focus return reaches the DOM, so it is proved by e2e only | The unit suite gains a DOM environment |
 | app | 2026-10-14 | `AddToLibraryDialog` keeps `autoFocus` on its name input, which loses focus to a closing menu if it renders at open | A dialog with `autoFocus` at open is opened from a menu |
+| app | 2026-10-14 | The non-modal menu guard against the editor taking focus back lives in both `item-row.tsx` and `diagram-sort-menu.tsx` | A third sidebar menu appears |

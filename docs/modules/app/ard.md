@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0024_library_panel_search
+source: 0025_sidebar_sort
 ---
 
 # app: architecture decisions
@@ -921,3 +921,48 @@ source: 0024_library_panel_search
 - Debt created: both, as described.
 - Revisit when: the shell stops narrowing the editor on phones, or the package fits its toolbar to its container.
 - Source: 0024_library_panel_search
+
+## 2026-10-14: the Diagrams sort is a field and a direction in the shell cookie, and a field starts in its natural direction
+
+- Decision: the sort is a pair, persisted as the last two parts of `napkin.shell-layout`; picking a field sets its natural direction (name A to Z, created and edited newest first), which the direction group then flips; `sortBy` in `tree.ts` holds that rule.
+- Alternatives rejected: keeping the previous direction across a field change, which turned the first pick most people make, Name from the default, into Z to A; `localStorage`, which the plan named first and which paints the default for a frame.
+- Reason: one menu reads as one setting, and the direction labels only make sense in the field's terms.
+- Debt created: none.
+- Revisit when: the sort needs to follow the user across browsers.
+- Source: 0025_sidebar_sort
+
+## 2026-10-14: every sort breaks ties on something that does not move
+
+- Decision: name ties break by creation, oldest first; creation and edit ties break by name; then the id, always ascending, whatever the direction.
+- Alternatives rejected: breaking a name tie by last edit, which would swap two same-named rows on every save; reversing the whole comparator for a descending sort.
+- Reason: rows that compare equal must not trade places between renders, and equal timestamps read better A to Z.
+- Debt created: none.
+- Revisit when: a sort is added on a field that changes as the user works.
+- Source: 0025_sidebar_sort
+
+## 2026-10-14: a row's time follows the sort field, in the pinned section too
+
+- Decision: under "created" every diagram row in the sidebar, pinned ones included, shows its creation time; otherwise its last edit; the save indicator still replaces either on the open diagram.
+- Alternatives rejected: switching only the sorted list, which shows two different times for a pinned diagram that also sits in its folder.
+- Reason: a list sorted by creation with edit times reads as unsorted, and one diagram should read the same wherever it appears.
+- Debt created: none.
+- Revisit when: the pinned section gets an order of its own.
+- Source: 0025_sidebar_sort
+
+## 2026-10-14: the held order needs nothing new under a sort the user chose
+
+- Decision: `holdOrder` is unchanged; it holds whatever order was on screen when the row menu opened, so a rename under the name sort or a save under the edit sort waits for the menu to close, as a save did before.
+- Alternatives rejected: holding per sort, or dropping the hold when the sort is not by edit.
+- Reason: the hold keys on the order on screen, not on what produced it; this is the revisit the 2026-10-13 entry asked for.
+- Debt created: none.
+- Revisit when: the sort can change while a row menu is open.
+- Source: 0025_sidebar_sort
+
+## 2026-10-14: the sort menu shares the row menu's guard against the editor taking focus back
+
+- Decision: the sort menu is non-modal and ignores a focus move into the editor, exactly as the row menu does.
+- Alternatives rejected: a modal menu, or no guard.
+- Reason: it opens from the same sidebar over the same editor, so the pointerdown that closes the editor's context menu would close it the same way.
+- Debt created: the guard lives in two components, `item-row.tsx` and `diagram-sort-menu.tsx`.
+- Revisit when: a third sidebar menu appears, at which point the guarded content becomes one component.
+- Source: 0025_sidebar_sort
