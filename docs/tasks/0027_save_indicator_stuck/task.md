@@ -130,3 +130,17 @@ Deferred:
 
 - Coming back to a diagram before its stopped saver has drained loads the scene from before that upload, and the next edit uploads over the newer one. The load could wait for the stopped saver of the same id. That changes when an open canvas loads, which is out of scope.
 - Locking a diagram does not wait for a stopped saver of that diagram: `registerSaver` unregisters on unmount, so a lock right after leaving can land before the drained upload, which the server then refuses (409, "not saved").
+
+### Round 2
+
+Done:
+
+- Finding 1: the saver's reports promote the tab through the new `promoteTab` in `tabs.ts` (via `promote` in `use-tabs.ts`). It fixes a preview tab that is still open and never opens, re-adds or evicts one. `CanvasSaving` calls it on every report, stopped ones included. The sidebar's `onFix` keeps `fix`. On a switch within the debounce, the cleanup's handover report promotes A while A is still open, before the tab bar's `open(B)` runs, so A is kept and B becomes the preview. A tab closed first is no longer in the list, so it stays closed.
+- New e2e case "keeps a preview tab edited within the debounce of opening another diagram" (2 tabs, A kept, B preview). Unit cases for `promoteTab`.
+- Finding 2: dropped the request-count assertion and "and does not retry it" from the failure case. The poll stays as a wait, and the unit test pins no retry after stop.
+- With the tab guard gone, nothing reads the report's `stopped` flag, so `SaverReport` is `{ status, saver }` again and the unit assertions on the flag are gone.
+
+Pending: none.
+
+Deferred: unchanged from round 1.
+

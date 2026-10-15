@@ -14,7 +14,6 @@ export interface WritableSceneUrls extends SceneUrls {
 export interface SaverReport {
   status: SaveStatus;
   saver: number;
-  stopped: boolean;
 }
 
 export interface SceneSaverOptions {
@@ -76,7 +75,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
     const transition = nextSaveState(status, event);
     status = transition.status;
-    options.onStatus({ status, saver: generation, stopped });
+    options.onStatus({ status, saver: generation });
     if (transition.upload) start();
   }
 

@@ -58,7 +58,6 @@ function writeWith(put: Put, save: Save): SceneSaverOptions["write"] {
 
 function setup(overrides: Partial<SceneSaverOptions> = {}) {
   const statuses: SaveStatus[] = [];
-  const stoppedAt: boolean[] = [];
   const saved: Canvas[] = [];
   const put = vi.fn<Put>().mockResolvedValue(undefined);
   const save = vi.fn<Save>().mockResolvedValue(diagram());
@@ -71,15 +70,12 @@ function setup(overrides: Partial<SceneSaverOptions> = {}) {
     now: () => now,
     urls: requestUrls,
     write: writeWith(put, save),
-    onStatus: ({ status, stopped }) => {
-      statuses.push(status);
-      stoppedAt.push(stopped);
-    },
+    onStatus: ({ status }) => statuses.push(status),
     onSaved: (item) => saved.push(item),
     ...overrides,
   });
 
-  return { saver, statuses, stoppedAt, saved, put, save, requestUrls };
+  return { saver, statuses, saved, put, save, requestUrls };
 }
 
 function createExpiringSaver({
@@ -381,7 +377,7 @@ describe("createSceneSaver", () => {
   });
 
   it("drains a change queued behind the upload in flight once stopped, and reports it", async () => {
-    const { saver, put, statuses, stoppedAt } = setup();
+    const { saver, put, statuses } = setup();
     const first = held(put);
 
     saver.change(scene(2));
@@ -398,7 +394,6 @@ describe("createSceneSaver", () => {
     expect(put).toHaveBeenCalledTimes(2);
     expect(put.mock.calls[1][1], "the last edit is not dropped").toBe(JSON.stringify(scene(3)));
     expect(statuses).toEqual(["saving", "queued", "saving", "idle"]);
-    expect(stoppedAt).toEqual([false, false, true, true]);
     expect(drained).toHaveBeenCalled();
     expect(saver.dirty()).toBe(false);
   });
@@ -424,7 +419,7 @@ describe("createSceneSaver", () => {
   });
 
   it("uploads the change pending when stopped and reports every status it reaches", async () => {
-    const { saver, put, statuses, stoppedAt } = setup();
+    const { saver, put, statuses } = setup();
 
     saver.change(scene(2));
     const drained = vi.fn();
@@ -433,7 +428,6 @@ describe("createSceneSaver", () => {
 
     expect(put).toHaveBeenCalledTimes(1);
     expect(statuses).toEqual(["saving", "idle"]);
-    expect(stoppedAt, "a stopped saver says so with every report").toEqual([true, true]);
     expect(drained).toHaveBeenCalled();
   });
 

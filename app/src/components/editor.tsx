@@ -286,14 +286,14 @@ function CanvasSaving({
   onScene?: (id: string, changed: Scene) => void;
 }) {
   const { isDeleted, markSaved, registerSaver, reportSave } = useWorkspace();
-  const { fix } = useTabs();
+  const { promote } = useTabs();
 
   const onStatus = useCallback(
-    ({ status, saver, stopped }: SaverReport) => {
-      if (!stopped) fix(itemId);
+    ({ status, saver }: SaverReport) => {
+      promote(itemId);
       reportSave({ id: itemId, status, saver });
     },
-    [itemId, fix, reportSave],
+    [itemId, promote, reportSave],
   );
 
   const saver = useCanvasSave({

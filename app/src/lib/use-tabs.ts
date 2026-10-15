@@ -1,5 +1,14 @@
 import { useCallback, useSyncExternalStore } from "react";
-import { closeTab, fixTab, keepTabs, noTabs, openTab, parseTabs, type TabsState } from "@/lib/tabs";
+import {
+  closeTab,
+  fixTab,
+  keepTabs,
+  noTabs,
+  openTab,
+  parseTabs,
+  promoteTab,
+  type TabsState,
+} from "@/lib/tabs";
 
 const storageKey = "napkin.tabs";
 const listeners = new Set<() => void>();
@@ -42,6 +51,7 @@ export interface Tabs {
   tabs: TabsState;
   open: (id: string) => void;
   fix: (id: string) => void;
+  promote: (id: string) => void;
   close: (id: string, activeId: string | null) => string | null;
   keep: (live: string[], activeId: string | null) => string | null;
 }
@@ -51,6 +61,7 @@ export function useTabs(): Tabs {
 
   const open = useCallback((id: string) => store(openTab(stored(), id)), []);
   const fix = useCallback((id: string) => store(fixTab(stored(), id)), []);
+  const promote = useCallback((id: string) => store(promoteTab(stored(), id)), []);
 
   const close = useCallback((id: string, activeId: string | null) => {
     const change = closeTab(stored(), id, activeId);
@@ -66,5 +77,5 @@ export function useTabs(): Tabs {
     return change.next;
   }, []);
 
-  return { tabs, open, fix, close, keep };
+  return { tabs, open, fix, promote, close, keep };
 }

@@ -120,9 +120,7 @@ test.describe("a save that outlives its canvas", () => {
     await expect(saveIndicator(page)).toHaveAttribute("data-status", "saved");
   });
 
-  test("reads not saved when the upload fails after the editor left, and does not retry it", async ({
-    page,
-  }) => {
+  test("reads not saved when the upload fails after the editor left", async ({ page }) => {
     await openApp(page);
     const other = await newDiagram(page, "outlive failed other");
     const left = await newDiagram(page, "outlive failed left");
@@ -147,7 +145,6 @@ test.describe("a save that outlives its canvas", () => {
 
     await openPainted(page, left);
     await expect(saveIndicator(page)).toHaveText(saveFailedText);
-    expect(attempts, "a failure after the editor left is not retried").toBe(1);
 
     failing = false;
     await drawRectangle(page, 0.6);
@@ -171,6 +168,29 @@ test.describe("a save that outlives its canvas", () => {
     await page.waitForTimeout(1_000);
     await expect(tab(page, closed), "the closed tab stays closed").toHaveCount(0);
     await expect(tabs(page)).toHaveCount(1);
+  });
+
+  test("keeps a preview tab edited within the debounce of opening another diagram", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const next = await newDiagram(page, "outlive preview next");
+    const edited = await newDiagram(page, "outlive preview edited");
+    const editedId = openId(page);
+    await expect(tab(page, edited)).toHaveAttribute("data-preview", "true");
+
+    const landed = savedTo(page, editedId);
+    await drawRectangle(page);
+    await diagramItem(page, next).getByRole("link").click();
+    await landed;
+
+    await expect(activeTab(page)).toContainText(next);
+    await expect(tab(page, edited), "the edit kept the tab it was made in").toHaveAttribute(
+      "data-preview",
+      "false",
+    );
+    await expect(tab(page, next)).toHaveAttribute("data-preview", "true");
+    await expect(tabs(page)).toHaveCount(2);
   });
 
   test("warns before leaving the page while the left canvas is still uploading", async ({
