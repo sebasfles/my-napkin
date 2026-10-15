@@ -101,3 +101,21 @@ None.
 - clearance: full; account 975050033628 with `personal` (state rm, the prd flip apply, destroy of the three old roots, untagging the OIDC provider, deleting the old state bucket), 372303522225 with `fless-napkin` read only, GitHub `sebasfles/my-napkin` read only through `gh` as `sebasfles`.
 
 ## om-devops notes
+
+### Round 1 (2026-10-15)
+
+- Scratch: `git archive a153682^ infra` in the session scratchpad, tfvars `cp`'d from the root checkout, `.env` with `AWS_PROFILE=personal`; every external action below ran with `personal` in 975050033628.
+- Applied, in order, each plan read first:
+  - GitHub listing taken with `gh api` (workflow permissions, 2 rulesets, `dev` and `prd` with branch policy, 8 variables, 2 secrets).
+  - `terraform state rm`: core 3 (workflow permissions, both rulesets), dev 7 and prd 7 (`module.app.module.actions_environment`); `state list` then showed 0 `github_` addresses in all three.
+  - GitHub provider, `github.tf` and the `actions_environment` call stripped from the scratch config.
+  - Final counts: dev 44 items and 45 objects, prd 30 items and 19 objects, equal to PR #42; newest write in the old buckets 2026-10-15T01:12:48Z (dev) and 2026-10-14T16:04:35Z (prd), both before PR #42 opened (02:13:59Z).
+  - OIDC provider: trusted by 5 `clara-prd-*` roles of another repository, so `terraform state rm` from core and its 4 napkin tags removed with `aws iam untag-open-id-connect-provider`; it now carries none.
+  - prd flip: the full plan showed a 4th in-place update, the assets bucket policy rewritten from a data source deferred by the bucket change (same statement); the apply was narrowed with `-target` to the table and both buckets, plan 3 in-place, applied.
+  - `destroy` prd 30, dev 30, core 1 (`napkin-core-monthly`); all three states then empty.
+  - `napkin-terraform-state-975050033628`: 95 versions and 59 delete markers deleted, then the bucket; `head-bucket` 404.
+- Proved: in us-east-1 no napkin Lambda, distribution, OAC, certificate, bucket, table, role, policy, log group or `napkin.*` record in `sdfles.com`, and no resource tagged `Project=my-napkin`; left are foundation's `napkin-monthly` and the shared OIDC provider, untagged.
+  `napkin.sdfles.com` and `napkin.dev.sdfles.com` no longer resolve; `napkin.fless.dev` and `dev.napkin.fless.dev` answer 307 to `/login`, which answers 200.
+  The GitHub listing after is byte-identical to the one before.
+- Note for foundation: the GitHub OIDC provider in 975050033628 is no longer my-napkin's and no state manages it; it stays for the `clara-prd-*` roles, untagged, for foundation to adopt.
+- Repo: `infra/docs/setup.md` section 6 removed; Acceptance 6 grep finds only the prose `personal`.
