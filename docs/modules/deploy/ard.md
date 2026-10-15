@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # deploy: architecture decisions and debt
@@ -147,3 +147,12 @@ source: 0028_account_migration
 - Debt created: none.
 - Revisit when: the docs path set changes, or GitHub stops counting a skipped job as a satisfied required check.
 - Source: 0026_deploy_dev_skips_docs
+
+## 2026-10-14: docs-only means any Markdown file or any path under a `docs/` directory
+
+- Decision: the `decide` job's path rule accepts `*.md` at any depth and any path under a `docs/` directory at any depth, instead of only `docs/**` and root `*.md`; the `before` guards, the previous-run check and the fail-closed job conditions are unchanged.
+- Alternatives rejected: listing each nested docs folder (`infra/docs/`) by name, which drifts the next time a module grows one.
+- Reason: 0029 changed only `infra/docs/setup.md`, and the old rule counted it as code, so a pure documentation merge would have redeployed dev and run `e2e-dev` against the dev table, which is what 0026 set out to stop.
+- Debt created: the rule trusts directory names, so a code file placed under a folder named `docs/` (a Next route at `app/src/app/docs/`, for example) would skip deploy and `e2e-dev`; today the only nested one is `infra/docs/`, all Markdown.
+- Revisit when: a non-Markdown file lands under a `docs/` directory outside the root one.
+- Source: 0029_old_account_teardown

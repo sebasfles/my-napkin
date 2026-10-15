@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # Architecture and Debt Record
@@ -89,8 +89,8 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
   The stack was applied from scratch there, the GitHub side was imported into the new state, and the tables and scenes buckets were copied item by item and object by object through Sebastian's machine.
 - Alternatives rejected: staying in the management account; moving the state and importing the AWS resources (resources cannot cross accounts); a cross-account bucket policy for the copy (it would have touched the old account).
 - Reason: a project account isolates cost, quotas and blast radius, and a clean apply proves the Terraform stands alone.
-- Debt created: the previous deployment in the management account still serves, frozen, and its state still lists the imported GitHub resources until the decommission task removes them, as `infra/docs/setup.md` section 6 says.
-- Revisit when: the decommission task runs.
+- Debt created: none since 0029_old_account_teardown, which destroyed the previous deployment after removing the imported GitHub resources from its state; see `docs/modules/infra/ard.md`.
+- Revisit when: never, the old account holds nothing of the project since 0029.
 - Source: 0028_account_migration
 
 ## Debt index
@@ -110,7 +110,6 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
 | app | 2026-09-17 | `components.json` pins the shadcn preset, so a component added with different CLI flags will not match the tree | A component is added with different CLI flags |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
-| general | 2026-10-14 | The previous deployment still serves from the management account, and its state still lists the imported GitHub resources (`infra/docs/setup.md` section 6) | The decommission task runs |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |
@@ -155,3 +154,4 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-10-13 | The row menu's refusal of the editor's focus return reaches the DOM, so it is proved by e2e only | The unit suite gains a DOM environment |
 | app | 2026-10-14 | `AddToLibraryDialog` keeps `autoFocus` on its name input, which loses focus to a closing menu if it renders at open | A dialog with `autoFocus` at open is opened from a menu |
 | app | 2026-10-14 | The non-modal menu guard against the editor taking focus back lives in both `item-row.tsx` and `diagram-sort-menu.tsx` | A third sidebar menu appears |
+| deploy | 2026-10-14 | The docs-only rule trusts directory names, so code under a folder named `docs/` would skip deploy and `e2e-dev` | A non-Markdown file lands under a nested `docs/` directory |

@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # deploy: flows
@@ -9,7 +9,7 @@ source: 0028_account_migration
 
 Runs on every merge into `develop`.
 
-A `decide` job first marks the push docs-only when every changed path is under `docs/` or a root `*.md` and the previous commit's `deploy-dev` run succeeded; then `deploy` and `e2e-dev` are skipped and `promotion-pr` still runs.
+A `decide` job first marks the push docs-only when every changed path is a Markdown file or sits under a `docs/` directory at any depth and the previous commit's `deploy-dev` run succeeded; then `deploy` and `e2e-dev` are skipped and `promotion-pr` still runs.
 Otherwise the three jobs of `deploy-dev.yml` run in order on the same commit, and `ci.yml` runs on that same push.
 Both checks land on the commit `develop` points at, which is the promotion pull request's head, which is what the `main` ruleset reads.
 

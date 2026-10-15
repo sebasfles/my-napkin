@@ -45,9 +45,7 @@ jobs:
             while IFS= read -r path; do
               case "$path" in
                 '') ;;
-                docs/*) ;;
-                */*) return 1 ;;
-                *.md) ;;
+                *.md | docs/* | */docs/*) ;;
                 *) return 1 ;;
               esac
             done <<< "$paths"

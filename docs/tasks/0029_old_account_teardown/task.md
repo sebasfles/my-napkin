@@ -100,4 +100,39 @@ None.
 - Order: GitHub listing, `state rm` in core, dev, prd, `state list` shows no `github_`, final counts, OIDC `rm` and untag, prd (flip apply, destroy), dev, core, state bucket emptied of every version and delete marker then deleted, listings, hostnames, docs.
 - clearance: full; account 975050033628 with `personal` (state rm, the prd flip apply, destroy of the three old roots, untagging the OIDC provider, deleting the old state bucket), 372303522225 with `fless-napkin` read only, GitHub `sebasfles/my-napkin` read only through `gh` as `sebasfles`.
 
+### Reiteration 1 (2026-10-15, retakes.md, Sebastian on PR #45)
+
+- `.github/workflows/deploy-dev.yml:46-51`: the docs-only `case` accepts `docs/*` and root `*.md` only, so `infra/docs/setup.md` counts as code; widen it to any `*.md` and any path under a `docs/` directory at any depth.
+  The `before` guards, the previous-run check, the fail-closed `if`s and `promotion-pr` stay as they are.
+- `docs/modules/deploy/trd.md:48` states the widened rule in its one sentence; `flows.md:12`, which repeats the old rule, follows (om-devops, so no doc states the stale rule).
+- Check: `npm run lint:workflows` green, plus the new `case` exercised locally against representative paths; PR #45's own `deploy-dev` run after merge is the live proof (`deploy` and `e2e-dev` skipped).
+- Scope adjusted (Sebastian): this PR now also touches module `deploy`.
+
 ## om-devops notes
+
+### Round 1 (2026-10-15)
+
+- Scratch: `git archive a153682^ infra` in the session scratchpad, tfvars `cp`'d from the root checkout, `.env` with `AWS_PROFILE=personal`; every external action below ran with `personal` in 975050033628.
+- Applied, in order, each plan read first:
+  - GitHub listing taken with `gh api` (workflow permissions, 2 rulesets, `dev` and `prd` with branch policy, 8 variables, 2 secrets).
+  - `terraform state rm`: core 3 (workflow permissions, both rulesets), dev 7 and prd 7 (`module.app.module.actions_environment`); `state list` then showed 0 `github_` addresses in all three.
+  - GitHub provider, `github.tf` and the `actions_environment` call stripped from the scratch config.
+  - Final counts: dev 44 items and 45 objects, prd 30 items and 19 objects, equal to PR #42; newest write in the old buckets 2026-10-15T01:12:48Z (dev) and 2026-10-14T16:04:35Z (prd), both before PR #42 opened (02:13:59Z).
+  - OIDC provider: trusted by 5 `clara-prd-*` roles of another repository, so `terraform state rm` from core and its 4 napkin tags removed with `aws iam untag-open-id-connect-provider`; it now carries none.
+  - prd flip: the full plan showed a 4th in-place update, the assets bucket policy rewritten from a data source deferred by the bucket change (same statement); the apply was narrowed with `-target` to the table and both buckets, plan 3 in-place, applied.
+  - `destroy` prd 30, dev 30, core 1 (`napkin-core-monthly`); all three states then empty.
+  - `napkin-terraform-state-975050033628`: 95 versions and 59 delete markers deleted, then the bucket; `head-bucket` 404.
+- Proved: in us-east-1 no napkin Lambda, distribution, OAC, certificate, bucket, table, role, policy, log group or `napkin.*` record in `sdfles.com`, and no resource tagged `Project=my-napkin`; left are foundation's `napkin-monthly` and the shared OIDC provider, untagged.
+  `napkin.sdfles.com` and `napkin.dev.sdfles.com` no longer resolve; `napkin.fless.dev` and `dev.napkin.fless.dev` answer 307 to `/login`, which answers 200.
+  The GitHub listing after is byte-identical to the one before.
+- Note for foundation: the GitHub OIDC provider in 975050033628 is no longer my-napkin's and no state manages it; it stays for the `clara-prd-*` roles, untagged, for foundation to adopt.
+- Repo: `infra/docs/setup.md` section 6 removed; Acceptance 6 grep finds only the prose `personal`.
+- Docs: `docs/modules/infra/ard.md` 2026-10-14 entry marked resolved plus one new entry; `trd.md` setup row trimmed; the `general` row left the `docs/ARD.md` Debt index.
+  The global 2026-10-14 entry in `docs/ARD.md` Decisions now reads "Debt created: none since 0029", at the om-manager's request.
+
+### Round 2 (2026-10-15, Reiteration 1)
+
+- `deploy-dev.yml` `decide`: the path `case` is now `*.md | docs/* | */docs/*` accepted, anything else code; guards, previous-run check, job `if`s and `promotion-pr` untouched.
+- Exercised the `case` locally on 15 paths: root and nested `*.md`, `docs/**`, `infra/docs/**` and `a/b/docs/**` read as docs; `.ts`, `.tf`, workflows, `docsx/`, `mydocs/`, `docs.txt` as code.
+- Decided: a code file under a folder named `docs/` would now skip deploy; today the only nested `docs/` is `infra/docs/`, all Markdown; recorded as debt in `docs/modules/deploy/ard.md` and the Debt index.
+- No external action this round.
