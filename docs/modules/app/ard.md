@@ -831,8 +831,9 @@ source: 0025_sidebar_sort
   The order is held, never the set: a diagram created meanwhile goes below, a deleted one leaves, and the hold lets go if the row with the menu disappears.
 - Alternatives rejected: holding only which menu is open, since the order cannot be derived once a save has landed; holding the library and pinned lists, which a save does not reorder.
 - Reason: a save moves `updatedAt`, so the list re-sorted under an open menu and moved it one row.
+  It holds whatever order is on screen, so it needs nothing per sort the user chooses (0025_sidebar_sort).
 - Debt created: none.
-- Revisit when: the list gets a sort order the user chooses.
+- Revisit when: the sort can change while a row menu is open.
 - Source: 0021_row_menu_autosave
 
 ## 2026-10-14: a new editor instance is handed a scene only once the package has initialised, and the save gate is keyed by instance
@@ -925,19 +926,12 @@ source: 0025_sidebar_sort
 ## 2026-10-14: the Diagrams sort is a field and a direction in the shell cookie, and a field starts in its natural direction
 
 - Decision: the sort is a pair, persisted as the last two parts of `napkin.shell-layout`; picking a field sets its natural direction (name A to Z, created and edited newest first), which the direction group then flips; `sortBy` in `tree.ts` holds that rule.
+  Ties break on what does not move: equal names by creation, oldest first, equal times by name, then the id, ascending whatever the direction.
 - Alternatives rejected: keeping the previous direction across a field change, which turned the first pick most people make, Name from the default, into Z to A; `localStorage`, which the plan named first and which paints the default for a frame.
+  Breaking a name tie by last edit, which swaps two same-named rows on every save.
 - Reason: one menu reads as one setting, and the direction labels only make sense in the field's terms.
 - Debt created: none.
 - Revisit when: the sort needs to follow the user across browsers.
-- Source: 0025_sidebar_sort
-
-## 2026-10-14: every sort breaks ties on something that does not move
-
-- Decision: name ties break by creation, oldest first; creation and edit ties break by name; then the id, always ascending, whatever the direction.
-- Alternatives rejected: breaking a name tie by last edit, which would swap two same-named rows on every save; reversing the whole comparator for a descending sort.
-- Reason: rows that compare equal must not trade places between renders, and equal timestamps read better A to Z.
-- Debt created: none.
-- Revisit when: a sort is added on a field that changes as the user works.
 - Source: 0025_sidebar_sort
 
 ## 2026-10-14: a row's time follows the sort field, in the pinned section too
@@ -947,15 +941,6 @@ source: 0025_sidebar_sort
 - Reason: a list sorted by creation with edit times reads as unsorted, and one diagram should read the same wherever it appears.
 - Debt created: none.
 - Revisit when: the pinned section gets an order of its own.
-- Source: 0025_sidebar_sort
-
-## 2026-10-14: the held order needs nothing new under a sort the user chose
-
-- Decision: `holdOrder` is unchanged; it holds whatever order was on screen when the row menu opened, so a rename under the name sort or a save under the edit sort waits for the menu to close, as a save did before.
-- Alternatives rejected: holding per sort, or dropping the hold when the sort is not by edit.
-- Reason: the hold keys on the order on screen, not on what produced it; this is the revisit the 2026-10-13 entry asked for.
-- Debt created: none.
-- Revisit when: the sort can change while a row menu is open.
 - Source: 0025_sidebar_sort
 
 ## 2026-10-14: the sort menu shares the row menu's guard against the editor taking focus back
