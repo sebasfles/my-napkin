@@ -126,4 +126,5 @@ Consolidated 2026-10-14 by the om-devops with the om-manager.
 - Proved: both hostnames answer the placeholder 503 over valid TLS; GitHub `dev` and `prd` variables name the new role, Lambda, bucket and distribution; `napkin.sdfles.com` and `napkin.dev.sdfles.com` still 200.
 - Root `app/.env.local`: `SCENES_BUCKET` and `AWS_PROFILE` rewritten in place, never printed.
 - Decided: the decommission note uses `terraform state rm module.app.module.actions_environment` per environment rather than seven addresses.
-- Pending: final copy run before `PRs ready`.
+- Final copy re-run before publishing: 0 objects copied, both environments match again (dev 44 and 45, prd 30 and 19).
+- Docs: `docs/ARD.md` Decisions were edited beyond the Debt index because Scope asks for the historical entries to stand alone; the 2026-09-17 entries and the infra module ARD entries that named other projects, the old zone or the old profile were rewritten in place, flagged here for the PR's Decisions.

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0018_lambda_libraries_grant
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # infra: technical
@@ -11,18 +11,19 @@ Every path below exists, and all three roots have been applied.
 
 | Path | What |
 |---|---|
-| `infra/environments/core/` | Root: GitHub OIDC provider (one per account), branch rulesets for `develop` and `main` and the repository's Actions workflow permissions through the GitHub provider as a GitHub App, and the monthly budget alert. Its resources live in `oidc.tf`, `github.tf` and `budget.tf`, so this root has no `main.tf`; state key `core/terraform.tfstate` |
-| `infra/environments/dev/` | Root for `dev`: `locals.tf` (`env = "dev"`, `base_domain = "dev.sdfles.com"`, naming, tags, the GitHub App ids), `variables.tf` (`github_app_pem`, `app_password`, `session_secret`), `providers.tf` (`aws` and `github` as the App), `main.tf` (calls `stacks/app`), `outputs.tf`, `.env.example`, `terraform.tfvars.example`; state key `dev/terraform.tfstate` |
-| `infra/environments/prd/` | Same shape as `dev` with `base_domain = "sdfles.com"`; state key `prd/terraform.tfstate` |
-| `infra/stacks/app/` | Composite stack: one environment's AWS side in `storage.tf`, `database.tf`, `compute.tf`, `cdn.tf` and `github_actions.tf`, deriving `napkin.{base_domain}`, creating that environment's deploy role, which trusts the Actions environment of the same name, and that Actions environment, which names all four resources and admits only the environment's branch |
+| `infra/environments/core/` | Root: GitHub OIDC provider (one per account), branch rulesets for `develop` and `main` and the repository's Actions workflow permissions through the GitHub provider as a GitHub App. Its resources live in `oidc.tf` and `github.tf`, so this root has no `main.tf`; state key `core/terraform.tfstate` |
+| `infra/environments/dev/` | Root for `dev`: `locals.tf` (`env = "dev"`, `hostname = "dev.napkin.fless.dev"`, `hosted_zone = "napkin.fless.dev"`, the account id, naming, tags, the GitHub App ids), `variables.tf` (`github_app_pem`, `app_password`, `session_secret`), `providers.tf` (`aws` and `github` as the App), `main.tf` (calls `stacks/app`), `outputs.tf`, `.env.example`, `terraform.tfvars.example`; state key `dev/terraform.tfstate` |
+| `infra/environments/prd/` | Same shape as `dev` with `hostname = "napkin.fless.dev"`, the zone's apex; state key `prd/terraform.tfstate` |
+| `infra/stacks/app/` | Composite stack: one environment's AWS side in `storage.tf`, `database.tf`, `compute.tf`, `cdn.tf` and `github_actions.tf`, answering on `var.hostname`, creating that environment's deploy role, which trusts the Actions environment of the same name, and that Actions environment, which names all four resources and admits only the environment's branch |
 | `infra/modules/aws/s3/` | Leaf module, reused for the assets bucket and the scenes bucket |
 | `infra/modules/aws/dynamodb_table/` | Leaf module for the `diagrams` table |
 | `infra/modules/aws/lambda_function/` | Leaf module for the Next.js server Lambda, its log group, its role and its `AWS_IAM` Function URL, code changes ignored via `lifecycle` |
 | `infra/modules/aws/cloudfront/` | Leaf module for the distribution, its Origin Access Controls and behaviors |
 | `infra/modules/aws/acm/` | Leaf module for the DNS-validated certificate in `us-east-1` |
-| `infra/modules/github/branch_ruleset/` | Leaf module, copied from `local-auctions-infra` with zero required approvals and repository admin bypass |
-| `infra/modules/github/actions_environment/` | Leaf module, copied from `diy-infra` without its `ignore_changes = all`: one environment, its variables, its secrets and the one branch whose jobs may reference it |
-| `infra/docs/setup.md` | Prerequisites (state bucket, GitHub App) and apply order: core, dev, prd |
+| `infra/modules/github/branch_ruleset/` | Leaf module: one ruleset per branch, zero required approvals and repository admin bypass |
+| `infra/modules/github/actions_environment/` | Leaf module: one environment, its variables, its secrets and the one branch whose jobs may reference it |
+| `infra/scripts/copy-data.sh` | Copies one environment's table and scenes bucket from one account to another through this machine, then compares them item by item and object by object; idempotent |
+| `infra/docs/setup.md` | Prerequisites (state bucket, GitHub App), apply order (core, dev, prd), and the decommission note for the previous account |
 | `infra/docs/deploy.md` | Where Terraform's job ends and the workflows' begins |
 | `infra/.gitignore` | Excludes `*.tfvars`, `*.tfstate*`, `.terraform/`, `.env*` |
 
@@ -34,8 +35,8 @@ Jobs, listeners or scheduled work: none.
 
 ## Depends on
 
-- AWS provider `~> 6`, region `us-east-1`, profile `personal` (account `975050033628`).
-- The existing `sdfles.com` Route53 hosted zone, read with `data "aws_route53_zone"`; never imported, only the `napkin` records inside it are created.
+- AWS provider `~> 6`, region `us-east-1`, account `372303522225` through the `fless-napkin` profile; `allowed_account_ids` on every provider and backend refuses any other account.
+- The `napkin.fless.dev` Route53 hosted zone, created with the account and read with `data "aws_route53_zone"`; never imported, only the alias and validation records inside it are created.
 - GitHub's OIDC issuer (`token.actions.githubusercontent.com`), trusted by both deploy roles through the subject `repo:sebasfles/my-napkin:environment:{env}`, plain and id-welded shapes.
   A job that names an environment gets the environment as its subject, not the branch; the environment's deployment branch policy is what pins `dev` to `develop` and `prd` to `main`.
 - A GitHub App owned by Sebastian, installed only on `my-napkin`, used by `core` for the rulesets and the workflow permissions and by `dev` and `prd` for their Actions environment. Repository permissions: Administration, Environments, Secrets and Variables read and write, Metadata read.
@@ -50,7 +51,7 @@ Jobs, listeners or scheduled work: none.
 Root variables, backed by each root's `terraform.tfvars` (gitignored), all sensitive; everything else is a literal in `locals.tf`.
 
 - `dev`, `prd`: `app_password` (compared against the login form, and written as the environment's `APP_PASSWORD` secret), `session_secret` (HMAC key for the session cookie), both injected into that environment's Lambda, and `github_app_pem`.
-- `core`: `github_app_pem`, the private key of the GitHub App, and `budget_notification_email`, which is a variable rather than a literal because the repository is public.
+- `core`: `github_app_pem`, the private key of the GitHub App.
 - `github_app_pem` is the same key in all three roots; the App ids are literals in each `locals.tf`.
 - Everything that differs between environments lives in that root's `locals.tf`, including the CORS origins, PITR, deletion protection and `force_destroy`, so `dev/main.tf` and `prd/main.tf` are identical.
 - The server's role may get, put and delete objects only under the prefixes in `scenes_bucket_prefixes`, declared at the top of `stacks/app/compute.tf`: `scenes` and `libraries`, the keys `app/src/lib/s3.ts` builds.

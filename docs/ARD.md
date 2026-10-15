@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0024_library_panel_search
+source: 0028_account_migration
 ---
 
 # Architecture and Debt Record
@@ -48,7 +48,7 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 
 ## 2026-09-17: Terraform for infrastructure, GitHub Actions with OIDC for code, applied and deployed separately
 
-- Decision: Terraform creates every resource and is applied by hand from Sebastian's machine with the `personal` profile; the deploy workflow assumes an IAM role by OIDC on pushes to `develop` and `main` and only updates the Lambda code, syncs assets and invalidates CloudFront. State lives in an S3 bucket created by hand, never in the repo.
+- Decision: Terraform creates every resource and is applied by hand from Sebastian's machine with the project account's profile; the deploy workflow assumes an IAM role by OIDC on pushes to `develop` and `main` and only updates the Lambda code, syncs assets and invalidates CloudFront. State lives in an S3 bucket created by hand, never in the repo.
 - Alternatives rejected: applying Terraform from Actions (the state carries the Lambda environment, including the password, in plain text); long-lived access keys as repository secrets; CDK or Serverless Framework.
 - Reason: the repo is public; nothing that can leak may be committed or granted to a workflow, and each deploy role trusts only the Actions environment of its name, which admits only its branch of this repo, so forks cannot assume it.
 - Debt created: after the first apply, four Actions variables (role ARN, function name, assets bucket, distribution id) were copied by hand from Terraform outputs.
@@ -58,7 +58,7 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 
 ## 2026-09-17: Two environments, branch per environment, automatic promotion PR with e2e against dev
 
-- Decision: `develop` deploys `dev` (`napkin.dev.sdfles.com`) and `main` deploys `prd`. Merging to `develop` opens or updates the PR `develop -> main`; that PR runs Playwright against dev and is merged by Sebastian with a merge commit. Both branches carry a ruleset (no deletion, no force push, PR required, required checks, zero approvals, admin bypass) managed by Terraform through a GitHub App.
+- Decision: `develop` deploys `dev` (`dev.napkin.fless.dev`) and `main` deploys `prd` (`napkin.fless.dev`). Merging to `develop` opens or updates the PR `develop -> main`; that PR runs Playwright against dev and is merged by Sebastian with a merge commit. Both branches carry a ruleset (no deletion, no force push, PR required, required checks, zero approvals, admin bypass) managed by Terraform through a GitHub App.
 - Alternatives rejected: trunk only with one environment (a broken change is seen by Sebastian in production); required approvals (one human cannot approve his own PR); rulesets by hand (undeclared, drifts).
 - Reason: Sebastian wants to see a change break before it reaches production without validating it himself; the public repo makes Actions minutes free and Playwright runs on `ubuntu-latest`; the second AWS environment stays inside the free tier.
 - Debt created: two of everything in AWS and two deploy roles; the dev password lives as a repository secret for the e2e job.
@@ -83,6 +83,16 @@ Module-level decisions live in `modules/{{module}}/ard.md`.
 - Revisit when: never expected.
 - Source: setup
 
+## 2026-10-14: The project runs in its own AWS account, at napkin.fless.dev
+
+- Decision: every resource lives in account `372303522225`, created for this project by the organization, with its own zone `napkin.fless.dev`; `prd` answers at the zone's apex and `dev` at `dev.napkin.fless.dev`.
+  The stack was applied from scratch there, the GitHub side was imported into the new state, and the tables and scenes buckets were copied item by item and object by object through Sebastian's machine.
+- Alternatives rejected: staying in the management account; moving the state and importing the AWS resources (resources cannot cross accounts); a cross-account bucket policy for the copy (it would have touched the old account).
+- Reason: a project account isolates cost, quotas and blast radius, and a clean apply proves the Terraform stands alone.
+- Debt created: the previous deployment in the management account still serves, frozen, and its state still lists the imported GitHub resources until the decommission task removes them, as `infra/docs/setup.md` section 6 says.
+- Revisit when: the decommission task runs.
+- Source: 0028_account_migration
+
 ## Debt index
 
 Open debt only: an entry with `Resolved by` leaves the table.
@@ -100,6 +110,7 @@ Rebuilt by `write-ard` on every run, kept current by `document-task` on every ta
 | app | 2026-09-17 | 9 transitive npm advisories under the editor package, unresolvable here | The editor bumps its mermaid chain |
 | app | 2026-09-17 | `components.json` pins the shadcn preset, so a component added with different CLI flags will not match the tree | A component is added with different CLI flags |
 | general | 2026-09-17 | Two of everything in AWS, dev password as a repository secret | Free tier exceeded or staging needed |
+| general | 2026-10-14 | The previous deployment still serves from the management account, and its state still lists the imported GitHub resources (`infra/docs/setup.md` section 6) | The decommission task runs |
 | deploy | 2026-09-17 | `adm-zip` advisories under the workflow linter, no fix in its range | `github-actionlint` widens its `adm-zip` range |
 | app | 2026-09-18 | The expired-cookie path is proved by unit tests only, since a spec against a deployed environment cannot forge one | The e2e run against dev needs to mint a cookie |
 | app | 2026-09-18 | The theme control's selected colour is set at the call site, not in the generated variant | A second `ToggleGroup` is added |

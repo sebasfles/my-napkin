@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0026_deploy_dev_skips_docs
+source: 0028_account_migration
 ---
 
 # deploy: flows
@@ -17,7 +17,7 @@ Both checks land on the commit `develop` points at, which is the promotion pull 
 sequenceDiagram
   participant S as Sebastian
   participant GH as GitHub Actions
-  participant DEV as napkin.dev.sdfles.com
+  participant DEV as dev.napkin.fless.dev
   participant PR as PR develop -> main
 
   S->>GH: merge PR into develop
@@ -51,5 +51,5 @@ sequenceDiagram
   GH->>L: zip server-functions/default, update-function-code, wait
   GH->>A: s3 sync .open-next/assets (immutable cache for /_next/static/*)
   GH->>CF: create-invalidation
-  CF-->>S: change live at napkin.{base_domain}
+  CF-->>S: change live at the environment's hostname
 ```

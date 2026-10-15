@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0024_library_panel_search
+source: 0028_account_migration
 ---
 
 # app: technical
@@ -151,7 +151,7 @@ Locale and theme are never configured; both are read from the browser and persis
 - Lint: `npm run lint` (ESLint, then Prettier in check mode).
 - Typecheck: `npm run typecheck`.
 - Unit: `npx vitest run`, over `tests/unit/`, Node environment, pure functions only.
-- E2E: `npx playwright test --workers=1`, run on a developer machine and in the `e2e-dev` job of `deploy-dev.yml` against `napkin.dev.sdfles.com`; `ci.yml` runs none.
+- E2E: `npx playwright test --workers=1`, run on a developer machine and in the `e2e-dev` job of `deploy-dev.yml` against `dev.napkin.fless.dev`; `ci.yml` runs none.
 - Playwright starts `npm run dev` itself unless `BASE_URL` is set, and reads `APP_PASSWORD` and `SESSION_SECRET` from `.env.local` to start it and to log in.
   It never adopts a server already on the port; a busy port is an error, because that server is usually another workspace's tree.
   The port is load bearing, not a default: the dev scenes bucket's CORS allows `http://localhost:3000` and the deployed dev host and nothing else, so serving the app anywhere else leaves it answering 200 while every presigned scene GET is blocked and the editor never paints.
