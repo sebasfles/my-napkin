@@ -3,14 +3,17 @@ import type { Diagram, Folder, Item, Library } from "@/lib/diagrams";
 import {
   canMoveInto,
   childrenOf,
+  compareDiagrams,
   crumbs,
   currentFolder,
   folderChoices,
   holdOrder,
   pathTo,
   pinnedDiagrams,
+  sortBy,
   subtree,
   subtreeCounts,
+  type DiagramSort,
 } from "@/lib/tree";
 
 function folder(id: string, name: string, parentId?: string): Folder {
@@ -83,6 +86,96 @@ describe("childrenOf", () => {
   });
 });
 
+describe("the diagrams of a folder, under the sort the user chose", () => {
+  const minute = (n: number) => `2026-09-10T08:0${n}:00.000Z`;
+
+  function made(id: string, name: string, created: number, edited: number): Diagram {
+    return { id, name, createdAt: minute(created), updatedAt: minute(edited) };
+  }
+
+  const ten = made("ten", "n 10", 0, 4);
+  const two = made("two", "n 2", 1, 3);
+  const nine = made("nine", "n 9", 2, 5);
+  const names = (items: Item[], sort: DiagramSort) =>
+    childrenOf(items, null, sort).diagrams.map((item) => item.name);
+
+  it.each<[DiagramSort, string[]]>([
+    [{ field: "name", direction: "asc" }, ["n 2", "n 9", "n 10"]],
+    [{ field: "name", direction: "desc" }, ["n 10", "n 9", "n 2"]],
+    [{ field: "created", direction: "asc" }, ["n 10", "n 2", "n 9"]],
+    [{ field: "created", direction: "desc" }, ["n 9", "n 2", "n 10"]],
+    [{ field: "edited", direction: "asc" }, ["n 2", "n 10", "n 9"]],
+    [{ field: "edited", direction: "desc" }, ["n 9", "n 10", "n 2"]],
+  ])("orders by %o", (sort, expected) => {
+    expect(names([two, nine, ten], sort)).toEqual(expected);
+    expect(names([ten, nine, two], sort)).toEqual(expected);
+  });
+
+  it("starts a field in the direction it reads naturally: A to Z, newest first", () => {
+    expect(sortBy("name")).toEqual({ field: "name", direction: "asc" });
+    expect(sortBy("created")).toEqual({ field: "created", direction: "desc" });
+    expect(sortBy("edited")).toEqual({ field: "edited", direction: "desc" });
+  });
+
+  it("reads the last edit, newest first, when nothing was chosen", () => {
+    expect(childrenOf([two, nine, ten], null).diagrams.map((item) => item.name)).toEqual(
+      names([two, nine, ten], { field: "edited", direction: "desc" }),
+    );
+  });
+
+  it("compares names as a person reads them, ignoring case", () => {
+    const items = [
+      made("b", "Plan 10", 0, 0),
+      made("a", "plan 9", 0, 0),
+      made("c", "Plan 1", 0, 0),
+    ];
+
+    expect(names(items, { field: "name", direction: "asc" })).toEqual([
+      "Plan 1",
+      "plan 9",
+      "Plan 10",
+    ]);
+  });
+
+  it("keeps folders first, A to Z with numbers in order, whatever the diagrams are sorted by", () => {
+    const items = [made("d", "a diagram", 0, 0), folder("f10", "Week 10"), folder("f2", "week 2")];
+
+    for (const field of ["name", "created", "edited"] as const) {
+      for (const direction of ["asc", "desc"] as const) {
+        expect(
+          childrenOf(items, null, { field, direction }).folders.map((item) => item.id),
+        ).toEqual(["f2", "f10"]);
+      }
+    }
+  });
+
+  it("breaks a tie on the name by creation, oldest first, in either direction", () => {
+    const older = made("z", "same", 0, 9);
+    const newer = made("a", "Same", 1, 2);
+
+    for (const direction of ["asc", "desc"] as const) {
+      expect(
+        [newer, older].sort(compareDiagrams({ field: "name", direction })).map((item) => item.id),
+      ).toEqual(["z", "a"]);
+    }
+  });
+
+  it("breaks a tie on a time by name, then by id, so equal rows never swap", () => {
+    const beta = made("1", "beta", 3, 3);
+    const alpha = made("2", "alpha", 3, 3);
+    const twin = made("0", "alpha", 3, 3);
+
+    for (const field of ["created", "edited"] as const) {
+      for (const direction of ["asc", "desc"] as const) {
+        const sort = compareDiagrams({ field, direction });
+
+        expect([beta, alpha, twin].sort(sort).map((item) => item.id)).toEqual(["0", "2", "1"]);
+        expect([twin, alpha, beta].sort(sort).map((item) => item.id)).toEqual(["0", "2", "1"]);
+      }
+    }
+  });
+});
+
 describe("holdOrder", () => {
   const before = [diagram("c", "C", at(3)), diagram("b", "B", at(2)), diagram("a", "A", at(1))];
   const held = { menu: "b", order: ["c", "b", "a"] };
@@ -113,6 +206,16 @@ describe("holdOrder", () => {
     const items = [diagram("d", "D", at(9)), ...before];
 
     expect(ids(holdOrder(listed(items), held, items))).toEqual(["c", "b", "a", "d"]);
+  });
+
+  it("holds the order under a sort the user chose, and lets it go once the menu closes", () => {
+    const byName = { field: "name", direction: "asc" } as const;
+    const onScreen = { menu: "b", order: ["a", "b", "c"] };
+    const renamed = before.map((item) => (item.id === "a" ? { ...item, name: "Z" } : item));
+    const sorted = childrenOf(renamed, null, byName).diagrams;
+
+    expect(ids(holdOrder(sorted, onScreen, renamed))).toEqual(["a", "b", "c"]);
+    expect(ids(holdOrder(sorted, null, renamed))).toEqual(["b", "c", "a"]);
   });
 
   it("lets go once the row whose menu was open is gone", () => {

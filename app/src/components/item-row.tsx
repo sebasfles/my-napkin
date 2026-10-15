@@ -41,6 +41,7 @@ export function DiagramRow({
   diagram,
   active,
   status,
+  time,
   onFix,
   onRename,
   onTogglePin,
@@ -53,6 +54,7 @@ export function DiagramRow({
   diagram: Diagram;
   active: boolean;
   status: SaveStatus | null;
+  time: "created" | "edited";
   onFix: () => void;
   onRename: () => void;
   onTogglePin: () => void;
@@ -91,8 +93,10 @@ export function DiagramRow({
         </span>
         {status ? (
           <SaveStatusLine status={status} />
+        ) : time === "created" ? (
+          <TimeLine at={diagram.createdAt} testId="created-at" />
         ) : (
-          <UpdatedAtLine updatedAt={diagram.updatedAt} />
+          <TimeLine at={diagram.updatedAt} testId="updated-at" />
         )}
       </Link>
 
@@ -340,17 +344,18 @@ function SaveStatusLine({ status }: { status: SaveStatus }) {
   );
 }
 
-function UpdatedAtLine({ updatedAt }: { updatedAt: string }) {
+function TimeLine({ at, testId }: { at: string; testId: string }) {
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
-  const edited = new Date(updatedAt);
+  const moment = new Date(at);
 
   return (
-    <span
+    <time
+      dateTime={at}
       className="block truncate font-mono text-xs text-muted-foreground"
-      data-testid="updated-at"
+      data-testid={testId}
     >
-      {format.relativeTime(edited, Math.max(now.getTime(), edited.getTime()))}
-    </span>
+      {format.relativeTime(moment, Math.max(now.getTime(), moment.getTime()))}
+    </time>
   );
 }
