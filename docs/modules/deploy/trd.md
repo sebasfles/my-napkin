@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0009_deploy_dev_first_run
+updated: 2026-10-14
+source: 0026_deploy_dev_skips_docs
 ---
 
 # deploy: technical
@@ -13,7 +13,7 @@ Every workflow of the layout exists.
 |---|---|
 | `.github/workflows/ci.yml` | Pull requests into `develop` and `main`, and pushes to `develop`. One job, `ci`. |
 | `.github/dependabot.yml` | Weekly `github-actions` and `npm` updates, opened against `develop`. |
-| `.github/workflows/deploy-dev.yml` | Push to `develop`: three jobs, `deploy`, `e2e-dev`, `promotion-pr`. |
+| `.github/workflows/deploy-dev.yml` | Push to `develop`: four jobs, `decide`, `deploy`, `e2e-dev`, `promotion-pr`. |
 | `.github/workflows/deploy-prd.yml` | Push to `main`: one job, `deploy`. |
 | `.github/workflows/reusable-deploy.yml` | The deploy steps, called by both deploy workflows with the environment name. |
 
@@ -28,7 +28,7 @@ Concurrency is one group per pull request, and one group per commit on a push, w
 Required check on both rulesets.
 
 `ci` does not run e2e.
-Specs run in the `e2e-dev` job of `deploy-dev.yml`, after every push to `develop`, against deployed dev; see `docs/conventions/e2e.md` for the policy.
+Specs run in the `e2e-dev` job of `deploy-dev.yml`, after every push to `develop` that is not docs-only, against deployed dev; see `docs/conventions/e2e.md` for the policy.
 The consequence is the shape of the gate: nothing in `ci` executes `app/src/` at runtime, so it proves the app lints, typechecks and passes its unit tests, and no more.
 A change that compiles and breaks the editor reaches `develop` green, and `e2e-dev` against deployed dev is where a broken page is caught, before the promotion pull request can be merged.
 
@@ -44,8 +44,10 @@ Four details of it are load bearing:
 - The assets sync is two passes: `_next/static/*` first with `public,max-age=31536000,immutable`, then everything except it with a short cache. `sync` skips what it has already uploaded, so a single pass would leave the wrong `cache-control` on one of the two sets.
 - The sync never passes `--delete`. The role has no `s3:DeleteObject`, and the chunks of the previous build have to outlive a deploy for sessions already open.
 
-`deploy-dev.yml` (push to `develop`): three jobs in a chain.
-`deploy` calls `reusable-deploy.yml` with `dev`.
+`deploy-dev.yml` (push to `develop`): four jobs in a chain.
+`decide` (`contents: read`, `actions: read`) sets `docs_only` to `true` only when `github.event.before` is an ancestor of `github.sha`, the `--no-renames` tree diff between them lists only `docs/**` or root `*.md` paths, and the latest `deploy-dev` run for `before` concluded `success`; any error, forced push or first push leaves it not `true`.
+`deploy` calls `reusable-deploy.yml` with `dev`, and `deploy` and `e2e-dev` both run under `!cancelled() && needs.decide.outputs.docs_only != 'true'`, so a failed `decide` runs everything.
+`e2e-dev` fails its first step unless `needs.deploy.result == 'success'`, so a failed deploy leaves a red check instead of a skipped one.
 `e2e-dev` runs `npx playwright install --with-deps chromium` and `npx playwright test --workers=1` with `BASE_URL=https://napkin.dev.sdfles.com` and `APP_PASSWORD` from the `dev` environment secret.
 `promotion-pr` opens `develop -> main` with `gh pr create` when no such pull request is open, with a body carrying the compare link and the subjects of the commits not yet in `main`; when one is open it does nothing, because its head is `develop` and it already carries them.
 That job needs `fetch-depth: 0` and an explicit fetch of `main` to list those commits, and it is the only one granted `pull-requests: write`.
@@ -53,6 +55,7 @@ That job needs `fetch-depth: 0` and an explicit fetch of `main` to list those co
 It runs under `if: ${{ !cancelled() }}`, so the pull request is opened whatever the suite's result and carries the red check rather than hiding the change.
 
 The `e2e-dev` job is the required check of the `main` ruleset, which is why its job id is exactly `e2e-dev`.
+The docs-only skip is a job-level `if`, never `paths-ignore`: GitHub counts a skipped job as satisfying a required check, while a skipped workflow leaves it pending and blocks the promotion pull request.
 It never uploads `playwright-report/` or a Playwright trace as an artifact: GitHub masks secrets in log output but not inside a trace, where the password typed into the login form is captured as an input value, and the repository is public.
 
 `deploy-prd.yml` (push to `main`): calls `reusable-deploy.yml` with `prd`, and nothing else.
