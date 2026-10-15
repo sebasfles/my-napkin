@@ -139,9 +139,11 @@ source: 0026_deploy_dev_skips_docs
 
 ## 2026-10-14: a docs-only push to `develop` skips deploy and e2e through job-level conditions
 
-- Decision: a `decide` job in `deploy-dev.yml` diffs `github.event.before` to `github.sha` and skips `deploy` and `e2e-dev` only when every path is under `docs/` or a root `*.md` and the `deploy-dev` run of `before` concluded `success`. `e2e-dev` keeps its job id and runs whenever `docs_only` is not `'true'`, failing its first step unless `deploy` succeeded.
+- Decision: a `decide` job in `deploy-dev.yml` diffs `github.event.before` to `github.sha` and skips `deploy` and `e2e-dev` only when every path is under `docs/` or a root `*.md` and the `deploy-dev` run of `before` concluded `success`.
+  `e2e-dev` keeps its job id and runs whenever `docs_only` is not `'true'`, failing its first step unless `deploy` succeeded.
 - Alternatives rejected: `paths-ignore` on the trigger, which leaves the required `e2e-dev` check pending and blocks the promotion pull request; diffing against `main`, which would never skip while code waits for promotion; trusting the last completed run, which misses a pending code run dropped by the concurrency group.
-- Reason: a skipped job satisfies a required check, so the skip must be explicit and keyed on a proven commit. Making `e2e-dev` fail instead of skip when `deploy` failed also closes the existing hole where a failed deploy reported `e2e-dev` as skipped and left the promotion pull request mergeable on `ci` alone.
+- Reason: a skipped job satisfies a required check, so the skip must be explicit and keyed on a proven commit.
+  Making `e2e-dev` fail instead of skip when `deploy` failed also closes the existing hole where a failed deploy reported `e2e-dev` as skipped and left the promotion pull request mergeable on `ci` alone.
 - Debt created: none.
 - Revisit when: the docs path set changes, or GitHub stops counting a skipped job as a satisfied required check.
 - Source: 0026_deploy_dev_skips_docs
