@@ -32,4 +32,22 @@ Found by om-0016-reviewer on 2026-09-20 during 0016's production-build run; reac
 
 ## om-developer confirmation
 
+2026-10-15, develop at a153682 (sources of `origin/develop` checked out over the branch, spec from the branch), local `npm run dev` against dev: reproduced.
+
+- `tests/e2e/save-switch.spec.ts` on develop's sources: 5 of 5 red, each on the defect itself.
+  1. Edit A, open B within the debounce, wait for A's PATCH, open A again: the indicator reads `saving`, never `saved`.
+  2. Hold A's first PUT, edit again, switch within the debounce, release: the table keeps 1 element, not 2, so the queued edit is dropped.
+  3. Abort the PUT, switch within the debounce, open A again: "Saving", not "Not saved".
+  4. Close A's tab within the debounce: the tab comes back, through `fix()` in the cleanup's flush report.
+  5. Hold the PUT and switch, then reload: no beforeunload dialog, because the cleanup removed the listener.
+- In cases 1 and 3 the suite's own cleanup failed too: `savesSettled` waits for `saved` and the indicator was stuck on `saving`. The four rows it left in dev's table (`e2e outlive ...`) were deleted through the UI in the same slot.
+- The real trigger is `CanvasSaving` unmounting on the switch (`canSaveCanvas` goes false when `shown` becomes null), not a rebuilt saver: the memo's deps are stable across saves.
+- The same sequence at unit level (`tests/unit/scene-save.test.ts`, the drain cases and the two fold-in cases) is red on develop's `scene-save.ts`. A flush while an upload is in flight ends at `saving, queued, saving`, with nothing left to upload.
+- On the fix: the spec is 5 of 5 green, and the full suite passes (110 tests).
+
 ## om-reviewer verification
+
+2026-10-15, commit 428da76, om-0027-reviewer: passes.
+I did not run the steps myself: the reviewer runs no tests, and this machine's single e2e slot is shared.
+The evidence is the om-developer's verify block at 428da76 and its artefact `.verify/app-e2e.out` (112 passed, `EXIT=0`, no credential errors). In it, `save-switch.spec.ts` case 1 (the steps above: edit A, open B within the debounce, wait for A's PATCH, open A again) reads `data-status="saved"`.
+The same spec's red run on develop is recorded above by the om-developer.

@@ -24,9 +24,9 @@ import {
 } from "@/lib/editor";
 import { librariesOf, libraryFileAmong, nextLibraryIds } from "@/lib/libraries";
 import { importLibraryFile } from "@/lib/library-io";
-import type { SaveStatus } from "@/lib/save-state";
 import { toScene, type Scene } from "@/lib/scene";
 import { resolveTheme } from "@/lib/theme";
+import type { SaverReport } from "@/lib/scene-save";
 import { useCanvasSave, writeDiagram, writeLibrary, type WriteCanvas } from "@/lib/use-scene-save";
 import { useTabs } from "@/lib/use-tabs";
 
@@ -286,14 +286,14 @@ function CanvasSaving({
   onScene?: (id: string, changed: Scene) => void;
 }) {
   const { isDeleted, markSaved, registerSaver, reportSave } = useWorkspace();
-  const { fix } = useTabs();
+  const { promote } = useTabs();
 
   const onStatus = useCallback(
-    (status: SaveStatus) => {
-      fix(itemId);
-      reportSave(itemId, status);
+    ({ status, saver }: SaverReport) => {
+      promote(itemId);
+      reportSave({ id: itemId, status, saver });
     },
-    [itemId, fix, reportSave],
+    [itemId, promote, reportSave],
   );
 
   const saver = useCanvasSave({

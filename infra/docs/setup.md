@@ -86,19 +86,3 @@ cd environments/dev && terraform output diagrams_table scenes_bucket
 ```
 
 Those two values, plus `APP_PASSWORD`, `SESSION_SECRET` and `AWS_PROFILE=fless-napkin`, are the app's `.env.local`.
-
-## 6. Decommission of the previous account
-
-Until 0028 the project ran in the management account `975050033628` at `napkin.sdfles.com` and `napkin.dev.sdfles.com`, with its state in `napkin-terraform-state-975050033628`.
-That deployment is frozen and still serves; redirecting it and destroying it is its own task.
-The GitHub resources it created were imported into this account's state, so the old state still lists them, and a destroy there would delete the live environments and rulesets.
-Before any `plan -destroy` or `destroy` in the old roots, remove them from the old state, with those roots initialised against the old bucket and the old profile:
-
-```bash
-# core
-terraform state rm github_workflow_repository_permissions.this 'module.branch_ruleset["develop"]' 'module.branch_ruleset["main"]'
-# dev, then prd
-terraform state rm module.app.module.actions_environment
-```
-
-Then read the destroy plan: it must name no `github_` resource.

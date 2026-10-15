@@ -3,18 +3,26 @@ import {
   activeItem,
   deleteDiagram,
   diagramItem,
+  diagramNames,
+  diagramSort,
   drawRectangle,
+  e2eName,
   emptyWorkspace,
   itemList,
   login,
+  listReady,
   newDiagram,
+  newDiagramNamed,
+  newFolder,
   openApp,
   openDiagram,
+  openFolder,
   openItemMenu,
   removeItemsCreatedHere,
   renameDiagram,
   savedText,
   saveIndicator,
+  sortDiagramsBy,
 } from "./helpers";
 
 test.describe("diagram list", () => {
@@ -109,6 +117,54 @@ test.describe("diagram list", () => {
       diagramItem(page, edited).getByTestId("updated-at"),
       "the row of a diagram whose save landed after the row was drawn must not read a future time",
     ).toHaveText(/ago|now/, { timeout: 30_000 });
+  });
+
+  test("sorts a folder's diagrams by name, creation or last edit, and keeps the choice", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await openFolder(page, await newFolder(page, "sort"));
+
+    const base = e2eName("sort");
+    const ten = await newDiagramNamed(page, `${base} 10`);
+    const two = await newDiagramNamed(page, `${base} 2`);
+    const nine = await newDiagramNamed(page, `${base} 9`);
+
+    await openDiagram(page, ten);
+    await drawRectangle(page);
+    await expect(saveIndicator(page)).toHaveText(savedText, { timeout: 30_000 });
+
+    await page.goto("/");
+    await listReady(page);
+
+    await expect(diagramSort(page), "a fresh browser sorts by last edit").toHaveAccessibleName(
+      "Sort: Edited, Newest first",
+    );
+    await expect(diagramNames(page)).toHaveText([ten, nine, two]);
+    const editedAt = await diagramItem(page, ten)
+      .getByTestId("updated-at")
+      .getAttribute("datetime");
+
+    await sortDiagramsBy(page, "created", "desc");
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Created, Newest first");
+    await expect(diagramNames(page)).toHaveText([nine, two, ten]);
+    const createdAt = await diagramItem(page, ten)
+      .getByTestId("created-at")
+      .getAttribute("datetime");
+    expect(
+      createdAt! < editedAt!,
+      "sorted by creation, the row tells when it was created, not when it was edited",
+    ).toBe(true);
+
+    await sortDiagramsBy(page, "name", "asc");
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Name, A to Z");
+    await expect(diagramNames(page), "2 comes before 10").toHaveText([two, nine, ten]);
+
+    await page.reload();
+    await listReady(page);
+
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Name, A to Z");
+    await expect(diagramNames(page)).toHaveText([two, nine, ten]);
   });
 
   test("leaves the diagram alone when the delete is cancelled", async ({ page }) => {

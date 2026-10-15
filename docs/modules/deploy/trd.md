@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # deploy: technical
@@ -45,7 +45,7 @@ Four details of it are load bearing:
 - The sync never passes `--delete`. The role has no `s3:DeleteObject`, and the chunks of the previous build have to outlive a deploy for sessions already open.
 
 `deploy-dev.yml` (push to `develop`): four jobs in a chain.
-`decide` (`contents: read`, `actions: read`) sets `docs_only` to `true` only when `github.event.before` is an ancestor of `github.sha`, the `--no-renames` tree diff between them lists only `docs/**` or root `*.md` paths, and the latest `deploy-dev` run for `before` concluded `success`; any error, forced push or first push leaves it not `true`.
+`decide` (`contents: read`, `actions: read`) sets `docs_only` to `true` only when `github.event.before` is an ancestor of `github.sha`, the `--no-renames` tree diff between them lists only Markdown files (`**/*.md`) or paths under a `docs/` directory at any depth, and the latest `deploy-dev` run for `before` concluded `success`; any error, forced push or first push leaves it not `true`.
 `deploy` calls `reusable-deploy.yml` with `dev`, and `deploy` and `e2e-dev` both run under `!cancelled() && needs.decide.outputs.docs_only != 'true'`, so a failed `decide` runs everything.
 `e2e-dev` fails its first step unless `needs.deploy.result == 'success'`, so a failed deploy leaves a red check instead of a skipped one.
 `e2e-dev` runs `npx playwright install --with-deps chromium` and `npx playwright test --workers=1` with `BASE_URL=https://dev.napkin.fless.dev` and `APP_PASSWORD` from the `dev` environment secret.

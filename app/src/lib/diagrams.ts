@@ -110,7 +110,7 @@ export function byUpdatedAtDesc(a: Item, b: Item): number {
 }
 
 export function byNameAsc(a: Item, b: Item): number {
-  return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
 }
 
 export function isLocked(diagram: Diagram): boolean {

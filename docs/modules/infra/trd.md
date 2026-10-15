@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # infra: technical
@@ -23,7 +23,7 @@ Every path below exists, and all three roots have been applied.
 | `infra/modules/github/branch_ruleset/` | Leaf module: one ruleset per branch, zero required approvals and repository admin bypass |
 | `infra/modules/github/actions_environment/` | Leaf module: one environment, its variables, its secrets and the one branch whose jobs may reference it |
 | `infra/scripts/copy-data.sh` | Copies one environment's table and scenes bucket from one account to another through this machine, then compares them item by item and object by object; idempotent |
-| `infra/docs/setup.md` | Prerequisites (state bucket, GitHub App), apply order (core, dev, prd), and the decommission note for the previous account |
+| `infra/docs/setup.md` | Prerequisites (state bucket, GitHub App) and apply order (core, dev, prd) |
 | `infra/docs/deploy.md` | Where Terraform's job ends and the workflows' begins |
 | `infra/.gitignore` | Excludes `*.tfvars`, `*.tfstate*`, `.terraform/`, `.env*` |
 

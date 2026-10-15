@@ -11,6 +11,11 @@ export interface WritableSceneUrls extends SceneUrls {
   put: string;
 }
 
+export interface SaverReport {
+  status: SaveStatus;
+  saver: number;
+}
+
 export interface SceneSaverOptions {
   itemId: string;
   baseline: SceneBaseline;
@@ -20,7 +25,7 @@ export interface SceneSaverOptions {
   now?: () => number;
   urls: (id: string) => Promise<SceneUrls>;
   write: (id: string, urls: WritableSceneUrls, scene: Scene, serialized: string) => Promise<Canvas>;
-  onStatus: (status: SaveStatus) => void;
+  onStatus: (report: SaverReport) => void;
   onSaved: (item: Canvas) => void;
   deleted?: () => boolean;
 }
@@ -31,23 +36,28 @@ export interface SceneSaver {
   settle(): Promise<void>;
   dirty(): boolean;
   resume(): void;
-  stop(): void;
+  stop(): Promise<void>;
   abandon(): void;
 }
 
 export const defaultDebounceMs = 1_500;
+
+let created = 0;
 
 export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   const debounceMs = options.debounceMs ?? defaultDebounceMs;
   const renewUrlMs = options.renewUrlMs ?? 60_000;
   const now = options.now ?? Date.now;
   const deleted = options.deleted ?? (() => false);
+  created += 1;
+  const generation = created;
 
   let baseline = options.baseline;
   let urls = options.initialUrls ?? null;
   let status: SaveStatus = "idle";
   let pending: Scene | null = null;
   let pendingSerialized: string | null = null;
+  let handed: Scene | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let changed = false;
   let inFlight: Promise<void> | null = null;
@@ -61,10 +71,12 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   }
 
   function advance(event: SaveEvent): void {
+    if (abandoned) return;
+
     const transition = nextSaveState(status, event);
     status = transition.status;
-    if (!stopped) options.onStatus(status);
-    if (transition.upload && !stopped) start();
+    options.onStatus({ status, saver: generation });
+    if (transition.upload) start();
   }
 
   function start(): void {
@@ -87,7 +99,8 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
   async function upload(): Promise<void> {
     const scene = pending;
-    if (!scene || stopped) return;
+    if (!scene) return;
+    handed = scene;
     const serialized = serializePending(scene);
 
     try {
@@ -103,6 +116,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
       advance("success");
     } catch {
       urls = null;
+      handed = null;
       advance("failure");
     }
   }
@@ -110,7 +124,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
   function fire(): void {
     timer = null;
     const scene = pending;
-    if (!scene) return;
+    if (!scene || scene === handed) return;
 
     const serialized = serializePending(scene);
     const opening = !reconciled;
@@ -132,7 +146,12 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
       return;
     }
 
+    handed = scene;
     advance("change");
+  }
+
+  async function drained(): Promise<void> {
+    while (inFlight) await inFlight;
   }
 
   function forget(): void {
@@ -149,6 +168,7 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
   return {
     change(scene) {
+      if (stopped) return;
       pending = scene;
       pendingSerialized = null;
       if (sceneVersion(scene.elements) !== baseline.version) changed = true;
@@ -158,13 +178,13 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
 
     flush() {
       cancelTimer();
-      fire();
+      if (!stopped) fire();
     },
 
     async settle() {
       cancelTimer();
-      fire();
-      while (inFlight) await inFlight;
+      if (!stopped) fire();
+      await drained();
     },
 
     dirty() {
@@ -176,9 +196,11 @@ export function createSceneSaver(options: SceneSaverOptions): SceneSaver {
       abandoned = false;
     },
 
-    stop() {
+    async stop() {
       cancelTimer();
       stopped = true;
+      fire();
+      await drained();
     },
 
     abandon() {

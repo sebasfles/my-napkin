@@ -6,7 +6,7 @@ import { SidebarPanel } from "@/components/sidebar-panel";
 import { SidebarRail } from "@/components/sidebar-rail";
 import { useWorkspace } from "@/components/workspace-provider";
 import { isDiagram, openItemId, parentOf } from "@/lib/diagrams";
-import { toggleSection } from "@/lib/shell-layout";
+import { sortDiagrams, toggleSection } from "@/lib/shell-layout";
 import { pathTo } from "@/lib/tree";
 import { useShellLayout } from "@/lib/use-shell-layout";
 import { useSidebarFolder } from "@/lib/use-sidebar-folder";
@@ -26,7 +26,13 @@ export function Sidebar({ layout: layoutOnTheServer }: { layout: string }) {
         section={layout.section}
         onSelect={(section) => setLayout(toggleSection(layout, section))}
       />
-      {layout.panel ? <SidebarPanel section={layout.section} /> : null}
+      {layout.panel ? (
+        <SidebarPanel
+          section={layout.section}
+          sort={layout.sort}
+          onSort={(sort) => setLayout(sortDiagrams(layout, sort))}
+        />
+      ) : null}
     </aside>
   );
 }

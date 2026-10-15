@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import {
   formatShellLayout,
+  openSection,
   parseShellLayout,
   shellLayoutCookie,
   shellLayoutMaxAge,
@@ -33,7 +34,7 @@ function store(next: ShellLayout): void {
 }
 
 export function openShellPanel(section: SidebarSection): void {
-  store({ panel: true, section });
+  store(openSection(parseShellLayout(stored()), section));
 }
 
 export function toggleShellPanel(): void {

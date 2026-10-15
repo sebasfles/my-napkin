@@ -46,6 +46,10 @@ export function fixTab(state: TabsState, id: string): TabsState {
   return opened.previewId === id ? { ids: opened.ids, previewId: null } : opened;
 }
 
+export function promoteTab(state: TabsState, id: string): TabsState {
+  return state.previewId === id ? { ids: state.ids, previewId: null } : state;
+}
+
 export function closeTab(state: TabsState, id: string, activeId: string | null): TabsChange {
   if (!state.ids.includes(id)) return { state, next: activeId };
 

@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-14
-source: 0024_library_panel_search
+updated: 2026-10-15
+source: 0027_save_indicator_stuck
 ---
 
 # app: product
@@ -36,7 +36,9 @@ The interface starts in the browser's language, Spanish or English, and in its l
 
 ### Browse and edit diagrams
 
-1. User sees the folder he is in: its folders first, by name, then its diagrams, most recently edited first (held still while one of their menus is open, re-sorted when it closes), each with the time since it was last drawn on, which keeps ageing and never runs ahead of the edit it describes.
+1. User sees the folder he is in: its folders first, by name, then its diagrams in the order he chose in the Diagrams header (name, creation or last edit, each either way; last edit, newest first, until he picks), held still while one of their menus is open and re-sorted when it closes.
+   Names read as a person reads them, so "2" comes before "10", in every list the app orders by name.
+   Each diagram shows the time since it was created when sorted by creation, otherwise since it was last drawn on; the time keeps ageing and never runs ahead of the moment it describes.
 2. User opens one; its drawing, pasted images included, comes back as it was left.
 3. User draws; changes are saved on their own a second or two after the user stops.
 4. User creates a diagram from the sidebar, in the folder he is looking at, and it opens right away.
@@ -111,7 +113,7 @@ That is where a new browser starts, where closing the last tab returns, and wher
 A folder with nothing in it says so.
 A new diagram is named after the day, `Napkin DDMMYYYY`, and repeats that day get `(2)`, `(3)`.
 The open diagram shows a passive save indicator where its date would be: saved, saving, or not saved.
-A failed save says so and goes through on the next change; the user is warned before leaving with work still unsaved.
+A failed save says so and goes through on the next change; a save started on a diagram the user then leaves still finishes, and the indicator shows how it ended when he returns; the user is warned before leaving the page with work still unsaved.
 A list that cannot be loaded offers to try again rather than pretending to be empty.
 
 ## Rules
@@ -119,7 +121,7 @@ A list that cannot be loaded offers to try again rather than pretending to be em
 - Only one user; there is no concept of ownership or sharing per diagram or library.
 - A library is a canvas, not a list: it is edited in the same editor as a diagram, and its items are whatever its frames are at the last save.
 - A locked diagram is refused by the server, not only by the browser that locked it.
-- Which diagrams are open, where the user is in the tree and whether the sidebar is a rail are remembered per browser; the address names the open diagram and nothing else, so no link points at a folder or at a set of tabs.
+- Which diagrams are open, where the user is in the tree, whether the sidebar is a rail and how its diagrams are sorted are remembered per browser; the address names the open diagram and nothing else, so no link points at a folder or at a set of tabs.
 - A diagram's saved scene includes any pasted images, so they survive closing and reopening.
 - Static assets are public; no diagram data is public.
 - A valid session lasts 30 days, after which the user must log in again.

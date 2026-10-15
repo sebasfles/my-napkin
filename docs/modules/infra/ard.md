@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0028_account_migration
+source: 0029_old_account_teardown
 ---
 
 # infra: architecture and debt
@@ -154,5 +154,16 @@ source: 0028_account_migration
 - Alternatives rejected: a `profile` hardcoded in the provider (a machine choice in a public repository); recreating the GitHub resources (a create conflicts with what exists, and a destroy in the old state would delete them); committed `import` blocks (they fail on any fresh repository).
 - Reason: a shell left on another profile now fails at init instead of planning against the wrong account, and the only state that names the live GitHub environments is this one.
 - Debt created: the previous state still lists the same GitHub resources until the decommission task runs `terraform state rm`, as `infra/docs/setup.md` section 6 says.
+- Resolved by: 0029_old_account_teardown, 2026-10-14
 - Revisit when: the decommission task runs.
 - Source: 0028_account_migration
+
+## 2026-10-14: The project left the management account by destroying the old roots from their own code
+
+- Decision: the deployment in `975050033628` was destroyed with `terraform destroy` of `prd`, `dev` and `core` run from the code at the merge base of 0028, after `terraform state rm` of every GitHub resource 0028 had imported; the state bucket was then emptied of every version and deleted by hand.
+  `prd`'s table protection and `force_destroy` were flipped by a targeted apply first, and the GitHub OIDC provider was removed from state and untagged instead of destroyed, because other roles in that account trust it.
+- Alternatives rejected: a redirect from the old hostnames (it keeps infrastructure in an account meant to be empty); deleting the resources by hand (no plan to read, and easy to miss one); destroying from the current tree (it points at the new account and backend).
+- Reason: only the configuration that created the resources can plan their removal completely, and removing GitHub from that state first made the destroy unable to touch the live environments, which a byte-identical `gh api` listing before and after confirmed.
+- Debt created: none.
+- Revisit when: never.
+- Source: 0029_old_account_teardown

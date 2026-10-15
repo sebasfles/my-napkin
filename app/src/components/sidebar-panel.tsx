@@ -4,6 +4,7 @@ import { FolderPlus, Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { DiagramSortMenu } from "@/components/diagram-sort-menu";
 import { FolderBreadcrumbs } from "@/components/folder-breadcrumbs";
 import { LibraryList } from "@/components/library-list";
 import { DeleteDialog, InfoDialog, MoveDialog, NameDialog } from "@/components/item-dialogs";
@@ -19,6 +20,7 @@ import {
   holdOrder,
   pathTo,
   pinnedDiagrams,
+  type DiagramSort,
   type HeldOrder,
 } from "@/lib/tree";
 import { useSidebarFolder } from "@/lib/use-sidebar-folder";
@@ -26,7 +28,15 @@ import { useTabs } from "@/lib/use-tabs";
 
 type OpenDialog = { kind: "name" | "info" | "move" | "delete"; id: string } | { kind: "newFolder" };
 
-export function SidebarPanel({ section }: { section: SidebarSection }) {
+export function SidebarPanel({
+  section,
+  sort,
+  onSort,
+}: {
+  section: SidebarSection;
+  sort: DiagramSort;
+  onSort: (sort: DiagramSort) => void;
+}) {
   const t = useTranslations("sidebar");
   const {
     items,
@@ -60,7 +70,8 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
 
   const target =
     dialog && "id" in dialog ? (items.find((item) => item.id === dialog.id) ?? null) : null;
-  const contents = childrenOf(items, here);
+  const contents = childrenOf(items, here, sort);
+  const time = sort.field === "created" ? "created" : "edited";
   const diagrams = holdOrder(contents.diagrams, held, items);
   const pinned = pinnedDiagrams(items);
 
@@ -129,6 +140,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                 {t("diagrams")}
               </h2>
               <div className="flex shrink-0 items-center">
+                <DiagramSortMenu sort={sort} onSort={onSort} />
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -167,6 +179,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                         diagram={diagram}
                         active={diagram.id === activeId}
                         status={statusOf(diagram.id)}
+                        time={time}
                         onFix={() => fix(diagram.id)}
                         onRename={() => show("name", diagram.id)}
                         onTogglePin={() => void attempt(() => setPinned(diagram.id, false))}
@@ -229,6 +242,7 @@ export function SidebarPanel({ section }: { section: SidebarSection }) {
                         diagram={diagram}
                         active={diagram.id === activeId}
                         status={statusOf(diagram.id)}
+                        time={time}
                         onFix={() => fix(diagram.id)}
                         onRename={() => show("name", diagram.id)}
                         onTogglePin={() =>
