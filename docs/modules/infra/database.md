@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-18
-source: 0003_terraform_environments
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # infra: database
@@ -10,7 +10,7 @@ It does not own their data or access patterns; that belongs to `app`, see `app`'
 
 ## Tables owned
 
-None. `infra` creates the `napkin-{env}-diagrams` table and the `napkin-{env}-assets-<account-id>` / `napkin-{env}-scenes-<account-id>` buckets as infrastructure, once per environment; it never reads or writes an item or object.
+None. `infra` creates the `napkin-{env}-diagrams` table and the `napkin-{env}-assets-<account-id>` / `napkin-{env}-scenes-<account-id>` buckets as infrastructure, once per environment; it never reads or writes an item or object, except `infra/scripts/copy-data.sh`, which copies them verbatim from one account to another.
 
 ## Tables referenced
 

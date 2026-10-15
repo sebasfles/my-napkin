@@ -3,13 +3,13 @@ variable "env" {
   type        = string
 }
 
-variable "base_domain" {
-  description = "Domain the application's hostname hangs from. The application answers on napkin.{base_domain}."
+variable "hostname" {
+  description = "Hostname the application answers on"
   type        = string
 }
 
 variable "hosted_zone" {
-  description = "Route53 zone that answers for the hostname. It is read, never owned, and it is not always base_domain: dev.sdfles.com has no zone of its own."
+  description = "Route53 zone that answers for the hostname. It is read, never owned, and it is not always the hostname: dev.napkin.fless.dev has no zone of its own."
   type        = string
 }
 

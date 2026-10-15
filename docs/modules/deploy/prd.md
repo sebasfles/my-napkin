@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0026_deploy_dev_skips_docs
+source: 0028_account_migration
 ---
 
 # deploy: product
@@ -10,7 +10,7 @@ Pull request checks and the whole deploy flow exist.
 ## Purpose
 
 Sebastian is the sole developer and sole user of my-napkin.
-This module ships his pushes to `main` to `napkin.sdfles.com` without him running any manual AWS command.
+This module ships his pushes to `main` to `napkin.fless.dev` without him running any manual AWS command.
 
 ## User flows
 
@@ -20,10 +20,10 @@ This module ships his pushes to `main` to `napkin.sdfles.com` without him runnin
    He reads one check, not a list.
    `ci` runs no e2e: the browser tests run after the merge, against deployed dev, which is where a page that compiles but no longer renders is caught.
 2. He merges into `develop`.
-   The deploy workflow builds `app/` with OpenNext, updates the dev Lambda, syncs static assets to S3 and invalidates CloudFront, and within 3 to 5 minutes the change is live at `napkin.dev.sdfles.com`.
+   The deploy workflow builds `app/` with OpenNext, updates the dev Lambda, syncs static assets to S3 and invalidates CloudFront, and within 3 to 5 minutes the change is live at `dev.napkin.fless.dev`.
 3. The full Playwright suite then runs against that deployed dev, and the workflow opens the pull request `develop -> main` titled `Promote develop to main`, or leaves the open one alone because its head is `develop` and already carries the change.
 4. Sebastian reads that pull request: `ci` and `e2e-dev` on its head commit are the proof the change works deployed. A red suite leaves it blocked by the `main` ruleset.
-5. He merges it with a merge commit, and the same deploy runs against prd. Within 3 to 5 minutes the change is live at `napkin.sdfles.com`.
+5. He merges it with a merge commit, and the same deploy runs against prd. Within 3 to 5 minutes the change is live at `napkin.fless.dev`.
 
 A push that changes only `docs/**` or root Markdown files, after a green run of the previous commit, deploys nothing and runs no suite; the promotion pull request is still opened and is not blocked by the skipped `e2e-dev`.
 No browser test ever runs against prd. The proof for those commits is the `e2e-dev` run they already passed on dev.

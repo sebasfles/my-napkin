@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-19
-source: 0009_deploy_dev_first_run
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # infra: product
 
-`dev` is applied and answers on its domain; `core` and `prd` are written and planned but not yet applied.
+All three roots are applied in account `372303522225`; `dev` answers on `dev.napkin.fless.dev` and `prd` on `napkin.fless.dev`.
 
 ## Purpose
 
@@ -31,9 +31,9 @@ Errors and empty states: a failed `apply` leaves prior resources untouched; Terr
 ## Rules
 
 - `terraform apply` is always run by Sebastian from his machine, never from GitHub Actions.
-- The `sdfles.com` Route53 zone is read, never imported or owned; Terraform only creates the `napkin` records inside it.
+- The `napkin.fless.dev` Route53 zone is read, never imported or owned; Terraform only creates the alias and validation records inside it.
 - `terraform.tfvars` holds only `github_app_pem`, `app_password` and `session_secret`; everything else is a literal in `locals.tf`.
-- The target fixed cost is $0/month; the Route53 zone itself is already paid for and out of scope.
+- The target fixed cost is $0/month besides the Route53 zone, which comes with the account, as does its monthly budget.
 
 ## Out of scope
 

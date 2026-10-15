@@ -1,6 +1,6 @@
 # My Napkin
 
-My Napkin is a personal, single-user whiteboard hosted on AWS at `napkin.sdfles.com`.
+My Napkin is a personal, single-user whiteboard hosted on AWS at `napkin.fless.dev`.
 It wraps the Excalidraw editor in a small Next.js app that adds a list of named diagrams, in folders and tabs, which persist between sessions and devices behind a single password.
 The interface speaks Spanish and English, follows the system light or dark theme, and the whole thing is designed to run at $0 fixed cost per month inside the AWS free tier.
 
@@ -43,7 +43,7 @@ The editor is then served at `http://localhost:3000`, and every command below ru
 
 ## Environments and how a change ships
 
-There are two environments in the same AWS account: `dev` at `napkin.dev.sdfles.com`, built from `develop`, and `prd` at `napkin.sdfles.com`, built from `main`.
+There are two environments in the project's own AWS account: `dev` at `dev.napkin.fless.dev`, built from `develop`, and `prd` at `napkin.fless.dev`, built from `main`.
 
 Every change arrives by pull request into `develop`, gated by one `ci` check.
 Merging it deploys dev, runs the full Playwright suite against that deployment, and opens the pull request `develop -> main`, which carries that run as the proof the change works deployed; merging it deploys production.

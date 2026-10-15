@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0026_deploy_dev_skips_docs
+source: 0028_account_migration
 ---
 
 # deploy: architecture decisions and debt
@@ -103,7 +103,7 @@ source: 0026_deploy_dev_skips_docs
 
 - Decision: `ci.yml` validates every `infra/environments/*/` that holds any `.tf` file, replacing the `main.tf` test of the entry above.
 - Alternatives rejected: giving `core` a `main.tf` it does not need so the old guard would match it; leaving the guard alone and letting `ci` report success while skipping a root.
-- Reason: `core`'s resources live in `oidc.tf`, `github.tf` and `budget.tf`, so the old guard skipped it in silence while `docs/TRD.md` lists `infra-core` as a verification target, and a required check that passes without running what it claims to check is worse than a missing check.
+- Reason: `core`'s resources live in `oidc.tf` and `github.tf`, so the old guard skipped it in silence while `docs/TRD.md` lists `infra-core` as a verification target, and a required check that passes without running what it claims to check is worse than a missing check.
 - Debt created: none.
 - Revisit when: a root needs a different validate invocation, such as a workspace or a variable file.
 - Source: 0003_terraform_environments

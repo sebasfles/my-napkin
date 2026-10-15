@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signedFetch } from "@/lib/signed-fetch";
 
-const origin = "https://napkin.dev.sdfles.com";
+const origin = "https://dev.napkin.fless.dev";
 const emptyBodyHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const knownBodyHash = "63065e151f52aeb0e831db3e0ae9ab8aa914924321077b5c316c33721a7ae8b8";
 

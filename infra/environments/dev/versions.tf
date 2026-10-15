@@ -13,10 +13,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "napkin-terraform-state-975050033628"
+    bucket       = "napkin-terraform-state-372303522225"
     key          = "dev/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
     use_lockfile = true
+
+    allowed_account_ids = ["372303522225"]
   }
 }

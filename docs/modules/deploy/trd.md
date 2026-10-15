@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-14
-source: 0026_deploy_dev_skips_docs
+source: 0028_account_migration
 ---
 
 # deploy: technical
@@ -22,7 +22,7 @@ Every workflow of the layout exists.
 `ci.yml` (pull_request into `develop` and `main`, push to `develop`, runner `ubuntu-latest`, `timeout-minutes: 20`): `npm ci` in `app/`, then lint, typecheck and unit tests for `app`, the Terraform checks, and the workflow linter, in one job so the rulesets have a single check name to require.
 It runs on pushes to `develop` as well as on pull requests because the promotion pull request is opened with `GITHUB_TOKEN`, which fires no `pull_request` event: without the push trigger the `ci` check the `main` ruleset requires would never land on that pull request's head commit.
 Node comes from the root `.nvmrc` and the npm cache is keyed on `app/package-lock.json`.
-The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds any `.tf` file, which is what makes `core` a checked root even though its resources live in `oidc.tf`, `github.tf` and `budget.tf` rather than a `main.tf`.
+The Terraform steps skip while `infra/` is absent and validate every directory under `infra/environments/` that holds any `.tf` file, which is what makes `core` a checked root even though its resources live in `oidc.tf` and `github.tf` rather than a `main.tf`.
 `permissions: contents: read`, no secret, and `pull_request` rather than `pull_request_target`, so pull requests from forks of this public repo still run.
 Concurrency is one group per pull request, and one group per commit on a push, with `cancel-in-progress`: a new commit supersedes the run in flight on its own pull request, and no push run ever cancels another commit's, since any commit on `develop` can become the promotion pull request's head.
 Required check on both rulesets.
@@ -48,7 +48,7 @@ Four details of it are load bearing:
 `decide` (`contents: read`, `actions: read`) sets `docs_only` to `true` only when `github.event.before` is an ancestor of `github.sha`, the `--no-renames` tree diff between them lists only `docs/**` or root `*.md` paths, and the latest `deploy-dev` run for `before` concluded `success`; any error, forced push or first push leaves it not `true`.
 `deploy` calls `reusable-deploy.yml` with `dev`, and `deploy` and `e2e-dev` both run under `!cancelled() && needs.decide.outputs.docs_only != 'true'`, so a failed `decide` runs everything.
 `e2e-dev` fails its first step unless `needs.deploy.result == 'success'`, so a failed deploy leaves a red check instead of a skipped one.
-`e2e-dev` runs `npx playwright install --with-deps chromium` and `npx playwright test --workers=1` with `BASE_URL=https://napkin.dev.sdfles.com` and `APP_PASSWORD` from the `dev` environment secret.
+`e2e-dev` runs `npx playwright install --with-deps chromium` and `npx playwright test --workers=1` with `BASE_URL=https://dev.napkin.fless.dev` and `APP_PASSWORD` from the `dev` environment secret.
 `promotion-pr` opens `develop -> main` with `gh pr create` when no such pull request is open, with a body carrying the compare link and the subjects of the commits not yet in `main`; when one is open it does nothing, because its head is `develop` and it already carries them.
 That job needs `fetch-depth: 0` and an explicit fetch of `main` to list those commits, and it is the only one granted `pull-requests: write`.
 `GITHUB_TOKEN` can open the pull request only because the repository's Actions workflow permissions allow it, which `infra`'s `core` root sets; the default forbids it.

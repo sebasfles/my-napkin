@@ -3,9 +3,3 @@ variable "github_app_pem" {
   type        = string
   sensitive   = true
 }
-
-variable "budget_notification_email" {
-  description = "Address the monthly budget alert is sent to. A variable and not a literal because the repository is public."
-  type        = string
-  sensitive   = true
-}

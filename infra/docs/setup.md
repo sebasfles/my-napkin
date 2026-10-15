@@ -1,15 +1,15 @@
 # Setup
 
 What has to exist before the first `terraform init`, and what to do after the first `apply`.
-Everything here is run by Sebastian from his machine with the `personal` AWS profile.
+Everything here is run by Sebastian from his machine with the `fless-napkin` AWS profile, an SSO profile on the project's own account `372303522225`.
 
 ## 1. The state bucket, by hand
 
 Terraform cannot create the bucket that holds its own state, so it is created once, outside Terraform.
 
 ```bash
-export AWS_PROFILE=personal
-B=napkin-terraform-state-975050033628
+export AWS_PROFILE=fless-napkin
+B=napkin-terraform-state-372303522225
 
 aws s3api create-bucket --bucket $B --region us-east-1
 aws s3api put-bucket-versioning --bucket $B --versioning-configuration Status=Enabled
@@ -19,7 +19,7 @@ aws s3api put-public-access-block --bucket $B \
   --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
-The name carries the account id because the plain one is already taken in another account.
+The name carries the account id because bucket names are global and the plain one is taken.
 Versioning is what makes a corrupted state recoverable, and it carries no lifecycle rule that expires noncurrent versions: if a `terraform.tfvars` is ever lost, an old state version is the only remaining copy of that secret.
 The state holds the server function's environment, password included, in plain text, so it never leaves this bucket.
 
@@ -48,7 +48,7 @@ Rotating it means editing three files; that is recorded as debt in `docs/modules
 ```bash
 cd environments/core
 cp .env.example .env && source .env
-cp terraform.tfvars.example terraform.tfvars   # github_app_pem, budget_notification_email
+cp terraform.tfvars.example terraform.tfvars   # github_app_pem
 terraform init && terraform apply
 ```
 
@@ -85,4 +85,20 @@ An apply that replaces the function, the bucket or the distribution rewrites the
 cd environments/dev && terraform output diagrams_table scenes_bucket
 ```
 
-Those two values, plus `APP_PASSWORD`, `SESSION_SECRET` and `AWS_PROFILE=personal`, are the app's `.env.local`.
+Those two values, plus `APP_PASSWORD`, `SESSION_SECRET` and `AWS_PROFILE=fless-napkin`, are the app's `.env.local`.
+
+## 6. Decommission of the previous account
+
+Until 0028 the project ran in the management account `975050033628` at `napkin.sdfles.com` and `napkin.dev.sdfles.com`, with its state in `napkin-terraform-state-975050033628`.
+That deployment is frozen and still serves; redirecting it and destroying it is its own task.
+The GitHub resources it created were imported into this account's state, so the old state still lists them, and a destroy there would delete the live environments and rulesets.
+Before any `plan -destroy` or `destroy` in the old roots, remove them from the old state, with those roots initialised against the old bucket and the old profile:
+
+```bash
+# core
+terraform state rm github_workflow_repository_permissions.this 'module.branch_ruleset["develop"]' 'module.branch_ruleset["main"]'
+# dev, then prd
+terraform state rm module.app.module.actions_environment
+```
+
+Then read the destroy plan: it must name no `github_` resource.
