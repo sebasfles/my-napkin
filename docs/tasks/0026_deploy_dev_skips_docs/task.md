@@ -96,3 +96,13 @@ Consolidated 2026-10-14 by the om-reviewer with the om-manager on Sebastian's be
 - clearance: repo
 
 ## om-developer notes
+
+### Round 1
+
+- Added the `decide` job to `deploy-dev.yml` (`contents: read`, `actions: read`, checkout `fetch-depth: 0`); its output `docs_only` is `true` only when `before` is a real ancestor of `github.sha`, the `--no-renames` tree diff lists only `docs/**` or root `*.md`, and the latest `deploy-dev` run on `develop` for `before` concluded `success`.
+- Any other outcome, including git or `gh` errors, writes `docs_only=false`; a failed `decide` leaves the output empty, which is also not `'true'`.
+- `deploy` and `e2e-dev` run under `!cancelled() && needs.decide.outputs.docs_only != 'true'`; `e2e-dev` first step fails unless `needs.deploy.result == 'success'`; `promotion-pr` also needs `decide`.
+- Verified: `npm run lint:workflows` green. The five cases were read against the `if` conditions, not run live; the live proof is the first docs-only push after merge.
+- Pending: none. Deferred: none.
+- Decisions beyond the plan: the diff checks `before` as a hex string and an ancestor of `github.sha`, so forced pushes are not docs-only; the guard takes the most recent run of `before` (`--limit 1`, newest first).
+- Module docs, conventions and ARD entry are left to document-task.
