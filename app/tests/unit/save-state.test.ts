@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isDirty, nextSaveState, saveIndicator, type SaveStatus } from "@/lib/save-state";
+import {
+  isDirty,
+  nextSaveReport,
+  nextSaveState,
+  saveIndicator,
+  type SaveReport,
+  type SaveStatus,
+} from "@/lib/save-state";
 
 describe("nextSaveState", () => {
   it("uploads a change that arrives while nothing is in flight", () => {
@@ -49,5 +56,34 @@ describe("saveIndicator", () => {
     expect(saveIndicator("saving")).toBe("saving");
     expect(saveIndicator("queued")).toBe("saving");
     expect(saveIndicator("failed")).toBe("failed");
+  });
+});
+
+describe("nextSaveReport", () => {
+  const left: SaveReport = { id: "a", status: "idle", saver: 1 };
+
+  it("lets a saver that has stopped report into an empty slot", () => {
+    expect(nextSaveReport(null, left)).toBe(left);
+  });
+
+  it("lets a saver that has stopped update the report it made itself", () => {
+    const handedOver: SaveReport = { ...left, status: "saving" };
+    expect(nextSaveReport(handedOver, left)).toBe(left);
+  });
+
+  it("never lets a saver that has stopped overwrite a newer saver of another diagram", () => {
+    const open: SaveReport = { id: "b", status: "saving", saver: 2 };
+    expect(nextSaveReport(open, left)).toBe(open);
+  });
+
+  it("never lets a saver that has stopped overwrite a newer saver of the same diagram", () => {
+    const reopened: SaveReport = { id: "a", status: "saving", saver: 2 };
+    expect(nextSaveReport(reopened, left)).toBe(reopened);
+  });
+
+  it("lets a saver replace what an older saver reported, so its save in flight shows", () => {
+    const earlier: SaveReport = { id: "x", status: "idle", saver: 0 };
+    const handedOver: SaveReport = { ...left, status: "saving" };
+    expect(nextSaveReport(earlier, handedOver)).toBe(handedOver);
   });
 });

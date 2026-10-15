@@ -33,13 +33,8 @@ import {
   type Library,
   type ParentId,
 } from "@/lib/diagrams";
-import type { SaveStatus } from "@/lib/save-state";
+import { nextSaveReport, type SaveReport } from "@/lib/save-state";
 import { subtree } from "@/lib/tree";
-
-export interface SaveReport {
-  id: string;
-  status: SaveStatus;
-}
 
 interface WorkspaceValue {
   items: Item[];
@@ -59,7 +54,7 @@ interface WorkspaceValue {
   markSaved: (item: Canvas) => void;
   isDeleted: (id: string) => boolean;
   saveStatus: SaveReport | null;
-  reportSave: (id: string, status: SaveStatus) => void;
+  reportSave: (report: SaveReport) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -127,8 +122,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...fields } : item)));
   }, []);
 
-  const reportSave = useCallback((id: string, status: SaveStatus) => {
-    setSaveStatus({ id, status });
+  const reportSave = useCallback((report: SaveReport) => {
+    setSaveStatus((current) => nextSaveReport(current, report));
   }, []);
 
   const rename = useCallback(
