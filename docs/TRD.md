@@ -21,18 +21,18 @@ The app's shell is built; everything else is the design the code must converge t
 - Stack: TypeScript, Node 24, Next.js App Router with route handlers, Tailwind with shadcn/ui components, `next-themes` for dark mode, `next-intl` for `es` and `en`, `@excalidraw/excalidraw` from npm, npm as package manager, built with `@opennextjs/aws`.
 - Layout: `src/app/` (pages and `api/` route handlers), `src/proxy.ts` (auth gate), `src/i18n/` (locale resolution and request config), `src/lib/` (theme and editor helpers, session and gate helpers, the tree and tab state, dynamo and s3), `src/components/ui/` (shadcn), `src/messages/{es,en}.json`, `tests/` (Vitest unit, Playwright e2e; e2e always run against dev's real table and bucket, locally through `npm run dev` with `.env.local`).
 - Install: `npm ci`
-- Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=personal` and `AWS_REGION=us-east-1`.
+- Workspace files: `.env.local` with `APP_PASSWORD`, `SESSION_SECRET`, `DIAGRAMS_TABLE`, `SCENES_BUCKET`, `AWS_PROFILE=fless-napkin` and `AWS_REGION=us-east-1`.
   The region is local only: an AWS profile carries none unless one was configured, and in AWS the Lambda runtime provides it, which is why Terraform grants four variables and not five.
 - API spec: none; seven route handlers documented in `modules/app/trd.md`, all built, the five diagram ones over items of two kinds since folders arrived.
 - Data: DynamoDB table for the workspace index, diagrams and folders alike, S3 bucket for scene JSON; no ORM, no migrations. Both provisioned by `infra`.
-- Delivery: `dev` at `napkin.dev.sdfles.com` from `develop`, `prd` at `napkin.sdfles.com` from `main`. Built by OpenNext into one Lambda plus static assets, deployed by `deploy`.
+- Delivery: `dev` at `dev.napkin.fless.dev` from `develop`, `prd` at `napkin.fless.dev` from `main`. Built by OpenNext into one Lambda plus static assets, deployed by `deploy`.
 
 ### infra
 
-- Stack: Terraform >= 1.10, `hashicorp/aws ~> 6`, `integrations/github ~> 6` authenticated as a GitHub App in all three roots, state in S3 bucket `napkin-terraform-state-975050033628` with `use_lockfile`, one key per root.
-- Layout: `environments/core/` (GitHub OIDC provider, branch rulesets, Actions workflow permissions, monthly budget alert), `environments/dev/` and `environments/prd/` (one AWS environment and its Actions environment each, calling `stacks/app`), `modules/aws/` and `modules/github/` (leaf modules), `docs/` (setup and deploy notes).
+- Stack: Terraform >= 1.10, `hashicorp/aws ~> 6`, `integrations/github ~> 6` authenticated as a GitHub App in all three roots, state in S3 bucket `napkin-terraform-state-372303522225` with `use_lockfile`, one key per root, and `allowed_account_ids` on every provider and backend.
+- Layout: `environments/core/` (GitHub OIDC provider, branch rulesets, Actions workflow permissions), `environments/dev/` and `environments/prd/` (one AWS environment and its Actions environment each, calling `stacks/app`), `modules/aws/` and `modules/github/` (leaf modules), `scripts/copy-data.sh` (copies and compares a table and a scenes bucket across accounts), `docs/` (setup and deploy notes).
 - Install: `terraform init` in the root's directory after `source .env`.
-- Workspace files: per root, `.env` (`AWS_PROFILE=personal`) and `terraform.tfvars` (`github_app_pem` in all three, plus `app_password` and `session_secret` in dev and prd, and `budget_notification_email` in core), both gitignored, both with a committed `.example`.
+- Workspace files: per root, `.env` (`AWS_PROFILE=fless-napkin`) and `terraform.tfvars` (`github_app_pem` in all three, plus `app_password` and `session_secret` in dev and prd), both gitignored, both with a committed `.example`.
 - API spec: none.
 - Data: none of its own.
 - Delivery: `terraform apply` run by Sebastian from his machine, never from CI.
@@ -40,7 +40,7 @@ The app's shell is built; everything else is the design the code must converge t
 ### deploy
 
 - Stack: GitHub Actions, `aws-actions/configure-aws-credentials` over OIDC, AWS CLI.
-- Layout: `ci.yml` (pull requests and pushes to `develop`: lint, typecheck, unit, Terraform, actionlint; no e2e, no secrets), `deploy-dev.yml` (push to `develop`: deploy dev, run the suite against it, open the promotion PR), `deploy-prd.yml` (push to `main`), `reusable-deploy.yml` (the deploy steps both callers share).
+- Layout: `ci.yml` (pull requests and pushes to `develop`: lint, typecheck, unit, Terraform, actionlint; no e2e, no secrets), `deploy-dev.yml` (push to `develop`: deploy dev and run the suite against it unless the push is docs-only, open the promotion PR), `deploy-prd.yml` (push to `main`), `reusable-deploy.yml` (the deploy steps both callers share).
 - Install: none.
 - Workspace files: none.
 - Delivery: see `modules/deploy/trd.md`.
@@ -76,9 +76,10 @@ Modules belong to the application and may span components.
 
 - Base branch `develop`; `main` is production. Every change arrives by pull request into `develop`; merging to `develop` deploys dev, runs the full Playwright suite against it and opens the promotion PR `develop -> main`, which carries that suite's result on its head commit before Sebastian merges it with a merge commit.
 - Both branches carry a ruleset: no deletion, no force push, PR required, required checks, zero required approvals, bypass for the repository admin.
-- `dev`: `napkin.dev.sdfles.com`, `prd`: `napkin.sdfles.com`; same AWS account `975050033628`, region `us-east-1`, existing Route53 zone `sdfles.com`, `base_domain` per environment and hostname `napkin.{base_domain}`.
-- Local development runs the app with `npm run dev` against the real table and bucket, with the `personal` AWS profile.
-- Fixed cost target: $0 per month inside the AWS free tier; the hosted zone is already paid.
+- `dev`: `dev.napkin.fless.dev`, `prd`: `napkin.fless.dev`; both in the project's own AWS account `372303522225`, region `us-east-1`, Route53 zone `napkin.fless.dev` read as data, `hostname` per environment.
+  The account's monthly budget is not this repository's: the organization sets it when it creates the account.
+- Local development runs the app with `npm run dev` against the real table and bucket, with the `fless-napkin` AWS profile.
+- Fixed cost target: $0 per month inside the AWS free tier, plus the hosted zone.
 
 ## Conventions
 

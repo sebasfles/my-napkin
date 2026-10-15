@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0009_deploy_dev_first_run
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # deploy: architecture decisions and debt
@@ -103,7 +103,7 @@ source: 0009_deploy_dev_first_run
 
 - Decision: `ci.yml` validates every `infra/environments/*/` that holds any `.tf` file, replacing the `main.tf` test of the entry above.
 - Alternatives rejected: giving `core` a `main.tf` it does not need so the old guard would match it; leaving the guard alone and letting `ci` report success while skipping a root.
-- Reason: `core`'s resources live in `oidc.tf`, `github.tf` and `budget.tf`, so the old guard skipped it in silence while `docs/TRD.md` lists `infra-core` as a verification target, and a required check that passes without running what it claims to check is worse than a missing check.
+- Reason: `core`'s resources live in `oidc.tf` and `github.tf`, so the old guard skipped it in silence while `docs/TRD.md` lists `infra-core` as a verification target, and a required check that passes without running what it claims to check is worse than a missing check.
 - Debt created: none.
 - Revisit when: a root needs a different validate invocation, such as a workspace or a variable file.
 - Source: 0003_terraform_environments
@@ -136,3 +136,14 @@ source: 0009_deploy_dev_first_run
   The token may now open and approve pull requests, but no workflow here approves anything, both rulesets require a pull request with checks, and the `main` ruleset requires `e2e-dev`.
 - Revisit when: a workflow needs to approve a pull request, which is a security review and not a configuration change.
 - Source: 0009_deploy_dev_first_run
+
+## 2026-10-14: a docs-only push to `develop` skips deploy and e2e through job-level conditions
+
+- Decision: a `decide` job in `deploy-dev.yml` diffs `github.event.before` to `github.sha` and skips `deploy` and `e2e-dev` only when every path is under `docs/` or a root `*.md` and the `deploy-dev` run of `before` concluded `success`.
+  `e2e-dev` keeps its job id and runs whenever `docs_only` is not `'true'`, failing its first step unless `deploy` succeeded.
+- Alternatives rejected: `paths-ignore` on the trigger, which leaves the required `e2e-dev` check pending and blocks the promotion pull request; diffing against `main`, which would never skip while code waits for promotion; trusting the last completed run, which misses a pending code run dropped by the concurrency group.
+- Reason: a skipped job satisfies a required check, so the skip must be explicit and keyed on a proven commit.
+  Making `e2e-dev` fail instead of skip when `deploy` failed also closes the existing hole where a failed deploy reported `e2e-dev` as skipped and left the promotion pull request mergeable on `ci` alone.
+- Debt created: none.
+- Revisit when: the docs path set changes, or GitHub stops counting a skipped job as a satisfied required check.
+- Source: 0026_deploy_dev_skips_docs

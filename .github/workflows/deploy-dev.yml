@@ -13,7 +13,66 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  decide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      docs_only: ${{ steps.diff.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether the push changes only documentation
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          docs_only() {
+            case "$BEFORE" in
+              ''|*[!0-9a-f]*|0000000000000000000000000000000000000000) return 1 ;;
+            esac
+
+            git cat-file -e "$BEFORE^{commit}" || return 1
+            git merge-base --is-ancestor "$BEFORE" "$SHA" || return 1
+
+            paths=$(git diff --no-renames --name-only "$BEFORE" "$SHA") || return 1
+            while IFS= read -r path; do
+              case "$path" in
+                '') ;;
+                docs/*) ;;
+                */*) return 1 ;;
+                *.md) ;;
+                *) return 1 ;;
+              esac
+            done <<< "$paths"
+
+            conclusion=$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow deploy-dev.yml \
+              --branch develop \
+              --commit "$BEFORE" \
+              --limit 1 \
+              --json conclusion \
+              --jq '.[0].conclusion // ""') || return 1
+            [ "$conclusion" = "success" ] || return 1
+          }
+
+          if docs_only; then
+            echo "Only documentation changed after a green run of $BEFORE; deploy and e2e-dev are skipped."
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
+    needs: decide
+    if: ${{ !cancelled() && needs.decide.outputs.docs_only != 'true' }}
     permissions:
       contents: read
       id-token: write
@@ -22,11 +81,18 @@ jobs:
       environment: dev
 
   e2e-dev:
-    needs: deploy
+    needs: [decide, deploy]
+    if: ${{ !cancelled() && needs.decide.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: dev
     steps:
+      - name: Require a successful deploy
+        if: ${{ needs.deploy.result != 'success' }}
+        run: |
+          echo "deploy concluded ${{ needs.deploy.result }}; the suite does not run against an unproven build."
+          exit 1
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
@@ -46,12 +112,12 @@ jobs:
       - name: Run the suite against deployed dev
         working-directory: app
         env:
-          BASE_URL: https://napkin.dev.sdfles.com
+          BASE_URL: https://dev.napkin.fless.dev
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
         run: npx playwright test --workers=1
 
   promotion-pr:
-    needs: [deploy, e2e-dev]
+    needs: [decide, deploy, e2e-dev]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10

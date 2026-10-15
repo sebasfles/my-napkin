@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-19
-source: 0007_deploy_workflows
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # deploy: flows
@@ -9,14 +9,15 @@ source: 0007_deploy_workflows
 
 Runs on every merge into `develop`.
 
-The three jobs of `deploy-dev.yml` run in order on the same commit, and `ci.yml` runs on that same push.
+A `decide` job first marks the push docs-only when every changed path is under `docs/` or a root `*.md` and the previous commit's `deploy-dev` run succeeded; then `deploy` and `e2e-dev` are skipped and `promotion-pr` still runs.
+Otherwise the three jobs of `deploy-dev.yml` run in order on the same commit, and `ci.yml` runs on that same push.
 Both checks land on the commit `develop` points at, which is the promotion pull request's head, which is what the `main` ruleset reads.
 
 ```mermaid
 sequenceDiagram
   participant S as Sebastian
   participant GH as GitHub Actions
-  participant DEV as napkin.dev.sdfles.com
+  participant DEV as dev.napkin.fless.dev
   participant PR as PR develop -> main
 
   S->>GH: merge PR into develop
@@ -50,5 +51,5 @@ sequenceDiagram
   GH->>L: zip server-functions/default, update-function-code, wait
   GH->>A: s3 sync .open-next/assets (immutable cache for /_next/static/*)
   GH->>CF: create-invalidation
-  CF-->>S: change live at napkin.{base_domain}
+  CF-->>S: change live at the environment's hostname
 ```

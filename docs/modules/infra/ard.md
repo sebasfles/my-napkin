@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-21
-source: 0020_library_items_dev
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # infra: architecture and debt
@@ -16,8 +16,8 @@ source: 0020_library_items_dev
 
 ## 2026-09-17: Terraform state in an S3 backend outside the repo
 
-- Decision: state lives in bucket `napkin-terraform-state-975050033628`, one key per root (`core/`, `dev/` and `prd/terraform.tfstate`), with `use_lockfile = true`; it is never committed.
-- Alternatives rejected: state committed in the repo; the plain name `napkin-terraform-state`, which already exists in another AWS account, so `terraform init` could never claim it.
+- Decision: state lives in bucket `napkin-terraform-state-372303522225`, one key per root (`core/`, `dev/` and `prd/terraform.tfstate`), with `use_lockfile = true`; it is never committed.
+- Alternatives rejected: state committed in the repo; the plain name `napkin-terraform-state`, already taken since bucket names are global, so `terraform init` could never claim it.
 - Reason: the tfstate carries the Lambda's environment variables (`app_password`, `session_secret`) in plain text, and the repo is public.
 - Debt created: the state bucket is created by hand once, before the first `terraform init`; Terraform cannot create the bucket that holds its own state.
 - Revisit when: never, this is the standard pattern.
@@ -36,10 +36,10 @@ source: 0020_library_items_dev
 ## 2026-09-17: `lifecycle ignore_changes` on the Lambda function
 
 - Decision: the Lambda resource is created from a local zip built by `archive_file` and ignores changes to `filename`, `source_code_hash` and `publish`.
-- Alternatives rejected: letting Terraform manage the deployed code on every apply; shipping the bundle through an artifacts bucket, as `auvral-infra` does, which would need a bucket this task grants nobody.
+- Alternatives rejected: letting Terraform manage the deployed code on every apply; shipping the bundle through an artifacts bucket, which would need a bucket nothing else uses.
 - Reason: Terraform owns the function's configuration; the GitHub Actions workflow owns its code via `update-function-code`. Without `ignore_changes`, every code deploy shows as drift on the next `plan`.
 - Debt created: the first apply creates the function against a placeholder zip that answers 503 `not deployed` until the first workflow run deploys real code. With no artifacts bucket the workflow pushes the bundle inline with `update-function-code --zip-file`, which AWS caps at 50 MB zipped.
-- Revisit when: never, this is the pattern already used by `auvral-infra` and `diy-infra`.
+- Revisit when: never, this is the standard split between Terraform and a code deploy.
 - Source: setup
 
 ## 2026-09-17: Lambda Function URL over API Gateway as the CloudFront origin
@@ -57,9 +57,9 @@ source: 0020_library_items_dev
 
 ## 2026-09-17: Route53 zone read, never imported
 
-- Decision: Terraform reads the existing `sdfles.com` hosted zone (`Z07789852332B51WUS33Z`) with `data "aws_route53_zone"` and owns only the `napkin` alias and ACM validation records inside it.
+- Decision: Terraform reads the `napkin.fless.dev` hosted zone (`Z06181032NM0GKUOSDBBH`) with `data "aws_route53_zone"` and owns only the alias and ACM validation records inside it.
 - Alternatives rejected: importing the whole zone into this module's state.
-- Reason: the zone already holds unrelated records for other projects in the same AWS account; importing it would put those records under this module's lifecycle and risk a `terraform destroy` here deleting them.
+- Reason: the zone is created with the account and delegated from its parent domain outside this repository; owning it here would let a `terraform destroy` break that delegation.
 - Debt created: none.
 - Revisit when: never.
 - Source: setup
@@ -87,7 +87,7 @@ source: 0020_library_items_dev
 - Decision: `stacks/app` creates the Actions environment named after `var.env` through `modules/github/actions_environment`, with `AWS_ROLE_ARN`, `LAMBDA_FUNCTION_NAME`, `ASSETS_BUCKET` and `CLOUDFRONT_DISTRIBUTION_ID` taken from the resources of that same stack and `APP_PASSWORD` from `var.app_password`. `dev` and `prd` configure the `github` provider with the same GitHub App as `core`.
 - Alternatives rejected: keeping the four variables and the secret as a manual step after each apply, which is how they were defined until now; a `core`-owned module reading the other roots' outputs with `terraform_remote_state`, which would make `core` depend on the environments it is applied before.
 - Reason: the value and the resource it names are produced by the same apply, so they cannot drift. The manual step also had no signal: a recreated bucket left a stale variable behind and the next deploy failed against a resource that no longer existed.
-  The module is copied from `diy-infra` without its `lifecycle { ignore_changes = all }`, because nothing else manages these environments here and ignoring every change would hide a protection rule or a variable edited by hand.
+  The module carries no `lifecycle { ignore_changes = all }`, because nothing else manages these environments and ignoring every change would hide a protection rule or a variable edited by hand.
   Its `for_each = nonsensitive(toset(keys(var.env_secrets)))` is kept: `for_each` cannot take a sensitive value, and the names of the secrets are not the secrets.
   The secret is written through the resource's `value`, not `plaintext_value`, which provider 6 deprecates in favour of it.
 - Debt created: the App's private key now lives in the `terraform.tfvars` of all three roots, so rotating it means editing three files. `prd` also gets an `APP_PASSWORD` secret that nothing reads, since no suite runs against prd; it is already in prd's state through the Lambda's environment, so it adds no exposure.
@@ -126,7 +126,7 @@ source: 0020_library_items_dev
 - Decision: `stacks/app/compute.tf` declares `scenes_bucket_prefixes = ["scenes", "libraries"]` and the role's S3 statement builds one `{bucket}/{prefix}/*` resource per entry, same three actions as before.
   A prefix the app writes is granted by adding it to that list; nothing else in the bucket is reachable from the Lambda.
 - Alternatives rejected: a second statement per prefix, written by hand each time one appears; granting the whole bucket with `/*`.
-- Reason: 0012 added `libraries/{id}/` in the app and shipped without its grant, because locally the `personal` profile is an admin and the suite never meets the role.
+- Reason: 0012 added `libraries/{id}/` in the app and shipped without its grant, because locally the developer's profile is an admin and the suite never meets the role.
   On dev every library create failed: the server logged `AccessDenied` on `s3:PutObject` for `libraries/{id}/scene.json` (2026-09-20 22:12Z, `deploy-dev.yml` runs 35540680158 and 35542288597) and the suite timed out waiting for the library's URL.
   One list gives the next prefix a single obvious place next to the statement it feeds, and task 0019 reads that same list from a unit test so `s3.ts` cannot build a key outside it.
   The whole bucket is not granted because the grant is the one place that says what the app writes; a stray key builder should fail there, visibly, not succeed by accident.
@@ -144,5 +144,15 @@ source: 0020_library_items_dev
   It is not fixed here because this task's fix is app code, an infra change would put a `terraform apply` in Sebastian's path before the merge for a defect that is not this bug, and the same apply is better spent once the prefix list question is settled.
   Worth saying plainly: this debt is why 0020 could be reproduced at all. The four libraries of run 35630985274 were deleted by the suite at 17:25:24 and their versions survived, which is what made the before-and-after bytes readable days later.
 - Debt created: `libraries/` keeps every version of both objects forever, and a delete leaves them behind a delete marker rather than reclaiming them.
-- Revisit when: the bucket's size is worth a line on the budget alert, or the next task touches `storage.tf` for another reason.
+- Revisit when: the bucket's size is worth a line on the account's budget, or the next task touches `storage.tf` for another reason.
 - Source: 0020_library_items_dev
+
+## 2026-10-14: Every root refuses any account but 372303522225, and the GitHub side was adopted by import
+
+- Decision: the aws provider and the S3 backend of all three roots carry `allowed_account_ids = ["372303522225"]`, while the profile stays in each root's untracked `.env`.
+  The GitHub resources the previous state created were brought into this state with `import` blocks kept outside the repository and removed after the apply; the data was copied by `infra/scripts/copy-data.sh`, which takes every name as an argument.
+- Alternatives rejected: a `profile` hardcoded in the provider (a machine choice in a public repository); recreating the GitHub resources (a create conflicts with what exists, and a destroy in the old state would delete them); committed `import` blocks (they fail on any fresh repository).
+- Reason: a shell left on another profile now fails at init instead of planning against the wrong account, and the only state that names the live GitHub environments is this one.
+- Debt created: the previous state still lists the same GitHub resources until the decommission task runs `terraform state rm`, as `infra/docs/setup.md` section 6 says.
+- Revisit when: the decommission task runs.
+- Source: 0028_account_migration

@@ -1,6 +1,6 @@
 # my-napkin
 
-A personal, single-user Excalidraw hosted on AWS at `napkin.sdfles.com`, with a list of persistent diagrams.
+A personal, single-user Excalidraw hosted on AWS at `napkin.fless.dev`, with a list of persistent diagrams.
 
 ## Where things are
 

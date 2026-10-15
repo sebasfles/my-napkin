@@ -7,7 +7,7 @@ data "aws_route53_zone" "this" {
 
 locals {
   name_prefix = "napkin-${var.env}"
-  domain      = "napkin.${var.base_domain}"
+  domain      = var.hostname
 
   scenes_cors_origins = concat(["https://${local.domain}"], var.extra_cors_origins)
 }

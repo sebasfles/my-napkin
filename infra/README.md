@@ -1,6 +1,6 @@
 # infra
 
-Terraform for everything my-napkin runs on: one AWS account (`975050033628`), one region (`us-east-1`), two environments, and the rulesets of the GitHub repository.
+Terraform for everything my-napkin runs on: the project's own AWS account (`372303522225`), one region (`us-east-1`), two environments, and the rulesets of the GitHub repository.
 
 It never deploys application code.
 Terraform owns configuration, including the Actions variables and secret each deploy reads; the workflows own code.
@@ -10,9 +10,11 @@ Terraform owns configuration, including the Actions variables and secret each de
 ```
 environments/
   core/  Account-wide and repository-wide: the GitHub OIDC provider, the
-         rulesets of develop and main, the monthly budget alert
-  dev/   napkin.dev.sdfles.com, deployed from develop
-  prd/   napkin.sdfles.com, deployed from main
+         rulesets of develop and main, the Actions workflow permissions
+  dev/   dev.napkin.fless.dev, deployed from develop
+  prd/   napkin.fless.dev, deployed from main
+scripts/
+  copy-data.sh  Copies and compares a table and a scenes bucket across accounts
 stacks/
   app/   One environment's AWS side and its GitHub Actions environment,
          wired from the leaf modules
@@ -37,6 +39,7 @@ terraform plan
 ```
 
 Apply order on a fresh account is `core`, then `dev`, then `prd`: both environments read the OIDC provider `core` creates.
+Every provider and backend carries `allowed_account_ids`, so a shell on any other profile fails before it plans.
 
 ## Docs
 

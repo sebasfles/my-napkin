@@ -2,7 +2,7 @@ module "app" {
   source = "../../stacks/app"
 
   env         = local.env
-  base_domain = local.base_domain
+  hostname    = local.hostname
   hosted_zone = local.hosted_zone
 
   github_owner      = local.github_owner

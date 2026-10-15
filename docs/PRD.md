@@ -1,13 +1,13 @@
 ---
-updated: 2026-09-20
-source: 0012_libraries
+updated: 2026-10-14
+source: 0028_account_migration
 ---
 
 # Product Requirements Document
 
 ## Product
 
-My Napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.sdfles.com`.
+My Napkin is a personal Excalidraw hosted on Sebastian's own domain, `napkin.fless.dev`.
 It gives him a list of named diagrams that persist between sessions and devices, with the same editor as excalidraw.com, behind a single password.
 The priorities are, in order: it works, it costs nothing fixed per month, and it stays trivial to update when Excalidraw ships a new version.
 
@@ -54,7 +54,7 @@ Details: [modules/infra/prd.md](modules/infra/prd.md), [modules/deploy/prd.md](m
 - The project, its domain and its AWS resources are named `napkin`; the Excalidraw name appears only as a credit in the README.
 - Fixed monthly cost stays at $0 inside the AWS free tier.
 - The interface follows the browser's language, Spanish or English, and its light or dark preference; both are switchable from the sidebar and the editor follows the theme.
-- A change reaches the user only after it ran on `napkin.dev.sdfles.com` and its end-to-end tests passed there.
+- A change reaches the user only after it ran on `dev.napkin.fless.dev` and its end-to-end tests passed there.
 
 ## Not in the product
 
