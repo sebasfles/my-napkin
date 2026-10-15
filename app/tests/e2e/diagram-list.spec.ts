@@ -137,9 +137,8 @@ test.describe("diagram list", () => {
     await page.goto("/");
     await listReady(page);
 
-    await expect(diagramSort(page), "a fresh browser sorts by last edit").toHaveAttribute(
-      "data-sort",
-      "edited:desc",
+    await expect(diagramSort(page), "a fresh browser sorts by last edit").toHaveAccessibleName(
+      "Sort: Edited, Newest first",
     );
     await expect(diagramNames(page)).toHaveText([ten, nine, two]);
     const editedAt = await diagramItem(page, ten)
@@ -147,6 +146,7 @@ test.describe("diagram list", () => {
       .getAttribute("datetime");
 
     await sortDiagramsBy(page, "created", "desc");
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Created, Newest first");
     await expect(diagramNames(page)).toHaveText([nine, two, ten]);
     const createdAt = await diagramItem(page, ten)
       .getByTestId("created-at")
@@ -157,12 +157,13 @@ test.describe("diagram list", () => {
     ).toBe(true);
 
     await sortDiagramsBy(page, "name", "asc");
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Name, A to Z");
     await expect(diagramNames(page), "2 comes before 10").toHaveText([two, nine, ten]);
 
     await page.reload();
     await listReady(page);
 
-    await expect(diagramSort(page)).toHaveAttribute("data-sort", "name:asc");
+    await expect(diagramSort(page)).toHaveAccessibleName("Sort: Name, A to Z");
     await expect(diagramNames(page)).toHaveText([two, nine, ten]);
   });
 

@@ -10,6 +10,7 @@ import {
   holdOrder,
   pathTo,
   pinnedDiagrams,
+  sortBy,
   subtree,
   subtreeCounts,
   type DiagramSort,
@@ -92,7 +93,6 @@ describe("the diagrams of a folder, under the sort the user chose", () => {
     return { id, name, createdAt: minute(created), updatedAt: minute(edited) };
   }
 
-  // Each field and direction gives its own order of the three.
   const ten = made("ten", "n 10", 0, 4);
   const two = made("two", "n 2", 1, 3);
   const nine = made("nine", "n 9", 2, 5);
@@ -109,6 +109,12 @@ describe("the diagrams of a folder, under the sort the user chose", () => {
   ])("orders by %o", (sort, expected) => {
     expect(names([two, nine, ten], sort)).toEqual(expected);
     expect(names([ten, nine, two], sort)).toEqual(expected);
+  });
+
+  it("starts a field in the direction it reads naturally: A to Z, newest first", () => {
+    expect(sortBy("name")).toEqual({ field: "name", direction: "asc" });
+    expect(sortBy("created")).toEqual({ field: "created", direction: "desc" });
+    expect(sortBy("edited")).toEqual({ field: "edited", direction: "desc" });
   });
 
   it("reads the last edit, newest first, when nothing was chosen", () => {

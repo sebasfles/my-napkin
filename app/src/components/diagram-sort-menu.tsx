@@ -15,6 +15,7 @@ import {
 import { isInEditor } from "@/lib/editor";
 import {
   sortDirections,
+  sortBy,
   sortFields,
   type DiagramSort,
   type SortDirection,
@@ -33,8 +34,10 @@ function directionKey(field: SortField, direction: SortDirection) {
   return direction === "asc" ? "sortOldest" : "sortNewest";
 }
 
-function directionsFor(field: SortField): readonly SortDirection[] {
-  return field === "name" ? sortDirections : [...sortDirections].reverse();
+function directionsFor(field: SortField): SortDirection[] {
+  const natural = sortBy(field).direction;
+
+  return [natural, ...sortDirections.filter((direction) => direction !== natural)];
 }
 
 export function DiagramSortMenu({
@@ -56,7 +59,6 @@ export function DiagramSortMenu({
           size="xs"
           aria-label={t("sort", { field, direction })}
           data-testid="diagram-sort"
-          data-sort={`${sort.field}:${sort.direction}`}
           className="text-muted-foreground"
         >
           {field}
@@ -77,7 +79,7 @@ export function DiagramSortMenu({
           value={sort.field}
           onValueChange={(value) => {
             const next = sortFields.find((candidate) => candidate === value);
-            if (next) onSort({ ...sort, field: next });
+            if (next) onSort(sortBy(next));
           }}
         >
           {sortFields.map((candidate) => (

@@ -190,9 +190,13 @@ export async function sortDiagramsBy(page: Page, field: string, direction: strin
   const menu = page.getByTestId("diagram-sort-menu");
   await expect(menu).toBeVisible();
 
-  await menu.getByTestId(`sort-field-${field}`).click();
-  await menu.getByTestId(`sort-direction-${direction}`).click();
-  await expect(diagramSort(page)).toHaveAttribute("data-sort", `${field}:${direction}`);
+  const fieldItem = menu.getByTestId(`sort-field-${field}`);
+  await fieldItem.click();
+  await expect(fieldItem).toBeChecked();
+
+  const directionItem = menu.getByTestId(`sort-direction-${direction}`);
+  await directionItem.click();
+  await expect(directionItem).toBeChecked();
 
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();

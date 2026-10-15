@@ -23,6 +23,16 @@ export interface DiagramSort {
 
 export const defaultDiagramSort: DiagramSort = { field: "edited", direction: "desc" };
 
+const naturalDirection: Record<SortField, SortDirection> = {
+  name: "asc",
+  created: "desc",
+  edited: "desc",
+};
+
+export function sortBy(field: SortField): DiagramSort {
+  return { field, direction: naturalDirection[field] };
+}
+
 type Comparator = (a: Item, b: Item) => number;
 
 function byText(a: string, b: string): number {

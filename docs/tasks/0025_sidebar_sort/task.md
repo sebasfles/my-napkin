@@ -128,3 +128,16 @@ Pending:
 Deferred:
 
 - `docs/modules/app/trd.md` still names `use-sidebar-collapsed.ts` and `sidebar-cookie.ts`, which are now `use-shell-layout.ts` and `shell-layout.ts`; fixed in `document-task`.
+
+### Round 2
+
+Done:
+
+- Finding 1: `sortBy(field)` in `src/lib/tree.ts` gives a field its natural direction (name A to Z, created and edited newest first); picking a field in the menu applies it, the direction group then flips it, and the natural direction is listed first. Unit test added.
+- Finding 2: the spec asserts the trigger's accessible name ("Sort: Edited, Newest first" and the rest) instead of `data-sort`, which is gone from the component; `sortDiagramsBy` asserts each radio item is checked.
+- Finding 3: the restating comment in `tree.test.ts` is gone.
+- Rebased on `origin/develop` after PR #42 (0028 account migration); round 1 is now `5938a65`.
+- Finding 4: `diagram-list.spec.ts` ran on :3000 against the new dev account, 10 of 10 green, the sort case included; the dev server logged one "destination stream closed early" when the case navigated away mid-response, which failed nothing.
+- Screenshots of the sidebar with the sort menu open, mocked list, in `.workspaces/0025_sidebar_sort/shots/`: `sidebar-sort-{390,768,1280}-{light,dark}-en.png` under name A to Z, and `sidebar-sort-390-{light,dark}-es.png` under created, newest first, to show the longest Spanish labels fit and the row times switch to creation.
+
+Pending: nothing.
