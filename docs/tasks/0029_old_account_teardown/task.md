@@ -100,6 +100,14 @@ None.
 - Order: GitHub listing, `state rm` in core, dev, prd, `state list` shows no `github_`, final counts, OIDC `rm` and untag, prd (flip apply, destroy), dev, core, state bucket emptied of every version and delete marker then deleted, listings, hostnames, docs.
 - clearance: full; account 975050033628 with `personal` (state rm, the prd flip apply, destroy of the three old roots, untagging the OIDC provider, deleting the old state bucket), 372303522225 with `fless-napkin` read only, GitHub `sebasfles/my-napkin` read only through `gh` as `sebasfles`.
 
+### Reiteration 1 (2026-10-15, retakes.md, Sebastian on PR #45)
+
+- `.github/workflows/deploy-dev.yml:46-51`: the docs-only `case` accepts `docs/*` and root `*.md` only, so `infra/docs/setup.md` counts as code; widen it to any `*.md` and any path under a `docs/` directory at any depth.
+  The `before` guards, the previous-run check, the fail-closed `if`s and `promotion-pr` stay as they are.
+- `docs/modules/deploy/trd.md:48` states the widened rule in its one sentence; `flows.md:12`, which repeats the old rule, follows (om-devops, so no doc states the stale rule).
+- Check: `npm run lint:workflows` green, plus the new `case` exercised locally against representative paths; PR #45's own `deploy-dev` run after merge is the live proof (`deploy` and `e2e-dev` skipped).
+- Scope adjusted (Sebastian): this PR now also touches module `deploy`.
+
 ## om-devops notes
 
 ### Round 1 (2026-10-15)
@@ -119,3 +127,12 @@ None.
   The GitHub listing after is byte-identical to the one before.
 - Note for foundation: the GitHub OIDC provider in 975050033628 is no longer my-napkin's and no state manages it; it stays for the `clara-prd-*` roles, untagged, for foundation to adopt.
 - Repo: `infra/docs/setup.md` section 6 removed; Acceptance 6 grep finds only the prose `personal`.
+- Docs: `docs/modules/infra/ard.md` 2026-10-14 entry marked resolved plus one new entry; `trd.md` setup row trimmed; the `general` row left the `docs/ARD.md` Debt index.
+  The global 2026-10-14 entry in `docs/ARD.md` Decisions now reads "Debt created: none since 0029", at the om-manager's request.
+
+### Round 2 (2026-10-15, Reiteration 1)
+
+- `deploy-dev.yml` `decide`: the path `case` is now `*.md | docs/* | */docs/*` accepted, anything else code; guards, previous-run check, job `if`s and `promotion-pr` untouched.
+- Exercised the `case` locally on 15 paths: root and nested `*.md`, `docs/**`, `infra/docs/**` and `a/b/docs/**` read as docs; `.ts`, `.tf`, workflows, `docsx/`, `mydocs/`, `docs.txt` as code.
+- Decided: a code file under a folder named `docs/` would now skip deploy; today the only nested `docs/` is `infra/docs/`, all Markdown; recorded as debt in `docs/modules/deploy/ard.md` and the Debt index.
+- No external action this round.
