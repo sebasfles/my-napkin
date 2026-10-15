@@ -102,3 +102,29 @@ What review-task checks beyond the Pipeline:
 clearance: repo
 
 ## om-developer notes
+
+### Round 1
+
+Done:
+
+- `src/lib/tree.ts`: `DiagramSort` (field and direction), `defaultDiagramSort` (edited, descending) and the pure `compareDiagrams`; `childrenOf` takes the sort, folders keep the name rule with the id as the last tie breaker.
+- `byNameAsc` in `src/lib/diagrams.ts` collates numerically, so folders, the Move dialog's choices and the Libraries list read "2" before "10".
+- `src/lib/shell-layout.ts`: the cookie carries `{panel}:{section}:{field}:{direction}`; an old two-part value or an unknown half parses to the default pair; `toggleSection`, `togglePanel`, the new `openSection` and `sortDiagrams` keep what they do not change, and `openShellPanel` now reads the stored layout so opening Libraries from the editor keeps the sort.
+- `src/components/diagram-sort-menu.tsx`: one non-modal menu in the Diagrams header, trigger showing the field and an arrow; two radio groups, field and direction, with direction labels in the field's terms; picking keeps the menu open so both halves can be set while the list reorders behind it.
+- `DiagramRow` takes `time`: under "created" the line shows `createdAt`, otherwise `updatedAt`; the line is now a `<time dateTime>`, test ids `created-at` and `updated-at`.
+- Strings in es and en; unit tests in `tree.test.ts` and `shell-layout.test.ts`; one case in `diagram-list.spec.ts` with a `newDiagramNamed`, `diagramNames`, `diagramSort` and `sortDiagramsBy` in the helpers.
+
+Decisions not in the plan:
+
+- Ties: name breaks by creation (oldest first, which never moves), then id; created and edited break by name, then id. The direction flips only the primary field, so equal timestamps always read A to Z.
+- The pinned section follows the time line rule too: the same diagram appears there and in its folder, and two different times for one diagram would read as a defect. Its order is untouched.
+- The direction items are listed in the field's natural order: A to Z first for name, newest first for the dates.
+- The sort menu repeats the row menu's `modal={false}` and its editor focus guard, for the same reason.
+
+Pending:
+
+- E2E (`diagram-list.spec.ts`) and the screenshots wait for the Playwright token; the screenshot script is ready in `.workspaces/0025_sidebar_sort/shots/` (mocked list, its own dev server on port 3100 with throwaway secrets, no AWS).
+
+Deferred:
+
+- `docs/modules/app/trd.md` still names `use-sidebar-collapsed.ts` and `sidebar-cookie.ts`, which are now `use-shell-layout.ts` and `shell-layout.ts`; fixed in `document-task`.

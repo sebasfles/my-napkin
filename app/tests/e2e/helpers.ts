@@ -108,6 +108,10 @@ export function saveIndicator(page: Page): Locator {
 }
 
 export async function newDiagram(page: Page, label: string): Promise<string> {
+  return newDiagramNamed(page, e2eName(label));
+}
+
+export async function newDiagramNamed(page: Page, name: string): Promise<string> {
   await listReady(page);
   const before = await itemList(page).getByTestId("diagram-item").count();
   const from = page.url();
@@ -121,14 +125,17 @@ export async function newDiagram(page: Page, label: string): Promise<string> {
   });
   await expect(page.locator(".excalidraw")).toBeVisible();
 
-  return adoptActiveDiagram(page, label);
+  return adoptActiveDiagramAs(page, name);
 }
 
 export async function adoptActiveDiagram(page: Page, label: string): Promise<string> {
+  return adoptActiveDiagramAs(page, e2eName(label));
+}
+
+async function adoptActiveDiagramAs(page: Page, name: string): Promise<string> {
   const created = await activeDiagramName(page);
   track(createdByPage, page, created);
 
-  const name = e2eName(label);
   await renameActiveDiagram(page, name);
   retrack(createdByPage, page, created, name);
 
@@ -168,6 +175,27 @@ export async function newFolderNamed(page: Page, name: string): Promise<string> 
   track(foldersByPage, page, name);
 
   return name;
+}
+
+export function diagramNames(page: Page): Locator {
+  return itemList(page).getByTestId("diagram-item").locator("a > span:first-child");
+}
+
+export function diagramSort(page: Page): Locator {
+  return page.getByTestId("diagram-sort");
+}
+
+export async function sortDiagramsBy(page: Page, field: string, direction: string) {
+  await diagramSort(page).click();
+  const menu = page.getByTestId("diagram-sort-menu");
+  await expect(menu).toBeVisible();
+
+  await menu.getByTestId(`sort-field-${field}`).click();
+  await menu.getByTestId(`sort-direction-${direction}`).click();
+  await expect(diagramSort(page)).toHaveAttribute("data-sort", `${field}:${direction}`);
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
 }
 
 export async function openFolder(page: Page, name: string) {

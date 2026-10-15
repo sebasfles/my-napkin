@@ -1,6 +1,5 @@
 import {
   byNameAsc,
-  byUpdatedAtDesc,
   isDiagram,
   isFolder,
   isLocked,
@@ -11,17 +10,62 @@ import {
   type ParentId,
 } from "@/lib/diagrams";
 
+export const sortFields = ["name", "created", "edited"] as const;
+export const sortDirections = ["asc", "desc"] as const;
+
+export type SortField = (typeof sortFields)[number];
+export type SortDirection = (typeof sortDirections)[number];
+
+export interface DiagramSort {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export const defaultDiagramSort: DiagramSort = { field: "edited", direction: "desc" };
+
+type Comparator = (a: Item, b: Item) => number;
+
+function byText(a: string, b: string): number {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
+const byField: Record<SortField, Comparator> = {
+  name: byNameAsc,
+  created: (a, b) => byText(a.createdAt, b.createdAt),
+  edited: (a, b) => byText(a.updatedAt, b.updatedAt),
+};
+
+const tieBreaker: Record<SortField, SortField> = {
+  name: "created",
+  created: "name",
+  edited: "name",
+};
+
+export function compareDiagrams({ field, direction }: DiagramSort): Comparator {
+  const sign = direction === "asc" ? 1 : -1;
+
+  return (a, b) =>
+    sign * byField[field](a, b) || byField[tieBreaker[field]](a, b) || byText(a.id, b.id);
+}
+
+const byFolderName: Comparator = (a, b) => byNameAsc(a, b) || byText(a.id, b.id);
+
 export interface FolderContents {
   folders: Folder[];
   diagrams: Diagram[];
 }
 
-export function childrenOf(items: Item[], parentId: ParentId): FolderContents {
+export function childrenOf(
+  items: Item[],
+  parentId: ParentId,
+  sort: DiagramSort = defaultDiagramSort,
+): FolderContents {
   const children = items.filter((item) => parentOf(item) === parentId);
 
   return {
-    folders: children.filter(isFolder).sort(byNameAsc),
-    diagrams: children.filter(isDiagram).sort(byUpdatedAtDesc),
+    folders: children.filter(isFolder).sort(byFolderName),
+    diagrams: children.filter(isDiagram).sort(compareDiagrams(sort)),
   };
 }
 
