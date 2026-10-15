@@ -46,3 +46,8 @@ Found by om-0016-reviewer on 2026-09-20 during 0016's production-build run; reac
 - On the fix: the spec is 5 of 5 green, and the full suite passes (110 tests).
 
 ## om-reviewer verification
+
+2026-10-15, commit 428da76, om-0027-reviewer: passes.
+I did not run the steps myself: the reviewer runs no tests, and this machine's single e2e slot is shared.
+The evidence is the om-developer's verify block at 428da76 and its artefact `.verify/app-e2e.out` (112 passed, `EXIT=0`, no credential errors). In it, `save-switch.spec.ts` case 1 (the steps above: edit A, open B within the debounce, wait for A's PATCH, open A again) reads `data-status="saved"`.
+The same spec's red run on develop is recorded above by the om-developer.

@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-14
-source: 0022_library_items_dev_still_empty
+updated: 2026-10-15
+source: 0027_save_indicator_stuck
 ---
 
 # app: flows
@@ -72,9 +72,11 @@ stateDiagram-v2
   failed --> saving: the next change retries
 ```
 
-The first status report of this flow is also what keeps the diagram's tab: a preview tab stops being one the moment its diagram saves, which is why the two share a callback instead of each deciding what an edit is.
+Leaving a canvas stops its saver: the pending change is handed over at once, and what the saver holds keeps uploading, a queued scene included, with every status reported, so the indicator reads how it ended when the user comes back.
+A stopped saver takes no new input and never retries a failure, the warning on leaving the page holds until it has drained, and the indicator never takes its report over one from a newer saver.
+Every status report also keeps the diagram's tab if it is still open as a preview, and never opens a tab the user has closed.
 Opening a diagram never saves it: the editor's first report after a mount becomes the baseline when it changes no element.
-Deleting a diagram stops the saver before the DELETE is sent, so the scene object is not written back; deleting a folder stops the savers of every diagram under it the same way, before the cascade starts.
+Deleting a diagram, or a folder with diagrams under it, abandons their savers before the DELETE is sent, so nothing is written back.
 A locked diagram never enters this flow at all: the editor mounts no saver, `/urls` signs no upload, and the PATCH is refused by a condition on the item, so a browser that locked nothing is stopped too.
 A library canvas runs the same flow with the same machine: `/urls` hands back a second pair, and the injected write derives the items from the frames in memory, PUTs the canvas, PUTs the items and PATCHes the counts with `itemCount`.
 It is one save, so a failure anywhere in it is one failed save that repeats both idempotent PUTs, exactly as a PUT landing with a failed PATCH already does.
