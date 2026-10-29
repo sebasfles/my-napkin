@@ -114,7 +114,7 @@ Consolidated 2026-09-17.
 - `docs/checks/styles.md` and `docs/checks/i18n.md`: the Excalidraw render passes `theme` and `langCode` derived from the app theme and locale; colors come only from tokens.
 - `docs/TRD.md`, Verification targets, is the only source of the commands; e2e runs `--grep-invert @aws`.
 - Base branch is `develop`, not the GitHub default `main`.
-- Every `gh` call on this repo runs with `GH_TOKEN=$(gh auth token -u sebasfles)` in its environment and never `gh auth switch`, because the active account `sflores-designli` has no push here (om-manager). Push itself goes over ssh as `sebasfles`, verified with a dry run at consolidation; only `gh pr create` needs the token.
+- Every `gh` call on this repo runs with `GH_TOKEN=$(gh auth token -u sebasfles)` in its environment and never `gh auth switch`, because the active account the work account has no push here (om-manager). Push itself goes over ssh as `sebasfles`, verified with a dry run at consolidation; only `gh pr create` needs the token.
 
 ### What I check beyond the Pipeline
 
